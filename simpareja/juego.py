@@ -28,6 +28,7 @@ from .animo_juego import AnimoMixin
 from .cocina_juego import CocinaMixin
 from .dinero_juego import DineroMixin
 from .menus import MenuMixin
+from .notas_juego import NotasMixin
 from .preguntas_juego import PreguntasMixin
 from .relacion_juego import RelacionMixin
 from .trabajo_juego import ZONAS_HORARIAS, TrabajoMixin, _hora_en
@@ -125,6 +126,8 @@ LUGARES = {
     "relmotivo": ("💗 Medidor de relación", "escribiendo por qué cambió su medidor"),
     "preguntas": ("❓ Preguntas de pareja", "mirando las preguntas de pareja"),
     "pregresp": ("❓ Preguntas de pareja", "respondiendo una pregunta de pareja"),
+    "notas": ("📝 Notas en la nevera", "leyendo las notas de la nevera"),
+    "notaesc": ("📝 Notas en la nevera", "escribiendo una nota para la nevera"),
     "ajustes": ("⚙️ Ajustes", "en los ajustes"),
     "renombrar": ("✏️ Cambiar nombre", "cambiando su nombre"),
 }
@@ -179,7 +182,8 @@ def en_filas(botones: list[tuple[str, str]], por_fila: int = 2) -> Botones:
     return [botones[i:i + por_fila] for i in range(0, len(botones), por_fila)]
 
 
-class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoMixin, RelacionMixin, PreguntasMixin):
+class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoMixin, RelacionMixin, PreguntasMixin,
+            NotasMixin):
     def __init__(self, db: DB, cfg: Config, reloj=time.time, rng: random.Random | None = None):
         self.db = db
         self.cfg = cfg
@@ -276,6 +280,9 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         pendiente = self._extras(j).get("preg_pendiente")
         if pantalla == "pregresp" and pendiente and self.reloj() - pendiente["ts"] < ESPERA_TEXTO:
             return self._respuesta_escrita
+        pendiente = self._extras(j).get("nota_pendiente")
+        if pantalla == "notaesc" and pendiente and self.reloj() - pendiente["ts"] < ESPERA_TEXTO:
+            return self._nota_escrita
         return None
 
     @_con_notas
@@ -513,6 +520,8 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "pregr": self._b_responder,
             "pregv": self._b_valorar,
             "pregt": self._b_temas,
+            "notas": self._b_notas,
+            "notan": self._b_nota_nueva,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -971,11 +980,12 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         res = self._tocar(j, jugada=False)
         uc = self.db.ultima_conexion(j.id)
         lugar = uc.lugar if uc and uc.lugar else LUGARES["sala"][0]
+        notas = "".join(f"\n\n{n}" for n in self._leer_notas(j))  # las notas de la nevera se ven al entrar
         res.pantalla = Pantalla(
             "❄️ <b>Tu Sim estaba en pausa</b>\n\n"
             f"{self._firma(j)} se quedó en pausa hace {duracion(ahora - desde)}, en <b>{lugar}</b>.\n"
             "❄️ Mientras está en pausa no gasta necesidades.\n\n"
-            "La pausa es solo tuya: tu pareja pudo seguir jugando.",
+            "La pausa es solo tuya: tu pareja pudo seguir jugando." + notas,
             [[CONTINUAR]],
         )
         res.nuevo = nuevo
@@ -1015,6 +1025,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         ahora = self.reloj()
         previa = self.db.ultima_conexion(j.id)
         res = self._tocar(j)
+        notas = self._leer_notas(j) if j.activo else []  # las notas de la nevera se ven al entrar
         pantalla, nota = self._reconstruir(j, previa)
         cabecera = []
         if previa is not None and previa.ultima_actividad:
@@ -1024,6 +1035,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             )
         if nota:
             cabecera.append(nota)
+        cabecera += notas
         if cabecera:
             pantalla.texto = "\n".join(cabecera) + "\n\n" + pantalla.texto
         res.pantalla = pantalla
@@ -1062,6 +1074,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "animofoto": self._b_animos, "album": self._b_album,
             "medidor": self._b_medidor, "relmotivo": self._b_medidor,
             "preguntas": self._b_preguntas, "pregresp": self._b_preguntas,
+            "notas": self._b_notas, "notaesc": self._b_notas,
         }.get(accion, self._b_menu)
         tmp = Resultado()
         manejador(j, arg, tmp)
@@ -1227,6 +1240,8 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             lineas.append(f"      {presencia}")
             lineas.append(f"      🕒 {self._reloj(m)}")
         lineas.append("")
+        if self._notas_sin_leer(j):
+            lineas += ["📝 <b>Tienes una nota nueva en la nevera</b> (🏠 Casa → Notas).", ""]
         if otros:
             lineas.append(
                 f"💬 Escribe aquí y le llegará a {esc(unir([o.personaje for o in otros]))}: "
@@ -1234,8 +1249,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             )
         else:
             lineas.append("🎮 Por ahora juegas sin compañía. Cuando quieras, invita a alguien con 💌.")
-        lineas += ["", "🚧 <i>Próximamente: notas en la nevera, eventos sorpresa, aniversario, retos, hitos "
-                   "y mascota.</i>"]
+        lineas += ["", "🚧 <i>Próximamente: eventos sorpresa, aniversario, retos, hitos, tiendas y mascota.</i>"]
         botones = [
             [("🎮 Menú", "menu")],
             [("🎭 Mi ánimo", "animos"), ("🪪 Personajes", "pjs")],

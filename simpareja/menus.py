@@ -17,7 +17,6 @@ from .db import EN_JUEGO, Jugador
 # Lo que todavía no existe: se ve en el menú, pero avisa que llega pronto.
 PRONTO = {
     "objetos": "🪑 Los objetos de la casa",
-    "notas": "📝 Las notas en la nevera",
     "mascota": "🐾 La mascota",
     "estudiar": "📚 Los estudios",
     "muebles": "🛋️ La tienda de muebles",
@@ -60,7 +59,7 @@ class MenuMixin:
         if pareja:
             lineas.append(f"💞 {self._firma(pareja)}: {self._texto_presencia(pareja, ahora)}")
         botones = [
-            [("🏠 Casa", "mcasa"), ("⚡ Acciones", "macc")],
+            [("🏠 Casa" + (" 📝" if self._notas_sin_leer(j) else ""), "mcasa"), ("⚡ Acciones", "macc")],
             [("📍 Lugares", "mlug"), ("💼 Trabajo", "trabajo")],
             [("💕 Pareja", "mpar"), ("👤 Estado", "mest")],
             [("💬 Chat", "sala")],
@@ -84,10 +83,13 @@ class MenuMixin:
             "🏠 <b>Casa</b>",
             f"📍 Estás en: {V.nombre_habitacion(j.lugar)}",
         ]
+        nuevas = self._notas_sin_leer(j)
+        if nuevas:
+            lineas.append("📝 ¡Hay una nota nueva para ti en la nevera!")
         botones = [
             [("🗺️ Ver plano", "plano"), ("🚶 Moverse", "moverse")],
             [("🧊 Nevera y despensa", "nevera"), ("🪑 Objetos 🚧", "pronto:objetos")],
-            [("📝 Notas en la nevera 🚧", "pronto:notas"), ("🐾 Mascota 🚧", "pronto:mascota")],
+            [("📝 Notas en la nevera" + (f" ({len(nuevas)})" if nuevas else ""), "notas"), ("🐾 Mascota 🚧", "pronto:mascota")],
             [("🔑 Renta y mudanza", "casa")],
             [("⬅️ Atrás", "menu")],
         ]

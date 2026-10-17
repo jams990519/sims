@@ -3,9 +3,16 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.13"
+VERSION = "0.14"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.14", [
+        "📝 <b>Notas en la nevera</b> (🏠 Casa → Notas): deja un mensaje y tu pareja lo ve al entrar al juego "
+        "(o al volver de la pausa).",
+        "🆕 Mientras no la lea, el menú, la casa y la sala le avisan de que hay una nota nueva. Tú ves cuándo "
+        "la leyó (✓ leída).",
+        "💼 También puedes dejar una nota desde el trabajo, durante el turno.",
+    ]),
     ("0.13", [
         "❓ <b>Preguntas de pareja</b> (💕 Pareja → Preguntas): según el color del estado de ánimo aparecen "
         "preguntas para conocerse mejor, de temas buenos y de temas difíciles (70 en total, 10 por estado).",

@@ -119,6 +119,7 @@ class TrabajoMixin:
                 f"(faltan {duracion(trabajando['rfin'] - ahora)}). El chat sigue abierto 💬"
             )
             botones.append([("📱 Descanso: ver redes", "rapida:redes"), ("🤗 Mandar un abrazo", "rapida:abrazo")])
+            botones.append([("📝 Dejar una nota en la nevera", "notan")])
         elif empleo.get("ultimo") == hoy:
             lineas.append(f"✅ Hoy ({V.dia_semana(local.weekday())}) ya trabajaste. ¡A descansar!")
         elif not T.trabaja(horario, local.weekday()):
