@@ -36,6 +36,7 @@ from .notas_juego import NotasMixin
 from .preguntas_juego import PreguntasMixin
 from .relacion_juego import RelacionMixin
 from .retos_juego import RetosMixin
+from .tiendas_juego import TiendasMixin
 from .trabajo_juego import ZONAS_HORARIAS, TrabajoMixin, _hora_en
 from .viaje_juego import ViajeMixin
 from .vida_juego import VidaMixin
@@ -140,6 +141,8 @@ LUGARES = {
     "viaje": ("✈️ Viajes", "planeando un viaje"),
     "comp": ("💍 Compromiso", "pensando en el compromiso"),
     "boda": ("💒 La boda", "planeando la boda"),
+    "objetos": ("🪑 Objetos de la casa", "mirando los objetos de la casa"),
+    "tienda": ("🛍️ Tienda", "de compras"),
     "ajustes": ("⚙️ Ajustes", "en los ajustes"),
     "renombrar": ("✏️ Cambiar nombre", "cambiando su nombre"),
 }
@@ -195,7 +198,7 @@ def en_filas(botones: list[tuple[str, str]], por_fila: int = 2) -> Botones:
 
 
 class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoMixin, RelacionMixin, PreguntasMixin,
-            NotasMixin, EventosMixin, AniversarioMixin, RetosMixin, HitosMixin, ViajeMixin, BodaMixin):
+            NotasMixin, EventosMixin, AniversarioMixin, RetosMixin, HitosMixin, ViajeMixin, BodaMixin, TiendasMixin):
     def __init__(self, db: DB, cfg: Config, reloj=time.time, rng: random.Random | None = None):
         self.db = db
         self.cfg = cfg
@@ -562,6 +565,9 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "bodasi": self._b_boda_si,
             "unir": self._b_unir,
             "unirok": self._b_unir_aceptar,
+            "objetos": self._b_objetos,
+            "tienda": self._b_tienda,
+            "comprar": self._b_comprar,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -1116,7 +1122,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "preguntas": self._b_preguntas, "pregresp": self._b_preguntas,
             "notas": self._b_notas, "notaesc": self._b_notas, "aniv": self._b_aniversario,
             "retos": self._b_retos, "hitos": self._b_hitos, "viaje": self._b_viaje,
-            "comp": self._b_compromiso, "boda": self._b_boda,
+            "comp": self._b_compromiso, "boda": self._b_boda, "objetos": self._b_objetos, "tienda": self._b_tienda,
         }.get(accion, self._b_menu)
         tmp = Resultado()
         manejador(j, arg, tmp)

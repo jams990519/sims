@@ -6,7 +6,7 @@ import pytest
 
 from simpareja import vida as V
 from test_juego import ADMIN, ANA, aceptar, crear_personaje, invitar
-from test_vida import ir_al_dia, nec, nuevo_juego, poner, Reloj
+from test_vida import dar_objetos, ir_al_dia, nec, nuevo_juego, poner, Reloj
 
 
 @pytest.fixture
@@ -71,6 +71,7 @@ def test_ficha_con_efecto_y_tiempo(solo):
 
 
 def test_en_pareja_la_ficha_ofrece_las_dos_opciones(pareja):
+    dar_objetos(pareja, ADMIN, "tv")
     res = pareja.boton(ADMIN, "", "a:tele")
     assert "👤 Solo: +15 🎉 diversión, +3 💬 social · ⏱️ 1 h" in res.pantalla.texto
     assert "💞 Con" in res.pantalla.texto and "+15 💬 social · ⏱️ 42 min" in res.pantalla.texto

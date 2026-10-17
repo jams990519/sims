@@ -3,9 +3,20 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.20"
+VERSION = "0.21"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.21", [
+        "🪑 <b>Objetos de la casa</b> (🏠 Casa → Objetos): con la casa vienen la cama, la estufa, la nevera, la "
+        "ducha y un móvil básico. Lo demás hay que comprarlo.",
+        "📺 <b>Tienda de electrónica</b> (📍 Lugares): televisión $300 (⚠️ sin ella ya no se puede ver la tele), "
+        "lavadora $350 (sin ella, lavandería $8 cada vez), móvil mejor $200 y el equipo de influencer: cámara, "
+        "aro de luz y micrófono.",
+        "🛋️ <b>Tienda de muebles</b>: sofá $400 (la tele divierte más) y cama grande $600 (se descansa mejor).",
+        "🔓 Las tiendas crecen con sus hitos: plantas, cuadros, consola de videojuegos 🎮 y bañera grande.",
+        "🔨 En casa propia pueden remodelar: pintar y decorar (se ensucia la mitad) o un baño nuevo.",
+        "🗺️ Lo que compran aparece en el plano.",
+    ]),
     ("0.20", [
         "💍 <b>Compromiso</b> (🏆 Hitos → Compromiso): con el medidor de los dos por encima del 80 % y el primer "
         "viaje hecho, compra un anillo en secreto ($500 a $2.000) y pide matrimonio. El otro responde sí o no; "

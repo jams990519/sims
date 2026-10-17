@@ -156,6 +156,15 @@ def test_mal_humor_con_una_necesidad_en_cero(solo):
     assert "De mal humor" in solo.boton(ADMIN, "", "sim").pantalla.texto
 
 
+def dar_objetos(juego, uid, *claves):
+    """Les compra objetos de la casa sin pasar por la tienda (por ejemplo, la tele)."""
+    h = juego._hogar(juego.db.jugador(uid).sala_id)
+    ex = json.loads(h.extras)
+    ex["objetos"] = sorted(set(ex.get("objetos", [])) | set(claves))
+    h.extras = json.dumps(ex)
+    juego.db.guardar_hogar(h)
+
+
 def ir_al_dia(juego, reloj, uid, dia):
     """Adelanta la hora real hasta las 08:00 del día indicado, sin que el Sim gaste necesidades."""
     reloj.t = max(reloj.t, INICIO + (dia - 1) * 86400)
@@ -259,6 +268,7 @@ def test_hacer_algo_juntos_es_mas_rapido(pareja, reloj):
 
 
 def test_accion_opcional_pregunta_solo_o_juntos(pareja):
+    dar_objetos(pareja, ANA, "tv")
     res = pareja.boton(ANA, "", "a:tele")
     assert datos(res.pantalla)[:2] == ["as:tele", "aj:tele"]
     res = pareja.boton(ANA, "", "as:tele")

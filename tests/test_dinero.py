@@ -6,7 +6,7 @@ import pytest
 
 from simpareja import dinero as D
 from test_juego import ADMIN, ANA, aceptar, crear_personaje, invitar
-from test_vida import ir_al_dia, nuevo_juego, poner, Reloj
+from test_vida import dar_objetos, ir_al_dia, nuevo_juego, poner, Reloj
 
 
 @pytest.fixture
@@ -92,6 +92,7 @@ def test_pasar_dinero_entre_cartera_y_compartida(solo):
 
 
 def test_el_uso_sube_la_luz_y_el_agua(solo, reloj):
+    dar_objetos(solo, ADMIN, "tv")
     poner(solo, ADMIN, higiene=10)
     solo.boton(ADMIN, "", "as:ducha")
     reloj.avanzar(16)
@@ -117,6 +118,7 @@ def test_cobro_mensual_de_las_facturas(solo, reloj):
 
 
 def test_si_no_alcanza_hay_recargo_y_corte(solo, reloj):
+    dar_objetos(solo, ADMIN, "tv")
     h = hogar(solo)
     h.cuenta = 980  # alcanza para la renta y el agua, no para la luz
     solo.db.guardar_hogar(h)

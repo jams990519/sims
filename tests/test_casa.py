@@ -127,7 +127,8 @@ def test_comprar_nuestra_casa(solo):
     assert "Esta casa es suya" in solo.boton(ADMIN, "", "mudanza").pantalla.texto
     assert "mudanza:apartamento" not in datos(solo.boton(ADMIN, "", "mudanza").pantalla)
     assert "🏦 Hipoteca: $1.200" in solo.boton(ADMIN, "", "facturas").pantalla.texto
-    assert "Esta casa es suya: pueden pintarla" in solo.boton(ADMIN, "", "remodelar").pantalla.texto
+    remodelar = solo.boton(ADMIN, "", "remodelar").pantalla
+    assert "Remodelar" in remodelar.texto and "comprar:pintar" in str(remodelar.botones)
 
 
 def test_remodelar_solo_en_casa_propia(solo):

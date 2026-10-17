@@ -13,6 +13,7 @@ import json
 from . import cocina as C
 from . import dinero as D
 from . import eventos as E
+from . import objetos as O
 from . import vida as V
 from .db import Hogar, Jugador, Movimiento
 
@@ -93,7 +94,8 @@ class DineroMixin:
 
     def _bloqueo_accion(self, j: Jugador, a: V.Accion) -> str | None:
         h = self._hogar(j.sala_id)
-        return D.falta_servicio(a.clave, D.servicios_cortados(json.loads(h.pendientes))) or self._bloqueo_evento(j, a)
+        return (D.falta_servicio(a.clave, D.servicios_cortados(json.loads(h.pendientes))) or self._bloqueo_evento(j, a)
+                or self._falta_objeto(j, a))
 
     def _extras(self, j: Jugador) -> dict:
         return json.loads(j.extras or "{}")
@@ -121,6 +123,8 @@ class DineroMixin:
             return D.GIMNASIO_MES * len(sin_cuota), "🏋️ Cuota del gimnasio (30 días)"
         if a.clave == "picar":
             return D.PRECIO_PICAR, "🍎 Algo para picar"
+        if a.clave == "lavar" and not self._tiene(j, "lavadora"):
+            return O.LAVANDERIA, "🧺 Lavandería (no tienen lavadora)"
         return 0, ""
 
     def _cobrar_accion(self, j: Jugador, a: V.Accion, juntos: bool = False, extra: str = "",
@@ -602,8 +606,8 @@ class DineroMixin:
 
         casa = self._casa(self._hogar(j.sala_id))
         if casa.propia:
-            texto = ("🔨 <b>Remodelar</b>\n\nEsta casa es suya: pueden pintarla, ampliar la cocina o el baño… "
-                     "🚧 Las obras llegan junto con las tiendas de muebles y electrónica.")
+            self._b_tienda(j, "reforma", res)
+            return
         else:
             texto = ("🔨 <b>Remodelar</b>\n\n🔒 Solo se puede remodelar una casa propia. En una casa de renta solo "
                      f"se ponen muebles.\n\n🎯 Para comprar «nuestra casa» hace falta una entrada de "

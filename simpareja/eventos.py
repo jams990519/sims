@@ -38,7 +38,7 @@ MULTAS = (
     "🧾 Un cobro inesperado del banco",
 )
 SALIDAS = ("parque", "cine", "restaurante", "gimnasio")  # lo que cancela la lluvia
-APAGON = ("tele", "redes", "lavar")  # sin luz ni internet
+APAGON = ("tele", "redes", "lavar", "consola")  # sin luz ni internet
 
 
 @dataclass(frozen=True)

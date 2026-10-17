@@ -160,6 +160,7 @@ class Accion:
     duerme: bool = False
     ejercicio: bool = False  # cuenta para la constancia
     necesita: str = ""  # necesidad que tiene que estar baja para hacerla
+    objeto: str = ""  # objeto de la casa que hace falta (por ejemplo, la tele)
 
     def titulo(self, juntos: bool = False) -> str:
         if juntos and self.nombre_juntos:
@@ -214,7 +215,10 @@ _ACCIONES = (
     # 🎉 Diversión (en pareja, compartir rinde más: +15 de social por hora)
     Accion("tele", "📺", "Ver la tele", "viendo la tele", "diversion", 60, {"diversion": 15, "social": 3},
            habitacion="salon", zona="salon", ensucia=2, nombre_juntos="Ver la tele juntos",
-           efectos_juntos={"social": 15}),
+           efectos_juntos={"social": 15}, objeto="tv"),
+    Accion("consola", "🎮", "Jugar a la consola", "jugando a la consola", "diversion", 60, {"diversion": 20},
+           habitacion="salon", zona="salon", ensucia=2, nombre_juntos="Jugar a la consola juntos",
+           efectos_juntos={"social": 15}, objeto="consola"),
     Accion("redes", "📱", "Ver redes o videos", "viendo redes", "diversion", 60, {"diversion": 10, "social": 5},
            nombre_juntos="Ver videos juntos", efectos_juntos={"social": 15}),
     Accion("telefono", "📞", "Hablar por teléfono", "hablando por teléfono", "diversion", 20, {"social": 20},

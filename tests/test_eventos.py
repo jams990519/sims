@@ -8,7 +8,7 @@ import pytest
 from simpareja import cocina as C
 from simpareja import eventos as E
 from test_juego import ADMIN, ANA, aceptar, crear_personaje, invitar
-from test_vida import nec, nuevo_juego, poner, Reloj
+from test_vida import dar_objetos, nec, nuevo_juego, poner, Reloj
 
 LLENO = dict(hambre=100, energia=100, higiene=100, diversion=100, social=100)
 
@@ -121,6 +121,7 @@ def test_resfriado_no_trabaja(pareja, monkeypatch):
 
 def test_apagon_y_vuelve_la_luz(pareja, reloj, monkeypatch):
     monkeypatch.setattr(random.Random, "randint", lambda self, a, b: a)
+    dar_objetos(pareja, ADMIN, "tv")
     forzar(pareja, monkeypatch, "apagon")
     assert "Hay un apagón" in pareja.boton(ADMIN, "", "as:tele").alerta
     reloj.avanzar(2 * 60 + 1)

@@ -5,7 +5,7 @@ import json
 import pytest
 
 from test_juego import ADMIN, ANA, aceptar, crear_personaje, invitar
-from test_vida import ir_al_dia, nec, nuevo_juego, poner, Reloj
+from test_vida import dar_objetos, ir_al_dia, nec, nuevo_juego, poner, Reloj
 
 LLENO = dict(hambre=100, energia=100, higiene=100, diversion=100, social=100)
 
@@ -74,6 +74,7 @@ def test_durante_el_viaje(pareja, reloj):
 
 
 def test_al_volver(pareja, reloj):
+    dar_objetos(pareja, ADMIN, "tv")
     reservar(pareja)
     pareja.tick()
     poner(pareja, ANA, diversion=20, energia=20)

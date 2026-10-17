@@ -81,6 +81,7 @@ GIMNASIO_MES = 30
 # Servicios que necesita cada acción.
 NECESITA_SERVICIO = {
     "tele": ("luz",),
+    "consola": ("luz",),
     "redes": ("luz", "internet"),
     "lavar": ("luz", "agua"),
     "cocinar": ("gas",),
@@ -92,6 +93,7 @@ NECESITA_SERVICIO = {
 # Consumo que suma cada acción a la factura del mes (en dólares).
 CONSUMO = {
     "tele": {"luz": 0.30},
+    "consola": {"luz": 0.20},
     "redes": {"luz": 0.15},
     "lavar": {"luz": 1.00, "agua": 1.50},
     "cocinar": {"luz": 0.20},

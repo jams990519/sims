@@ -9,6 +9,7 @@ from __future__ import annotations
 import html
 
 from . import cocina as C
+from . import objetos as O
 from . import personaje as P
 from . import plano as PL
 from . import vida as V
@@ -16,11 +17,8 @@ from .db import EN_JUEGO, Jugador
 
 # Lo que todavía no existe: se ve en el menú, pero avisa que llega pronto.
 PRONTO = {
-    "objetos": "🪑 Los objetos de la casa",
     "mascota": "🐾 La mascota",
     "estudiar": "📚 Los estudios",
-    "muebles": "🛋️ La tienda de muebles",
-    "electronica": "📺 La tienda de electrónica",
     "influencer": "📱 El minijuego de influencer",
 }
 
@@ -88,7 +86,7 @@ class MenuMixin:
             lineas.append("📝 ¡Hay una nota nueva para ti en la nevera!")
         botones = [
             [("🗺️ Ver plano", "plano"), ("🚶 Moverse", "moverse")],
-            [("🧊 Nevera y despensa", "nevera"), ("🪑 Objetos 🚧", "pronto:objetos")],
+            [("🧊 Nevera y despensa", "nevera"), ("🪑 Objetos", "objetos")],
             [("📝 Notas en la nevera" + (f" ({len(nuevas)})" if nuevas else ""), "notas"), ("🐾 Mascota 🚧", "pronto:mascota")],
             [("🔑 Renta y mudanza", "casa")],
             [("⬅️ Atrás", "menu")],
@@ -186,7 +184,8 @@ class MenuMixin:
         if pausado:
             lineas += ["❄️ <b>Tu Sim está en pausa.</b> Toca ▶️ Continuar para seguir.", ""]
         lineas.append(f"{casa.emoji} <b>{casa.nombre}</b> — {V.reloj_texto(self._local(j))}")
-        lineas.append("<pre>" + html.escape("\n".join(PL.dibujar(casa.zonas, dentro))) + "</pre>")
+        en_plano = [O.OBJETOS[c].en_plano for c in O.OBJETOS if c in self._objetos(self._hogar(j.sala_id)) and O.OBJETOS[c].en_plano]
+        lineas.append("<pre>" + html.escape("\n".join(PL.dibujar(casa.zonas, dentro, en_plano))) + "</pre>")
         if fuera:
             lineas.append(f"🚗 Fuera de casa: {html.escape(PL.marcas(fuera))}")
         for m, letra in zip(miembros, letras):
@@ -230,7 +229,7 @@ class MenuMixin:
         if self._finde(j):
             lineas.append("🎉 Fin de semana: ofertas en el súper; restaurante y cine salen más caros.")
         botones = [[(f"{e} {nombre}", f"a:{clave}")] for clave, e, nombre in V.LUGARES]
-        botones.append([("🛋️ Tienda de muebles 🚧", "pronto:muebles"), ("📺 Electrónica 🚧", "pronto:electronica")])
+        botones.append([("🛋️ Tienda de muebles", "tienda:muebles"), ("📺 Electrónica", "tienda:electronica")])
         botones.append([("⬅️ Atrás", "menu")])
         res.pantalla = Pantalla("\n".join(lineas), botones, clave="mlug")
 
