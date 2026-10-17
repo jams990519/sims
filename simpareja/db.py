@@ -50,7 +50,8 @@ CREATE TABLE IF NOT EXISTS jugadores (
     carrito           TEXT NOT NULL DEFAULT '{}',  -- paquetes elegidos en el súper
     taper             TEXT NOT NULL DEFAULT '',    -- receta guardada para llevar al trabajo
     lugar             TEXT NOT NULL DEFAULT 'salon', -- habitación donde está el Sim (o 'fuera:<lugar>')
-    extras            TEXT NOT NULL DEFAULT '{}'   -- datos sueltos (p. ej. hasta cuándo paga el gimnasio)
+    extras            TEXT NOT NULL DEFAULT '{}',  -- datos sueltos (p. ej. hasta cuándo paga el gimnasio)
+    utc_offset        INTEGER NOT NULL DEFAULT -240 -- minutos respecto a UTC de la hora local del jugador
 );
 CREATE INDEX IF NOT EXISTS jugadores_sala ON jugadores(sala_id);
 
@@ -153,6 +154,7 @@ COLUMNAS_NUEVAS = [
     ("jugadores", "taper", "TEXT NOT NULL DEFAULT ''"),
     ("jugadores", "lugar", "TEXT NOT NULL DEFAULT 'salon'"),
     ("jugadores", "extras", "TEXT NOT NULL DEFAULT '{}'"),
+    ("jugadores", "utc_offset", "INTEGER NOT NULL DEFAULT -240"),
     ("hogares", "despensa", "TEXT NOT NULL DEFAULT '{}'"),
     ("hogares", "nevera", "TEXT NOT NULL DEFAULT '{}'"),
     ("hogares", "cocina", "TEXT NOT NULL DEFAULT ''"),
@@ -198,6 +200,7 @@ class Jugador:
     taper: str = ""
     lugar: str = "salon"
     extras: str = "{}"
+    utc_offset: int = -240
 
     @property
     def activo(self) -> bool:

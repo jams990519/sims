@@ -23,12 +23,8 @@ class DineroMixin:
     # ------------------------------------------------------------------
 
     def _dia_hogar(self, sala_id: int) -> int:
-        ahora = self.reloj()
-        dias = [
-            V.dia_de_juego(self._segundos_juego(m, ahora))
-            for m in self.db.miembros_sala(sala_id) if m.estado == "activo"
-        ]
-        return max(dias, default=1)
+        """Los días del hogar son días reales: facturas cada 30 días."""
+        return int(self.reloj() // V.DIA)
 
     def _anotar_movimiento(self, sala_id: int, jugador_id: int | None, cuenta: str, monto: int, concepto: str) -> None:
         self.db.anotar_movimiento(Movimiento(None, sala_id, jugador_id, cuenta, monto, concepto, self.reloj()))
@@ -79,16 +75,15 @@ class DineroMixin:
                       pareja: Jugador | None = None) -> tuple[int, str]:
         """Lo que cuesta empezar la acción en total (para uno o para los dos) y el concepto."""
         personas = 2 if juntos else 1
-        s = self._segundos_juego(j, self.reloj())
-        dia = V.dia_de_juego(s)
+        dia = self._hoy(j)
         if a.clave == "comer":
             return 0, ""  # de la nevera o del táper: ya se pagó
         if a.clave == "domicilio" or (a.comida and extra == "comprar"):
-            comida, _, _ = V.comida_del_momento(s)
+            comida, _, _ = V.comida_del_momento(self._hora_local(j))
             return D.precio_comida(comida) * D.DOMICILIO * personas, f"🛵 Pedido a domicilio ({comida})"
         if a.clave in D.PRECIO_SALIDA:
             precio = D.PRECIO_SALIDA[a.clave][1 if juntos else 0]
-            if V.es_fin_de_semana(dia):
+            if self._finde(j):
                 precio = round(precio * (1 + D.RECARGO_FIN_DE_SEMANA))
             return precio, f"{a.emoji} {a.titulo(juntos)}"
         if a.clave == "gimnasio":
@@ -123,7 +118,7 @@ class DineroMixin:
                     "Pasen dinero a la cuenta compartida en 💰 Dinero."
                 )
             if a.clave == "gimnasio":
-                dia = V.dia_de_juego(self._segundos_juego(j, self.reloj()))
+                dia = self._hoy(j)
                 for x in (j, pareja):
                     if x is not None and not self._gimnasio_al_dia(x, dia):
                         extras = self._extras(x)
@@ -150,6 +145,10 @@ class DineroMixin:
             return []
         noticias = []
         dia = self._dia_hogar(h.sala_id)
+        if h.dia_hogar < 10000:  # contado con el reloj antiguo del juego: pasarlo a días reales
+            faltaban = max(1, h.proximo_cobro - h.dia_hogar)
+            h.dia_hogar, h.proximo_cobro = dia, dia + faltaban
+            self.db.guardar_hogar(h)
         pasos = 0
         while h.dia_hogar < dia and pasos < MAX_DIAS_POR_VEZ:
             pasos += 1
@@ -232,7 +231,7 @@ class DineroMixin:
             f"👛 Tu cartera: <b>{D.dinero(j.cartera)}</b>",
             f"🏦 Cuenta compartida: <b>{D.dinero(h.cuenta)}</b>",
             f"📄 Facturas del mes: {D.dinero(D.total_mes(consumo))} · se cobran en "
-            f"{max(0, h.proximo_cobro - dia)} días ({V.dia_semana(h.proximo_cobro)}, día {h.proximo_cobro})",
+            f"{max(0, h.proximo_cobro - dia)} días",
         ]
         if pendientes:
             lineas += ["", "<b>Por pagar</b>"] + self._pendientes_texto(pendientes)
@@ -304,7 +303,7 @@ class DineroMixin:
         consumo = json.loads(h.consumo)
         pendientes = json.loads(h.pendientes)
         lineas = [aviso, ""] if aviso else []
-        lineas += [f"📄 <b>Facturas del mes</b> · se cobran el día {h.proximo_cobro} (faltan {max(0, h.proximo_cobro - dia)})", ""]
+        lineas += [f"📄 <b>Facturas del mes</b> · se cobran en {max(0, h.proximo_cobro - dia)} días", ""]
         for f, monto in D.factura_del_mes(consumo):
             extra = f" (base {D.dinero(f.base)} + uso {D.dinero(monto - f.base)})" if monto != f.base else ""
             lineas.append(f"{f.emoji} {f.nombre}: {D.dinero(monto)}{extra}")

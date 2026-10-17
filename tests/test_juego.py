@@ -7,7 +7,7 @@ from simpareja import novedades as N
 from simpareja import personaje as P
 from simpareja.config import Config
 from simpareja.db import DB
-from simpareja.juego import Juego, hora_de_juego
+from simpareja.juego import Juego
 
 ADMIN = 1000
 ANA = 2000
@@ -15,9 +15,12 @@ LUIS = 3000
 EXTRA = 4000
 
 
+INICIO = 1_704_110_400.0  # lunes 1 de enero de 2024, 08:00 en UTC−4 (la zona por defecto)
+
+
 class Reloj:
     def __init__(self):
-        self.t = 1_700_000_000.0
+        self.t = INICIO
 
     def __call__(self):
         return self.t
@@ -262,13 +265,13 @@ def test_reloj_propio_y_pausa_a_los_5_minutos(pareja, reloj):
     reloj.avanzar(20)  # 20 min sin hacer nada: el Sim se congeló a los 5
     res = pareja.boton(ANA, "Ana", "pjs")
     assert "Tu Sim estaba en pausa" in res.pantalla.texto
-    assert "se detuvo en: <b>Lunes 08:08 · día 1</b>" in res.pantalla.texto
+    assert "se quedó en pausa hace 15 min" in res.pantalla.texto
     assert datos(res.pantalla) == ["continuar"]
     reloj.avanzar(1)
     res = pareja.boton(ANA, "Ana", "continuar")
     assert "¡Seguimos!" in res.pantalla.texto
     reloj.avanzar(2)
-    assert "Lunes 08:10 · día 1" in pareja.boton(ANA, "Ana", "sala").pantalla.texto
+    assert "Lunes 08:26 · día 1" in pareja.boton(ANA, "Ana", "sala").pantalla.texto  # la hora es la real
 
 
 def test_la_pausa_es_solo_de_quien_se_fue(pareja, reloj):
@@ -276,7 +279,7 @@ def test_la_pausa_es_solo_de_quien_se_fue(pareja, reloj):
     pareja.boton(ADMIN, "", "continuar")  # Luis sigue jugando
     reloj.avanzar(3)
     texto = pareja.boton(ADMIN, "", "sala").pantalla.texto
-    assert "Lunes 08:08 · día 1" in texto  # el reloj de Luis corrió 3 min tras continuar (más los 5 iniciales)
+    assert "Lunes 08:13 · día 1" in texto  # la hora es la real de cada jugador
     assert "🟡 ausente · hace 13 min · ❄️ Sim en pausa" in texto  # Ana sigue en pausa
 
 
@@ -297,9 +300,15 @@ def test_tick_congela_la_sala_abierta(pareja, reloj):
     assert datos(ediciones[ANA].pantalla)[0] == "continuar"
 
 
-def test_hora_de_juego():
-    assert hora_de_juego(0) == "Lunes 08:00 · día 1"
-    assert hora_de_juego(16 * 3600 + 90) == "Martes 00:01 · día 2"
+def test_hora_local_del_jugador(juego, reloj):
+    juego.inicio(ADMIN, "Admin")
+    crear_personaje(juego, ADMIN, "Luis")
+    j = juego.db.jugador(ADMIN)
+    assert juego._reloj(j) == "Lunes 08:00 · día 1"
+    reloj.avanzar(16 * 60 + 1)
+    assert juego._reloj(j) == "Martes 00:01 · día 2"
+    j.utc_offset = -300  # una hora menos
+    assert juego._reloj(j) == "Lunes 23:01 · día 1"
 
 
 # --- última conexión: volver al mismo sitio ---------------------------------------

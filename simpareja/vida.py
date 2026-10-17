@@ -13,38 +13,29 @@ from dataclasses import dataclass, field
 MINUTO = 60
 HORA = 3600
 DIA = 86400
-HORA_INICIAL = 8 * HORA  # el día 1 empieza un lunes a las 08:00
 
 DIAS_SEMANA = ("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
 
 
-# --- calendario ---------------------------------------------------------------
+# --- calendario: la hora local real de cada jugador ---------------------------------
 
-def dia_de_juego(segundos: float) -> int:
-    return 1 + int((HORA_INICIAL + segundos) // DIA)
-
-
-def hora_del_dia(segundos: float) -> float:
-    return ((HORA_INICIAL + segundos) % DIA) / HORA
+def dia_semana(indice: int) -> str:
+    """Nombre del día (0 = lunes … 6 = domingo)."""
+    return DIAS_SEMANA[indice % 7]
 
 
-def dia_semana(dia: int) -> str:
-    return DIAS_SEMANA[(dia - 1) % 7]
+def es_fin_de_semana(indice: int) -> bool:
+    return indice % 7 >= 5
 
 
-def es_fin_de_semana(dia: int) -> bool:
-    return (dia - 1) % 7 >= 5
+def hora_decimal(momento) -> float:
+    return momento.hour + momento.minute / 60
 
 
-def hora_texto(segundos: float) -> str:
-    s = int(HORA_INICIAL + segundos) % DIA
-    return f"{s // HORA:02d}:{s % HORA // MINUTO:02d}"
-
-
-def reloj_texto(segundos: float) -> str:
-    """'Lunes 08:00 · día 1'."""
-    dia = dia_de_juego(segundos)
-    return f"{dia_semana(dia)} {hora_texto(segundos)} · día {dia}"
+def reloj_texto(momento, dia: int | None = None) -> str:
+    """'Lunes 08:00 · día 1' a partir de la fecha y hora local."""
+    texto = f"{dia_semana(momento.weekday())} {momento:%H:%M}"
+    return f"{texto} · día {dia}" if dia is not None else texto
 
 
 # --- necesidades ----------------------------------------------------------------
@@ -101,9 +92,8 @@ def de_mal_humor(nec: dict) -> bool:
     return any(nec.get(n.clave, 100) < 1 for n in NECESIDADES)
 
 
-def comida_del_momento(segundos: float) -> tuple[str, str, int]:
-    """Según la hora del Sim: (clave, nombre, cuánto quita el hambre)."""
-    h = hora_del_dia(segundos)
+def comida_del_momento(h: float) -> tuple[str, str, int]:
+    """Según la hora local (en horas, p. ej. 13.5): (clave, nombre, cuánto quita el hambre)."""
     if 5 <= h < 11:
         return "desayuno", "Desayunar", 30
     if 11 <= h < 17:
@@ -279,9 +269,13 @@ def horas_para_descansar(energia: float, energia_max: int) -> int:
 
 
 def preparar(
-    a: Accion, segundos: float, nec: dict, energia_max: int, extra: str = "", juntos: bool = False
+    a: Accion, segundos: float, nec: dict, energia_max: int, extra: str = "", juntos: bool = False,
+    hora: float = 8.0,
 ) -> dict:
-    """La acción tal como va a hacerse: duración y efectos totales, en segundos del reloj del Sim."""
+    """La acción tal como va a hacerse: duración y efectos totales, en segundos del reloj del Sim.
+
+    `hora` es la hora local (decide si la comida es desayuno, almuerzo o cena).
+    """
     minutos = a.minutos
     efectos = dict(a.efectos)
     if a.clave == "dormir":
@@ -296,7 +290,7 @@ def preparar(
         minutos = horas * 60
         efectos["energia"] = -ENERGIA_TRABAJO_POR_HORA * horas
     if a.comida:
-        efectos["hambre"] = efectos.get("hambre", 0) + comida_del_momento(segundos)[2]
+        efectos["hambre"] = efectos.get("hambre", 0) + comida_del_momento(hora)[2]
     if juntos:
         minutos = max(1, round(minutos * FACTOR_JUNTOS))
         if a.efectos_juntos:

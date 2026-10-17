@@ -16,6 +16,7 @@ import re
 import secrets
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from urllib.parse import quote
 
 from . import novedades as N
@@ -26,7 +27,7 @@ from .db import DB, Invitacion, Jugador, UltimaConexion, Visitante
 from .cocina_juego import CocinaMixin
 from .dinero_juego import DineroMixin
 from .menus import MenuMixin
-from .trabajo_juego import TrabajoMixin
+from .trabajo_juego import ZONAS_HORARIAS, TrabajoMixin, _hora_en
 from .vida_juego import VidaMixin
 
 log = logging.getLogger(__name__)
@@ -141,11 +142,6 @@ def duracion(seg: float) -> str:
     return "1 día" if d == 1 else f"{d} días"
 
 
-def hora_de_juego(segundos: float) -> str:
-    """'Lunes 08:00 · día 1' para 0 segundos de juego."""
-    return V.reloj_texto(segundos)
-
-
 def _con_notas(metodo):
     """Pone arriba de la pantalla lo que le pasó al Sim mientras el jugador no miraba."""
     @functools.wraps(metodo)
@@ -182,6 +178,32 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
     @property
     def pausa(self) -> float:
         return self.cfg.pausa_min * MINUTO
+
+    # --- hora local de cada jugador ---------------------------------------
+
+    def _local(self, j: Jugador, ts: float | None = None) -> datetime:
+        ts = self.reloj() if ts is None else ts
+        return datetime.fromtimestamp(ts + j.utc_offset * MINUTO, tz=timezone.utc).replace(tzinfo=None)
+
+    def _dia(self, j: Jugador, ts: float | None = None) -> int:
+        """Día del Sim: 1 el día en que se creó (según la hora local del jugador)."""
+        return (self._local(j, ts).date() - self._local(j, j.creado).date()).days + 1
+
+    def _hoy(self, j: Jugador, ts: float | None = None) -> int:
+        """Número de la fecha local, para comparar días (hoy, ayer…)."""
+        return self._local(j, ts).toordinal()
+
+    def _reloj(self, j: Jugador, ts: float | None = None) -> str:
+        return V.reloj_texto(self._local(j, ts), self._dia(j, ts))
+
+    def _hora(self, j: Jugador, ts: float) -> str:
+        return f"{self._local(j, ts):%H:%M}"
+
+    def _finde(self, j: Jugador, ts: float | None = None) -> bool:
+        return V.es_fin_de_semana(self._local(j, ts).weekday())
+
+    def _hora_local(self, j: Jugador, ts: float | None = None) -> float:
+        return V.hora_decimal(self._local(j, ts))
 
     # ------------------------------------------------------------------
     # Entradas desde Telegram
@@ -302,8 +324,8 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
             "💼 Cada quien elige su trabajo: decides las horas, cobras al terminar y con constancia llegan los ascensos.\n"
             "🛒 Compran ingredientes en el súper y 🍳 cocinan paso a paso: ¡si te pasas de tiempo se quema!\n"
             "💬 En la sala, todo lo que escribas (texto, fotos, stickers, notas de voz) le llega a la otra persona.\n"
-            f"🕒 Tu Sim tiene su propio reloj, como un día real. Si pasas {self.cfg.pausa_min} min sin jugar se "
-            "congela ❄️; al volver tocas ▶️ Continuar y sigues donde lo dejaste.\n\n"
+            f"🕒 El juego usa tu hora local real. Si pasas {self.cfg.pausa_min} min sin hacer nada, tu Sim se "
+            "congela ❄️ (no gasta necesidades); al volver tocas ▶️ Continuar y sigues donde lo dejaste.\n\n"
             "Comandos: /start · /menu · /sim · /trabajo · /super · /cocina · /nevera · /dinero · /casa · /sala · /invitar · /personajes · /animo · /ajustes · /conexion · /novedades · /salir",
             [[SALA]],
         )
@@ -351,6 +373,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
         self._tick_vida(ahora, res)
         self._tick_cocina(res)
         self._tick_dinero(res)
+        self._tick_trabajo(res)
         salas: set[int] = set()
         for j in self.db.jugadores_en_sala():
             estado = self._estado_presencia(j, ahora)
@@ -422,6 +445,9 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
             "perfil": self._b_perfil,
             "pronto": self._b_pronto,
             "carrera": self._b_carrera,
+            "hor": self._b_horario,
+            "rapida": self._b_rapida,
+            "zona": self._b_zona,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -883,7 +909,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
         res.pantalla = Pantalla(
             "❄️ <b>Tu Sim estaba en pausa</b>\n\n"
             f"{self._firma(j)} se quedó en pausa hace {duracion(ahora - desde)}, en <b>{lugar}</b>.\n"
-            f"🕒 Su reloj se detuvo en: <b>{hora_de_juego(j.reloj_juego)}</b>\n\n"
+            "❄️ Mientras está en pausa no gasta necesidades.\n\n"
             "La pausa es solo tuya: tu pareja pudo seguir jugando.",
             [[CONTINUAR]],
         )
@@ -984,7 +1010,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
         reloj = ""
         if j.activo:
             estado = "❄️ en pausa" if self._congelado(j, ahora) else "▶️ corriendo"
-            reloj = f"🕒 Reloj del Sim: {hora_de_juego(self._segundos_juego(j, ahora))} ({estado})\n"
+            reloj = f"🕒 Hora: {self._reloj(j)} · Sim {estado}\n"
         return Pantalla(
             "🧾 <b>Tu última conexión guardada</b>\n\n"
             f"📍 Lugar: <b>{uc.lugar or '—'}</b>\n"
@@ -1126,7 +1152,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
                 presencia = self._texto_presencia(m, ahora, uc.actividad if uc else None)
             lineas.append(f"{cabeza}{' · ' + animo if animo else ''}")
             lineas.append(f"      {presencia}")
-            lineas.append(f"      🕒 {hora_de_juego(self._segundos_juego(m, ahora))}")
+            lineas.append(f"      🕒 {self._reloj(m)}")
         lineas.append("")
         if otros:
             lineas.append(
@@ -1224,14 +1250,34 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
             "⚙️ <b>Ajustes</b>\n\n"
             f"👤 Personaje: {self._firma(j)}\n"
             f"🔔 Avisarme cuando alguien entra a mi sala: <b>{avisos}</b>\n"
+            f"🕒 Tu hora local: {self._hora(j, self.reloj())}\n"
             f"🆔 Tu ID de Telegram: <code>{j.id}</code>\n"
             f"🏷️ Versión del juego: {N.VERSION}",
             [
                 [("🔕 Desactivar avisos" if j.avisos_conexion else "🔔 Activar avisos", "avisos")],
                 [("🪞 Cambiar personaje", "apedit"), ("✏️ Cambiar nombre", "renombrar")],
-                [("🧾 Mi última conexión", "conexion")],
+                [("🕒 Mi hora local", "zona"), ("🧾 Mi última conexión", "conexion")],
                 [("⬅️ Atrás", "mest")],
             ],
+            clave="ajustes",
+        )
+
+    def _b_zona(self, j: Jugador, arg: str, res: Resultado) -> None:
+        """zona · zona:<minutos respecto a UTC>: el reloj del Sim usa la hora real del jugador."""
+        if arg.lstrip("-").isdigit() and int(arg) in ZONAS_HORARIAS:
+            j.utc_offset = int(arg)
+            extras = self._extras(j)
+            extras["hora_ok"] = True
+            j.extras = json.dumps(extras)
+            self.db.guardar_jugador(j)
+            res.alerta = f"🕒 Listo: tu hora es {self._hora(j, self.reloj())}"
+            self._b_ajustes(j, "", res)
+            return
+        ahora = self.reloj()
+        opciones = [(f"🕒 {_hora_en(o, ahora)}", f"zona:{o}") for o in ZONAS_HORARIAS]
+        res.pantalla = Pantalla(
+            "🕒 <b>Tu hora local</b>\n\nTu Sim vive con tu hora real. <b>¿Qué hora es ahora donde estás?</b>",
+            [opciones[k:k + 4] for k in range(0, len(opciones), 4)] + [[("⬅️ Atrás", "ajustes")]],
             clave="ajustes",
         )
 

@@ -66,12 +66,12 @@ class CocinaMixin:
     def _b_super(self, j: Jugador, arg: str, res, aviso: str | None = None) -> None:
         from .juego import Pantalla
 
-        dia = V.dia_de_juego(self._segundos_juego(j, self.reloj()))
+        dia = self._finde(j)
         carrito = self._carrito(j)
         h = self._hogar(j.sala_id)
         lineas = [aviso, ""] if aviso else []
         lineas.append("🛒 <b>Súper</b>")
-        if V.es_fin_de_semana(dia):
+        if dia:
             lineas.append(f"🎉 ¡Ofertas de fin de semana: todo un {round(C.OFERTA_FIN_DE_SEMANA * 100)} % más barato!")
         else:
             lineas.append("💡 Los sábados y domingos hay ofertas.")
@@ -113,8 +113,7 @@ class CocinaMixin:
     def _pagar_super(self, j: Jugador, carrito: dict, res) -> None:
         if self._ocupado(j, res):
             return
-        dia = V.dia_de_juego(self._segundos_juego(j, self.reloj()))
-        total = math.ceil(C.total_carrito(carrito, dia))
+        total = math.ceil(C.total_carrito(carrito, self._finde(j)))
         if not self._pagar(j, total, "🛒 Compra en el súper"):
             res.alerta = f"💸 No alcanza: la compra cuesta {D.dinero(total)}."
             self._b_super(j, "", res)
@@ -251,8 +250,7 @@ class CocinaMixin:
 
     def _hora_sim(self, j: Jugador, real: float) -> str:
         """Hora del reloj del Sim en la que ocurrirá algo, dado un momento real futuro."""
-        ahora = self.reloj()
-        return V.hora_texto(self._segundos_juego(j, ahora) + (real - ahora))
+        return self._hora(j, real)
 
     def _b_coccion(self, j: Jugador, arg: str, res, aviso: str | None = None) -> None:
         from .juego import Pantalla
@@ -387,7 +385,7 @@ class CocinaMixin:
         from .juego import Pantalla
 
         nevera = self._nevera(self._hogar(j.sala_id))
-        _, nombre_comida, valor = V.comida_del_momento(self._segundos_juego(j, self.reloj()))
+        _, nombre_comida, valor = V.comida_del_momento(self._hora_local(j))
         botones = [
             [(f"{C.RECETAS[r].emoji} {C.RECETAS[r].nombre} ({n})", f"a:comer:{r}")]
             for r, n in nevera.items() if r in C.RECETAS and n > 0

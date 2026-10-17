@@ -5,11 +5,12 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 
-from . import vida as V
-
 TRANSPORTE = 4  # por día trabajado
 ENERGIA_POR_HORA = 8
-HORAS_POSIBLES = (4, 6, 8, 10)
+MAX_HORAS = 8  # como mucho 8 horas al día
+HORAS_POSIBLES = (4, 5, 6, 7, 8)
+INICIOS = ("06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00")
+DIAS_CORTOS = ("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom")
 # Días trabajados (sin necesidades en rojo) que hacen falta para subir desde cada nivel.
 DIAS_PARA_ASCENDER = {1: 5, 2: 10}
 
@@ -84,23 +85,44 @@ TRABAJOS: dict[str, Trabajo] = {t.clave: t for t in (
 )}
 
 
-def dias_libres(horario: str, rng: random.Random) -> list[int]:
-    """Días libres (0 = lunes … 6 = domingo). En rotativo, dos días seguidos entre semana."""
+def dias_sugeridos(horario: str, rng: random.Random) -> list[int]:
+    """Días de trabajo que sugiere el tipo de horario (0 = lunes … 6 = domingo)."""
     if horario == LUNES_A_VIERNES:
-        return [5, 6]
+        return [0, 1, 2, 3, 4]
     if horario == CON_SABADOS:
-        return [6]
-    inicio = rng.randint(0, 3)
-    return [inicio, inicio + 1]
+        return [0, 1, 2, 3, 4, 5]
+    libre = rng.randint(0, 3)  # rotativo: dos días libres seguidos entre semana
+    return [d for d in range(7) if d not in (libre, libre + 1)]
 
 
-def trabaja_hoy(libres: list[int], dia: int) -> bool:
-    return (dia - 1) % 7 not in libres
+def horario_nuevo(trabajo: str, rng: random.Random) -> dict:
+    return {"dias": dias_sugeridos(TRABAJOS[trabajo].horario, rng), "inicio": "09:00", "horas": MAX_HORAS}
 
 
-def texto_libres(libres: list[int]) -> str:
-    nombres = [V.DIAS_SEMANA[d].lower() for d in sorted(libres)]
-    return " y ".join(nombres)
+def trabaja(horario: dict, dia_semana: int) -> bool:
+    return dia_semana in horario.get("dias", [])
+
+
+def hora_salida(horario: dict) -> str:
+    h, m = (int(x) for x in horario["inicio"].split(":"))
+    total = h * 60 + m + horario["horas"] * 60
+    return f"{total // 60 % 24:02d}:{total % 60:02d}"
+
+
+def texto_dias(dias: list[int]) -> str:
+    dias = sorted(dias)
+    if dias == [0, 1, 2, 3, 4]:
+        return "de lunes a viernes"
+    if dias == [0, 1, 2, 3, 4, 5]:
+        return "de lunes a sábado"
+    if dias == list(range(7)):
+        return "todos los días"
+    return ", ".join(DIAS_CORTOS[d] for d in dias) if dias else "ningún día"
+
+
+def texto_horario(horario: dict) -> str:
+    """'de lunes a viernes, de 09:00 a 17:00 (8 h)'."""
+    return f"{texto_dias(horario['dias'])}, de {horario['inicio']} a {hora_salida(horario)} ({horario['horas']} h)"
 
 
 def puede_ascender(nivel: int, dias: int) -> bool:

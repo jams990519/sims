@@ -116,7 +116,7 @@ def test_cobro_mensual_de_las_facturas(solo, reloj, monkeypatch):
     total = 700 + 102 + 46 + 50 + 30
     assert f"Se cobraron las facturas del mes</b>: {D.dinero(total)}" in aviso.texto
     h = hogar(solo)
-    assert h.cuenta == 2000 - total and h.consumo == "{}" and h.proximo_cobro == 61
+    assert h.cuenta == 2000 - total and h.consumo == "{}" and h.proximo_cobro == h.dia_hogar + 30
     assert not solo.tick().avisos  # no se cobra dos veces
 
 

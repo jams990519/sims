@@ -43,12 +43,11 @@ class MenuMixin:
         from .juego import CONTINUAR, Pantalla
 
         ahora = self.reloj()
-        s = self._segundos_juego(j, ahora)
         animo = P.animo(j.ap)
         lineas = [aviso, ""] if aviso else []
         lineas += [
             f"🎮 <b>Menú</b> · {self._firma(j)}{' · ' + animo if animo else ''}",
-            f"🕒 {V.reloj_texto(s)} · 📍 {V.nombre_habitacion(j.lugar)}",
+            f"🕒 {self._reloj(j)} · 📍 {V.nombre_habitacion(j.lugar)}",
         ]
         haciendo = self._texto_accion(j, ahora)
         pausado = self._congelado(j, ahora)
@@ -148,9 +147,8 @@ class MenuMixin:
     def _b_menu_lugares(self, j: Jugador, arg: str, res) -> None:
         from .juego import Pantalla
 
-        dia = V.dia_de_juego(self._segundos_juego(j, self.reloj()))
         lineas = ["📍 <b>Lugares</b>"]
-        if V.es_fin_de_semana(dia):
+        if self._finde(j):
             lineas.append("🎉 Fin de semana: ofertas en el súper; restaurante y cine salen más caros.")
         botones = [[(f"{e} {nombre}", f"a:{clave}")] for clave, e, nombre in V.LUGARES]
         botones.append([("🛋️ Tienda de muebles 🚧", "pronto:muebles"), ("📺 Electrónica 🚧", "pronto:electronica")])
@@ -208,7 +206,7 @@ class MenuMixin:
             f"👀 <b>Perfil de {self._firma(pareja)}</b>",
             f"🎭 {animo or 'Sin estado de ánimo'}",
             f"{self._texto_presencia(pareja, ahora)}",
-            f"🕒 Su reloj: {V.reloj_texto(self._segundos_juego(pareja, ahora))} · 📍 {V.nombre_habitacion(pareja.lugar)}",
+            f"🕒 Su hora: {self._reloj(pareja)} · 📍 {V.nombre_habitacion(pareja.lugar)}",
             f"💼 {self._texto_puesto(pareja) or 'Sin trabajo todavía'}",
             f"📊 {_resumen_necesidades(self._nec(pareja))}",
             "",

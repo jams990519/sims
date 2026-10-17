@@ -9,7 +9,7 @@ from simpareja import vida as V
 from simpareja.config import Config
 from simpareja.db import DB
 from simpareja.juego import Juego
-from test_juego import ADMIN, ANA, Reloj, aceptar, crear_personaje, invitar  # noqa: F401
+from test_juego import ADMIN, ANA, INICIO, Reloj, aceptar, crear_personaje, invitar  # noqa: F401
 
 
 @pytest.fixture
@@ -156,12 +156,14 @@ def test_mal_humor_con_una_necesidad_en_cero(solo):
 
 
 def ir_al_dia(juego, reloj, uid, dia):
-    """Adelanta el reloj del Sim hasta las 08:00 del día indicado."""
-    j = juego.db.jugador(uid)
-    j.reloj_juego = j.nec_seg = (dia - 1) * 86400
-    j.reloj_desde = j.ultima_jugada = reloj()
-    j.accion = None
-    juego.db.guardar_jugador(j)
+    """Adelanta la hora real hasta las 08:00 del día indicado, sin que el Sim gaste necesidades."""
+    reloj.t = max(reloj.t, INICIO + (dia - 1) * 86400)
+    for j in juego.db.jugadores_en_sala():
+        juego._congelar(j, reloj())
+        j.reloj_desde = j.ultima_jugada = j.ultima_actividad = reloj()
+        if j.id == uid:
+            j.accion = None
+        juego.db.guardar_jugador(j)
 
 
 def test_constancia_sube_la_energia_maxima(solo, reloj):
@@ -186,9 +188,10 @@ def test_registrar_ejercicio():
     assert V.registrar_ejercicio({"ultimo": 9, "dias": 2}, 10, 130)[1] == 130
 
 
-def test_calendario_con_fin_de_semana(solo):
-    assert V.reloj_texto(5 * 86400) == "Sábado 08:00 · día 6"
-    assert V.es_fin_de_semana(6) and V.es_fin_de_semana(7) and not V.es_fin_de_semana(8)
+def test_calendario_con_fin_de_semana(solo, reloj):
+    ir_al_dia(solo, reloj, ADMIN, 6)
+    assert solo._reloj(solo.db.jugador(ADMIN)) == "Sábado 08:00 · día 6"
+    assert V.es_fin_de_semana(5) and V.es_fin_de_semana(6) and not V.es_fin_de_semana(7)
 
 
 # --- casa: limpiar y lavar ---------------------------------------------------------------
