@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS jugadores (
     energia_max       INTEGER NOT NULL DEFAULT 100,
     racha             TEXT NOT NULL DEFAULT '{}',  -- días seguidos de ejercicio
     aviso_necesidad_ts REAL NOT NULL DEFAULT 0,
-    cartera           INTEGER NOT NULL DEFAULT 0
+    cartera           INTEGER NOT NULL DEFAULT 0,
+    trabajo           TEXT NOT NULL DEFAULT '{}'   -- empleo: puesto, nivel, días trabajados, días libres
 );
 CREATE INDEX IF NOT EXISTS jugadores_sala ON jugadores(sala_id);
 
@@ -140,6 +141,7 @@ COLUMNAS_NUEVAS = [
     ("jugadores", "racha", "TEXT NOT NULL DEFAULT '{}'"),
     ("jugadores", "aviso_necesidad_ts", "REAL NOT NULL DEFAULT 0"),
     ("jugadores", "cartera", "INTEGER NOT NULL DEFAULT 0"),
+    ("jugadores", "trabajo", "TEXT NOT NULL DEFAULT '{}'"),
     ("hogares", "casa", "TEXT NOT NULL DEFAULT ''"),
     ("hogares", "cuenta", "INTEGER NOT NULL DEFAULT 0"),
     ("hogares", "dia_hogar", "INTEGER NOT NULL DEFAULT 0"),
@@ -177,6 +179,7 @@ class Jugador:
     racha: str = "{}"
     aviso_necesidad_ts: float = 0.0
     cartera: int = 0
+    trabajo: str = "{}"
 
     @property
     def activo(self) -> bool:
