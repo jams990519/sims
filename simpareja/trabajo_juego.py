@@ -378,13 +378,17 @@ class TrabajoMixin:
             return ""
         horas = max(0.0, (min(hasta, accion["fin"]) - accion["ini"]) / V.HORA)
         pago = T.sueldo(empleo["clave"], empleo["nivel"], horas)
-        if pago > 0:
+        concepto = f"💼 Sueldo: {horas:.1f} h".replace(".0 h", " h")
+        unido = self._dinero_unido(j)  # casados que unieron el dinero: el sueldo va a la compartida
+        if pago > 0 and unido:
+            h = self._hogar(j.sala_id)
+            h.cuenta += pago
+            self.db.guardar_hogar(h)
+            self._anotar_movimiento(j.sala_id, j.id, "compartida", pago, concepto)
+        elif pago > 0:
             j.cartera += pago
-            self._anotar_movimiento(
-                j.sala_id, j.id, "cartera", pago,
-                f"💼 Sueldo: {horas:.1f} h".replace(".0 h", " h"),
-            )
-        texto = f" Cobró {D.dinero(pago)} 👛"
+            self._anotar_movimiento(j.sala_id, j.id, "cartera", pago, concepto)
+        texto = f" Cobró {D.dinero(pago)} {'🏦' if unido else '👛'}"
         hambre = round(6 * horas * accion.get("mult", {}).get("hambre", 1) - accion["ef"].get("hambre", 0))
         texto += f"\n⚡ −{round(T.ENERGIA_POR_HORA * horas)} energía · 🍔 {'−' if hambre >= 0 else '+'}{abs(hambre)} hambre"
         historial = empleo.get("historial", [])

@@ -25,6 +25,7 @@ from . import vida as V
 from .config import Config
 from .db import DB, Invitacion, Jugador, UltimaConexion, Visitante
 from .animo_juego import AnimoMixin
+from .boda_juego import BodaMixin
 from .aniversario_juego import AniversarioMixin
 from .cocina_juego import CocinaMixin
 from .dinero_juego import DineroMixin
@@ -137,6 +138,8 @@ LUGARES = {
     "retos": ("🎯 Retos de la semana", "mirando el reto de la semana"),
     "hitos": ("🏆 Hitos de pareja", "mirando los hitos de pareja"),
     "viaje": ("✈️ Viajes", "planeando un viaje"),
+    "comp": ("💍 Compromiso", "pensando en el compromiso"),
+    "boda": ("💒 La boda", "planeando la boda"),
     "ajustes": ("⚙️ Ajustes", "en los ajustes"),
     "renombrar": ("✏️ Cambiar nombre", "cambiando su nombre"),
 }
@@ -192,7 +195,7 @@ def en_filas(botones: list[tuple[str, str]], por_fila: int = 2) -> Botones:
 
 
 class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoMixin, RelacionMixin, PreguntasMixin,
-            NotasMixin, EventosMixin, AniversarioMixin, RetosMixin, HitosMixin, ViajeMixin):
+            NotasMixin, EventosMixin, AniversarioMixin, RetosMixin, HitosMixin, ViajeMixin, BodaMixin):
     def __init__(self, db: DB, cfg: Config, reloj=time.time, rng: random.Random | None = None):
         self.db = db
         self.cfg = cfg
@@ -444,6 +447,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         self._tick_eventos(res)
         self._tick_aniversario(res)
         self._tick_retos(res)
+        self._tick_boda(res)
         self._tick_hitos(res)
         salas: set[int] = set()
         for j in self.db.jugadores_en_sala():
@@ -547,6 +551,17 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "viaje": self._b_viaje,
             "viajeok": self._b_viaje_aceptar,
             "viajeno": self._b_viaje_no,
+            "comp": self._b_compromiso,
+            "compa": self._b_comprar_anillo,
+            "comppe": self._b_pedir,
+            "compsi": self._b_pedida_si,
+            "compno": self._b_pedida_no,
+            "boda": self._b_boda,
+            "bodap": self._b_boda_plan,
+            "bodaok": self._b_boda_aceptar,
+            "bodasi": self._b_boda_si,
+            "unir": self._b_unir,
+            "unirok": self._b_unir_aceptar,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -1101,6 +1116,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "preguntas": self._b_preguntas, "pregresp": self._b_preguntas,
             "notas": self._b_notas, "notaesc": self._b_notas, "aniv": self._b_aniversario,
             "retos": self._b_retos, "hitos": self._b_hitos, "viaje": self._b_viaje,
+            "comp": self._b_compromiso, "boda": self._b_boda,
         }.get(accion, self._b_menu)
         tmp = Resultado()
         manejador(j, arg, tmp)
@@ -1253,7 +1269,9 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
                 "gastar necesidades. Toca ▶️ Continuar para seguir.",
                 "",
             ]
-        lineas += [f"🏠 <b>Sala de {esc(unir([m.personaje for m in miembros]))}</b>", ""]
+        estado = {"casados": " · 💒 Casados", "comprometidos": " · 💍 Comprometidos"}.get(
+            self._estado_pareja(self._hogar(j.sala_id)), "")
+        lineas += [f"🏠 <b>Sala de {esc(unir([m.personaje for m in miembros]))}</b>{estado}", ""]
         for m in miembros:
             animo = P.animo(m.ap)
             if m.id == j.id:

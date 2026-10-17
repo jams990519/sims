@@ -40,9 +40,9 @@ HITOS = (
     Hito("viaje", "✈️", "Primer viaje", "Un viaje juntos ($800 a $2.000) con días libres.", 20,
          "Diversión y energía al máximo."),
     Hito("compromiso", "💍", "Compromiso", "Relación de los dos por encima del 80 %, viaje hecho y un anillo.", 20,
-         "Si la respuesta es no, se conserva el anillo.", listo=False),
+         "Si la respuesta es no, se conserva el anillo."),
     Hito("boda", "💒", "Boda", "Estar comprometidos: planifican lugar, invitados, comida y fecha.", 25,
-         "Estado «casados» y opción de unir el dinero.", listo=False),
+         "Estado «casados» y opción de unir el dinero."),
     Hito("casa_propia", "🏠", "Casa propia", "Comprar «nuestra casa» con unos $15.000 de entrada (aceptan los dos).", 20,
          "Pueden remodelar; la renta pasa a hipoteca."),
 )
@@ -80,7 +80,10 @@ class HitosMixin:
                 lineas.append(f"⬜ {hito.emoji} {hito.nombre}{pronto}: <i>{hito.requisito}</i>")
         lineas += ["", f"Llevan {len(celebrados)} de {len(HITOS)}."]
         res.pantalla = Pantalla(
-            "\n".join(lineas), [[("✈️ Viajes", "viaje"), ("📸 Álbum", "album")], [("⬅️ Atrás", "mpar")]], clave="hitos"
+            "\n".join(lineas),
+            [[("✈️ Viajes", "viaje"), ("💍 Compromiso", "comp"), ("💒 Boda", "boda")],
+             [("📸 Álbum", "album"), ("⬅️ Atrás", "mpar")]],
+            clave="hitos",
         )
 
     def _tick_hitos(self, res) -> None:
