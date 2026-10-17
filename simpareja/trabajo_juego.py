@@ -61,7 +61,8 @@ class TrabajoMixin:
                 [(f"{t.emoji} {t.niveles[0].nombre(genero)} · ${t.niveles[0].por_hora}/h", f"vtrab:{t.clave}")]
                 for t in T.TRABAJOS.values()
             ]
-            botones.append([("🧍 Mi Sim", "sim")])
+            botones.append([("📚 Estudios 🚧", "pronto:estudiar"), ("📱 Influencer 🚧", "pronto:influencer")])
+            botones.append([("⬅️ Atrás", "menu")])
             res.pantalla = Pantalla("\n".join(lineas), botones, clave="trabajo")
             return
         ahora = self.reloj()
@@ -100,7 +101,9 @@ class TrabajoMixin:
                 (f"{h} h · {D.dinero(T.sueldo(t.clave, nivel, h))}", f"trabajar:{h}") for h in T.HORAS_POSIBLES[2:]
             ])
             lineas.append(f"⚡ Gasta {T.ENERGIA_POR_HORA} de energía por hora. 🚌 Transporte: {D.dinero(T.TRANSPORTE)}.")
-        botones.append([("🚪 Renunciar", "renunciar"), ("🧍 Mi Sim", "sim")])
+        botones.append([("📈 Mi carrera", "carrera"), ("🚪 Renunciar o cambiar", "renunciar")])
+        botones.append([("📚 Estudios 🚧", "pronto:estudiar"), ("📱 Influencer 🚧", "pronto:influencer")])
+        botones.append([("⬅️ Atrás", "menu")])
         res.pantalla = Pantalla("\n".join(lineas), botones, clave="trabajo")
 
     def _b_ver_trabajo(self, j: Jugador, clave: str, res) -> None:
@@ -111,7 +114,7 @@ class TrabajoMixin:
             self._b_trabajo(j, "", res)
             return
         genero = j.ap.get("genero")
-        lineas = [f"{t.emoji} <b>{t.nombre}</b>", f"🗓️ {T.HORARIOS[t.horario]}", ""]
+        lineas = [f"{t.emoji} <b>{t.nombre}</b>", f"🗓️ {T.HORARIOS[t.horario]}", "📋 Requisitos: ninguno para empezar", ""]
         for i, p in enumerate(t.niveles, 1):
             lineas.append(f"Nivel {i}: {p.nombre(genero)} · ${p.por_hora}/h")
         lineas += ["", f"Un día de 8 h al empezar: {D.dinero(T.sueldo(clave, 1, 8))}."]
@@ -159,7 +162,32 @@ class TrabajoMixin:
     # Trabajar
     # ------------------------------------------------------------------
 
-    def _b_trabajar(self, j: Jugador, horas: str, res) -> None:
+    def _b_trabajar(self, j: Jugador, arg: str, res) -> None:
+        """trabajar:<horas> muestra la ficha; trabajar:<horas>:<con|sin> confirma (con o sin táper)."""
+        from .juego import Pantalla
+
+        horas, _, confirmar = arg.partition(":")
+        if confirmar not in ("con", "sin") and horas.isdigit() and self._empleo(j).get("clave"):
+            empleo = self._empleo(j)
+            h = int(horas)
+            t = T.TRABAJOS[empleo["clave"]]
+            s = self._segundos_juego(j, self.reloj())
+            lineas = [
+                f"💼 <b>Ir a trabajar {h} h</b> · {t.niveles[empleo['nivel'] - 1].nombre(j.ap.get('genero'))}",
+                f"💵 +{D.dinero(T.sueldo(t.clave, empleo['nivel'], h))} al terminar (🚌 −{D.dinero(T.TRANSPORTE)})",
+                f"⚡ −{T.ENERGIA_POR_HORA * h} energía · ⏱️ sales a las {V.hora_texto(s + h * V.HORA)}",
+            ]
+            botones = []
+            if j.taper in C.RECETAS:
+                lineas.append(f"🥡 ¿Llevas tu táper de {C.RECETAS[j.taper].nombre.lower()}? Quita {TAPER_HAMBRE} de hambre en el turno.")
+                botones.append([("✅ Sí, con táper", f"trabajar:{h}:con"), ("✅ Sí, sin táper", f"trabajar:{h}:sin")])
+            else:
+                lineas.append("🥡 No tienes táper: sin comida, el hambre baja más rápido. (Prepáralo en ⚡ Acciones → Comer.)")
+                botones.append([("✅ Sí, ir a trabajar", f"trabajar:{h}:sin")])
+            botones.append([("❌ No, atrás", "trabajo")])
+            res.pantalla = Pantalla("\n".join(lineas + ["", "¿Confirmar?"]), botones, clave="trabajo")
+            return
+        llevar_taper = confirmar == "con"
         empleo = self._empleo(j)
         if not empleo.get("clave"):
             self._b_trabajo(j, "", res)
@@ -190,7 +218,7 @@ class TrabajoMixin:
         datos = self._empezar(j, V.ACCIONES["trabajar"], horas, None, ahora)
         res.ediciones += self._refrescar_sala(j.sala_id, excepto=j.id)
         aviso = f"💼 ¡A trabajar! Sales a las {V.hora_texto(datos['fin'])} y cobras al terminar."
-        if j.taper:
+        if j.taper and llevar_taper:
             # El táper le quita el hambre a mitad del turno.
             datos["ef"]["hambre"] = datos["ef"].get("hambre", 0) + TAPER_HAMBRE
             aviso += f"\n🥡 Lleva su táper de {C.RECETAS[j.taper].nombre.lower() if j.taper in C.RECETAS else 'comida'}."
@@ -218,6 +246,12 @@ class TrabajoMixin:
                 f"💼 Sueldo: {horas:.1f} h".replace(".0 h", " h"),
             )
         texto = f" Cobró {D.dinero(pago)} 👛"
+        hambre = round(6 * horas * accion.get("mult", {}).get("hambre", 1) - accion["ef"].get("hambre", 0))
+        texto += f"\n⚡ −{round(T.ENERGIA_POR_HORA * horas)} energía · 🍔 {'−' if hambre >= 0 else '+'}{abs(hambre)} hambre"
+        historial = empleo.get("historial", [])
+        historial.append({"dia": V.dia_de_juego(accion["ini"]), "horas": round(horas, 1), "pago": pago,
+                          "completo": completo})
+        empleo["historial"] = historial[-10:]
         if completo and not empleo.get("rojo"):
             empleo["dias"] = empleo.get("dias", 0) + 1
             if T.puede_ascender(empleo["nivel"], empleo["dias"]):
@@ -227,7 +261,37 @@ class TrabajoMixin:
                 texto += f"\n🎉 <b>¡Ascenso!</b> Ahora es {nuevo.nombre(j.ap.get('genero')).lower()} (${nuevo.por_hora}/h)."
         elif not completo:
             texto += " (turno incompleto: no cuenta para el ascenso)"
+        if empleo["nivel"] in T.DIAS_PARA_ASCENDER and "Ascenso" not in texto:
+            faltan = T.DIAS_PARA_ASCENDER[empleo["nivel"]] - empleo.get("dias", 0)
+            texto += f"\n📈 Faltan {faltan} día(s) para el ascenso."
         empleo.pop("rojo", None)
         j.trabajo = json.dumps(empleo)
         self.db.guardar_jugador(j)
         return texto
+
+    def _b_carrera(self, j: Jugador, arg: str, res) -> None:
+        """💼 Trabajo → Mi carrera: nivel, progreso e historial."""
+        from .juego import Pantalla
+
+        empleo = self._empleo(j)
+        if not empleo.get("clave"):
+            res.alerta = "Todavía no tienes trabajo."
+            self._b_trabajo(j, "", res)
+            return
+        t = T.TRABAJOS[empleo["clave"]]
+        genero = j.ap.get("genero")
+        lineas = [f"📈 <b>Mi carrera</b> · {t.emoji} {t.nombre}", ""]
+        for i, p in enumerate(t.niveles, 1):
+            marca = "👉" if i == empleo["nivel"] else ("✅" if i < empleo["nivel"] else "▫️")
+            lineas.append(f"{marca} Nivel {i}: {p.nombre(genero)} · ${p.por_hora}/h")
+        if empleo["nivel"] in T.DIAS_PARA_ASCENDER:
+            total = T.DIAS_PARA_ASCENDER[empleo["nivel"]]
+            hechos = empleo.get("dias", 0)
+            lineas += ["", f"Progreso: {'🟩' * hechos}{'⬜' * (total - hechos)} {hechos}/{total} días"]
+        historial = empleo.get("historial", [])
+        if historial:
+            lineas += ["", "<b>Últimos turnos</b>"]
+            for turno in reversed(historial):
+                marca = "✅" if turno.get("completo") else "⏹️"
+                lineas.append(f"{marca} {V.dia_semana(turno['dia'])} (día {turno['dia']}): {turno['horas']} h · {D.dinero(turno['pago'])}")
+        res.pantalla = Pantalla("\n".join(lineas), [[("⬅️ Atrás", "trabajo")]], clave="carrera")

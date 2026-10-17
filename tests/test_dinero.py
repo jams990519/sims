@@ -55,19 +55,18 @@ def test_la_pareja_comparte_la_cuenta(pareja):
 
 def test_comer_cuesta_segun_la_comida(solo, reloj):
     poner(solo, ADMIN, hambre=20)
-    assert "Desayunar (+30)" in str(solo.boton(ADMIN, "", "acc:comer").pantalla.botones)
-    assert "Comprar comida hecha · $3" in str(solo.boton(ADMIN, "", "a:comer").pantalla.botones)
-    solo.boton(ADMIN, "", "a:comer:comprar")
-    assert hogar(solo).cuenta == 1497
-    assert "−$3 🍽️ Comida: desayuno (Luis)" in solo.boton(ADMIN, "", "dinero").pantalla.texto
+    assert "💵 $6" in solo.boton(ADMIN, "", "a:domicilio").pantalla.texto  # a domicilio cuesta el doble
+    solo.boton(ADMIN, "", "as:domicilio")
+    assert hogar(solo).cuenta == 1494
+    assert "−$6 🛵 Pedido a domicilio (desayuno) (Luis)" in solo.boton(ADMIN, "", "dinero").pantalla.texto
 
 
 def test_comer_juntos_cuesta_por_dos(pareja):
     poner(pareja, ANA, hambre=20)
-    res = pareja.boton(ANA, "", "aj:comer:comprar")
+    res = pareja.boton(ANA, "", "aj:domicilio")
     si = next(d for fila in res.avisos[0].botones for _, d in fila if d.endswith(":1"))
     pareja.boton(ADMIN, "", si)
-    assert hogar(pareja).cuenta == 1494
+    assert hogar(pareja).cuenta == 1488
 
 
 def test_sin_dinero_no_se_come_pero_paga_la_cartera(solo):
@@ -75,13 +74,13 @@ def test_sin_dinero_no_se_come_pero_paga_la_cartera(solo):
     h.cuenta = 1
     solo.db.guardar_hogar(h)
     poner(solo, ADMIN, hambre=20)
-    res = solo.boton(ADMIN, "", "a:comer:comprar")
-    assert "No alcanza el dinero ($3)" in res.alerta
+    res = solo.boton(ADMIN, "", "as:domicilio")
+    assert "No alcanza el dinero ($6)" in res.alerta
     j = solo.db.jugador(ADMIN)
     j.cartera = 10
     solo.db.guardar_jugador(j)
-    res = solo.boton(ADMIN, "", "a:comer:comprar")
-    assert res.alerta is None and solo.db.jugador(ADMIN).cartera == 7
+    res = solo.boton(ADMIN, "", "as:domicilio")
+    assert res.alerta is None and solo.db.jugador(ADMIN).cartera == 4
 
 
 def test_pasar_dinero_entre_cartera_y_compartida(solo):
@@ -97,10 +96,10 @@ def test_pasar_dinero_entre_cartera_y_compartida(solo):
 
 def test_el_uso_sube_la_luz_y_el_agua(solo, reloj):
     poner(solo, ADMIN, higiene=10)
-    solo.boton(ADMIN, "", "a:ducha")
+    solo.boton(ADMIN, "", "as:ducha")
     reloj.avanzar(16)
     solo.boton(ADMIN, "", "sim")
-    solo.boton(ADMIN, "", "a:tele")
+    solo.boton(ADMIN, "", "as:tele")
     consumo = json.loads(hogar(solo).consumo)
     assert consumo == {"agua": 0.6, "luz": 0.3}
 

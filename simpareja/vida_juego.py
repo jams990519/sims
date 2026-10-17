@@ -77,6 +77,8 @@ class VidaMixin:
         j.nec_seg = max(j.nec_seg, s)
         if terminada:
             j.accion = None
+            if j.lugar.startswith(V.FUERA):
+                j.lugar = V.HABITACION_INICIAL  # vuelve a casa
             # El final de la acción cuenta como actividad: el Sim se congela 5 min después, no antes.
             j.ultima_jugada = max(j.ultima_jugada, accion["rfin"])
             eventos.append((self._al_terminar(j, accion, nec), accion["fin"] - accion["ini"] >= AVISAR_FIN_DESDE))
@@ -144,6 +146,12 @@ class VidaMixin:
         datos.update(rini=ahora, rfin=ahora + (datos["fin"] - datos["ini"]), con=con)
         j.accion = json.dumps(datos)
         j.ultima_jugada = ahora
+        if a.habitacion == V.FUERA:
+            j.lugar = f"{V.FUERA}:{a.clave}"
+        elif a.clave == "limpiar" and extra in V.ZONAS:
+            j.lugar = extra
+        elif a.habitacion:
+            j.lugar = a.habitacion
         self.db.guardar_jugador(j)
         h = self._hogar(j.sala_id)
         if a.zona and a.ensucia:
@@ -181,7 +189,8 @@ class VidaMixin:
     # ------------------------------------------------------------------
 
     def _pantalla_sim(self, j: Jugador, aviso: str | None = None):
-        from .juego import Pantalla, SALA
+        """👤 Estado → Mis necesidades."""
+        from .juego import Pantalla
 
         ahora = self.reloj()
         s = self._segundos_juego(j, ahora)
@@ -192,6 +201,7 @@ class VidaMixin:
         lineas += [
             f"🧍 {self._firma(j)}{' · ' + animo if animo else ''}",
             f"🕒 {V.reloj_texto(s)}{' · 🎉 fin de semana' if V.es_fin_de_semana(dia) else ''}",
+            f"📍 {V.nombre_habitacion(j.lugar)}",
         ]
         haciendo = self._texto_accion(j, ahora)
         if haciendo:
@@ -199,7 +209,7 @@ class VidaMixin:
         elif self._congelado(j, ahora):
             lineas.append("❄️ En pausa")
         else:
-            lineas.append("🧍 Sin hacer nada · elige qué hacer")
+            lineas.append("🧍 Sin hacer nada")
         if V.de_mal_humor(nec):
             lineas.append("😡 <b>De mal humor</b>: tiene alguna necesidad en 0.")
         lineas.append("")
@@ -209,7 +219,7 @@ class VidaMixin:
             cifra = f"{round(valor)}/{tope}" if n.clave == "energia" and tope != 100 else f"{round(valor)}"
             lineas.append(f"{n.emoji} {V.barra(valor, tope)} {cifra} {n.nombre}")
         h = self._hogar(j.sala_id)
-        lineas += ["", f"🏡 Casita · 🏦 Compartida {D.dinero(h.cuenta)} · 👛 Tu cartera {D.dinero(j.cartera)}"]
+        lineas += ["", f"🏦 Compartida {D.dinero(h.cuenta)} · 👛 Tu cartera {D.dinero(j.cartera)}"]
         lineas.append(f"💼 {self._texto_puesto(j) or 'Sin trabajo todavía'}")
         if j.taper in C.RECETAS:
             lineas.append(f"🥡 Táper para el trabajo: {C.RECETAS[j.taper].nombre.lower()}")
@@ -223,32 +233,33 @@ class VidaMixin:
             avisos_casa.append("🪳 La sala está sucia: se divierte menos.")
         if avisos_casa:
             lineas += [""] + avisos_casa
-        botones = [
-            [(f"{e} {nombre}", f"acc:{clave}") for clave, e, nombre in V.CATEGORIAS[i:i + 2]]
-            for i in range(0, len(V.CATEGORIAS), 2)
-        ]
+        botones = []
         if haciendo:
-            botones.insert(0, [("⏹️ Parar lo que está haciendo", "parar")])
-        botones.append([("💼 Trabajo", "trabajo"), ("💰 Dinero", "dinero"), ("🏡 Casa", "casa")])
-        botones.append([("🔄 Actualizar", "sim"), SALA])
+            botones.append([("⏹️ Parar lo que está haciendo", "parar")])
+        botones.append([("⚡ Acciones", "macc"), ("🔄 Actualizar", "sim")])
+        botones.append([("⬅️ Atrás", "mest"), ("🎮 Menú", "menu")])
         return Pantalla("\n".join(lineas), botones, clave="sim")
 
     def _b_sim(self, j: Jugador, arg: str, res) -> None:
         res.pantalla = self._pantalla_sim(j)
 
     def _b_categoria(self, j: Jugador, categoria: str, res, aviso: str | None = None) -> None:
+        """⚡ Acciones → una categoría (o 📍 Lugares → un lugar): la lista de acciones."""
         from .juego import Pantalla
 
         info = next((c for c in V.CATEGORIAS if c[0] == categoria), None)
         if info is None:
-            res.pantalla = self._pantalla_sim(j)
+            self._b_menu_acciones(j, "", res)
             return
         ahora = self.reloj()
         s = self._segundos_juego(j, ahora)
         pareja = self._pareja_en_sala(j)
         lineas = [aviso, ""] if aviso else []
-        lineas.append(f"{info[1]} <b>{info[2]}</b> · 🕒 {V.reloj_texto(s)}")
-        if categoria == "casa":
+        lineas += [
+            f"{info[1]} <b>{info[2]}</b> · 🕒 {V.reloj_texto(s)}",
+            f"📍 Estás en: {V.nombre_habitacion(j.lugar)}",
+        ]
+        if categoria == "limpieza":
             h = self._hogar(j.sala_id)
             zonas = json.loads(h.zonas)
             lineas.append("")
@@ -264,36 +275,39 @@ class VidaMixin:
                 faltan_pareja.append(a.nombre.lower())
                 continue
             titulo = a.titulo(a.juntos == V.OBLIGATORIO)
-            precio = ""
-            if a.comida:
+            if a.clave == "comer":
                 _, comida, valor = V.comida_del_momento(s)
-                titulo = f"{comida} (+{valor})"
-            elif a.clave == "picar":
-                precio = f" · {D.dinero(D.PRECIO_PICAR)}"
-            elif a.clave == "cocinar":
-                titulo = "Cocinar (paso a paso)"
-            duracion = "" if a.clave in ("dormir", "cocinar", "taper") else f" · {_dur(a.minutos * 60)}"
-            botones.append([(f"{a.emoji} {titulo}{precio}{duracion}", f"a:{a.clave}")])
+                titulo = f"Comer lo que hay ({comida.lower()}, +{valor})"
+            donde = ""
+            if a.habitacion and a.habitacion != V.FUERA and a.habitacion != j.lugar:
+                donde = f" · {V.ZONAS[a.habitacion][0]}"
+            botones.append([(f"{a.emoji} {titulo}{donde}", f"a:{a.clave}")])
         if faltan_pareja:
             lineas += ["", f"💞 Con tu pareja en la sala también podrán: {', '.join(faltan_pareja)}."]
         lineas += ["", "💡 Juntos terminan más rápido."] if pareja else []
-        if categoria in ("comer", "casa"):
+        if categoria == "comer":
             botones.append([("🧊 Nevera y despensa", "nevera")])
-        botones.append([("⬅️ Mi Sim", "sim")])
+        botones.append([("⬅️ Atrás", "macc"), ("🎮 Menú", "menu")])
         res.pantalla = Pantalla("\n".join(lineas), botones, clave=f"acc:{categoria}")
 
+    def _volver_a(self, a: V.Accion) -> str:
+        """A qué menú vuelve el botón Atrás desde la ficha de una acción."""
+        if a.categoria in dict((c[0], c) for c in V.CATEGORIAS):
+            return f"acc:{a.categoria}"
+        return "mlug"
+
     # ------------------------------------------------------------------
-    # Hacer acciones
+    # Hacer acciones: ficha con efecto y tiempo, y confirmar
     # ------------------------------------------------------------------
 
     def _b_accion(self, j: Jugador, arg: str, res) -> None:
-        """a:<acción>[:<extra>]: decide si hace falta elegir algo más o si es solo o juntos."""
+        """a:<acción>[:<extra>]: pide lo que falte (zona, horas…) y muestra la ficha para confirmar."""
         from .juego import Pantalla
 
         clave, _, extra = arg.partition(":")
         a = V.ACCIONES.get(clave)
         if a is None:
-            res.pantalla = self._pantalla_sim(j)
+            self._b_menu_acciones(j, "", res)
             return
         # Acciones con su propio menú: el súper, las recetas, el táper y qué comer.
         if clave == "super" and extra != "ir":
@@ -311,6 +325,7 @@ class VidaMixin:
         if self._ocupado(j, res):
             return
         nec = self._nec(j)
+        volver = self._volver_a(a)
         if clave == "dormir" and not extra:
             horas = V.horas_para_descansar(nec["energia"], j.energia_max)
             opciones = [(f"⚡ Hasta recuperarse ({horas} h)", "a:dormir:max")] + [
@@ -318,8 +333,8 @@ class VidaMixin:
             ]
             res.pantalla = Pantalla(
                 "😴 <b>¿Cuánto quieres dormir?</b>\nDormir recupera unos 12 de energía por hora.",
-                [[o] for o in opciones] + [[("⬅️ Volver", "acc:descansar")]],
-                clave="acc:descansar",
+                [[o] for o in opciones] + [[("⬅️ Atrás", volver)]],
+                clave=volver,
             )
             return
         if clave == "limpiar" and extra not in V.ZONAS:
@@ -327,34 +342,77 @@ class VidaMixin:
             res.pantalla = Pantalla(
                 "🧹 <b>¿Qué zona quieres limpiar?</b>",
                 [[(f"{e} {n} · {V.estado_zona(zonas.get(z, 0))}", f"a:limpiar:{z}")] for z, (e, n) in V.ZONAS.items()]
-                + [[("⬅️ Volver", "acc:casa")]],
-                clave="acc:casa",
+                + [[("⬅️ Atrás", volver)]],
+                clave=volver,
             )
             return
         motivo = V.no_hace_falta(a, nec, j.energia_max) or self._bloqueo_accion(j, a)
         if motivo:
             res.alerta = motivo
-            self._b_categoria(j, a.categoria, res)
+            if volver.startswith("acc:"):
+                self._b_categoria(j, a.categoria, res)
+            else:
+                self._b_menu_lugares(j, "", res)
             return
         pareja = self._pareja_en_sala(j)
-        if a.juntos == V.SOLO or (pareja is None and a.juntos == V.OPCIONAL):
-            self._hacer(j, a, extra, res)
-        elif pareja is None:
+        if a.juntos == V.OBLIGATORIO and pareja is None:
             res.alerta = "Para esto necesitas a tu pareja en la sala."
             self._b_categoria(j, a.categoria, res)
-        elif a.juntos == V.OBLIGATORIO:
-            self._proponer(j, a, extra, pareja, res)
-        else:
-            sufijo = f":{extra}" if extra else ""
-            res.pantalla = Pantalla(
-                f"{a.emoji} <b>{a.nombre}</b>\n¿Solo o con {self._firma(pareja)}? Juntos terminan más rápido.",
-                [
-                    [(f"👤 {a.titulo(False)}", f"as:{clave}{sufijo}")],
-                    [(f"💞 {a.titulo(True)}", f"aj:{clave}{sufijo}")],
-                    [("⬅️ Volver", f"acc:{a.categoria}")],
-                ],
-                clave=f"acc:{a.categoria}",
-            )
+            return
+        res.pantalla = self._ficha(j, a, extra, pareja)
+
+    def _titulo_accion(self, a: V.Accion, extra: str, juntos: bool) -> str:
+        titulo = a.titulo(juntos)
+        if a.clave == "limpiar" and extra in V.ZONAS:
+            titulo = f"{'Limpiar juntos' if juntos else 'Limpiar'}: {V.ZONAS[extra][1].lower()}"
+        elif a.clave == "comer" and extra in C.RECETAS:
+            titulo = f"{titulo}: {C.RECETAS[extra].nombre.lower()}"
+        elif a.clave == "comer" and extra == "taper":
+            titulo = "Comer tu táper"
+        return titulo
+
+    def _ficha(self, j: Jugador, a: V.Accion, extra: str, pareja: Jugador | None):
+        """Ficha de la acción: efecto, tiempo, costo y dónde. ¿Confirmar? Sí / No."""
+        from .juego import Pantalla
+
+        s = self._segundos_juego(j, self.reloj())
+        nec = self._nec(j)
+        sufijo = f":{extra}" if extra else ""
+        volver = self._volver_a(a)
+        lineas = []
+        botones = []
+        opciones = []
+        if a.juntos != V.OBLIGATORIO:
+            opciones.append(False)
+        if a.juntos != V.SOLO and pareja is not None:
+            opciones.append(True)
+        for juntos in opciones:
+            datos = V.preparar(a, s, nec, j.energia_max, extra, juntos=juntos)
+            costo, _ = self._costo_accion(j, a, extra, juntos, pareja if juntos else None)
+            quien = f"💞 Con {self._firma(pareja)}" if juntos else "👤 Solo"
+            detalle = f"{V.texto_efectos(datos['ef'])} · ⏱️ {_dur(datos['fin'] - datos['ini'])}"
+            if costo:
+                detalle += f" · 💵 {D.dinero(costo)}"
+            if len(opciones) > 1:
+                lineas.append(f"{quien}: {detalle}")
+            else:
+                lineas.append(detalle)
+            etiqueta = "✅ Sí" if not juntos else f"💞 Sí, con {pareja.personaje}"
+            if len(opciones) > 1 and not juntos:
+                etiqueta = "✅ Sí, solo"
+            botones.append([(etiqueta, f"{'aj' if juntos else 'as'}:{a.clave}{sufijo}")])
+        titulo = self._titulo_accion(a, extra, len(opciones) == 1 and opciones[0])
+        cabecera = [f"{a.emoji} <b>{titulo}</b>"]
+        if a.habitacion == V.FUERA:
+            cabecera.append("📍 Fuera de casa")
+        elif a.habitacion and a.habitacion != j.lugar:
+            cabecera.append(f"🚶 Irá a {V.nombre_habitacion(a.habitacion)}")
+        elif a.clave == "limpiar" and extra in V.ZONAS and extra != j.lugar:
+            cabecera.append(f"🚶 Irá a {V.nombre_habitacion(extra)}")
+        if True in opciones and False in opciones:
+            cabecera.append("💡 Juntos terminan más rápido.")
+        botones.append([("❌ No, atrás", volver)])
+        return Pantalla("\n".join(cabecera + [""] + lineas + ["", "¿Confirmar?"]), botones, clave=volver)
 
     def _ocupado(self, j: Jugador, res) -> bool:
         haciendo = self._texto_accion(j, self.reloj())
@@ -391,15 +449,12 @@ class VidaMixin:
         error = self._cobrar_accion(j, a, extra=extra)
         if error:
             res.alerta = error
-            self._b_categoria(j, a.categoria, res)
+            res.pantalla = self._ficha(j, a, extra, self._pareja_en_sala(j))
             return
         datos = self._empezar(j, a, extra, None, self.reloj())
         res.ediciones += self._refrescar_sala(j.sala_id, excepto=j.id)
-        titulo = a.titulo(False)
-        if a.clave == "limpiar":
-            titulo = f"Limpiar {V.ZONAS[extra][1].lower()}"
         res.pantalla = self._pantalla_sim(
-            j, f"▶️ Empezó: {a.emoji} {titulo} · termina a las {V.hora_texto(datos['fin'])}."
+            j, f"▶️ Empezó: {a.emoji} {self._titulo_accion(a, extra, False)} · termina a las {V.hora_texto(datos['fin'])}."
         )
 
     def _proponer(self, j: Jugador, a: V.Accion, extra: str, pareja: Jugador, res) -> None:
@@ -457,7 +512,7 @@ class VidaMixin:
             res.alerta = f"{de.personaje} ya está haciendo otra cosa."
             res.pantalla = self._pantalla_sim(j)
             return
-        error = self._cobrar_accion(de, a, juntos=True, extra=p.extra)
+        error = self._cobrar_accion(de, a, juntos=True, extra=p.extra, pareja=j)
         if error:
             p.estado = "caducada"
             self.db.guardar_propuesta(p)
@@ -524,6 +579,9 @@ class VidaMixin:
             texto = f"⏹️ Paró: {a.emoji} {a.titulo(bool(accion.get('con')))}." if a else None
             if accion["k"] == "trabajar":
                 texto += self._cobrar_turno(j, accion, self._segundos_juego(j, ahora), completo=False)
+            if j.lugar.startswith(V.FUERA):
+                j.lugar = V.HABITACION_INICIAL
+                self.db.guardar_jugador(j)
             res.pantalla = self._pantalla_sim(j, texto)
             return
         res.pantalla = self._pantalla_sim(j)

@@ -90,8 +90,10 @@ def test_en_pausa_no_bajan(solo, reloj):
 def test_comer_segun_la_hora(solo, reloj):
     poner(solo, ADMIN, hambre=20)
     res = solo.boton(ADMIN, "", "acc:comer")
-    assert "Desayunar (+30)" in str(res.pantalla.botones)
-    res = solo.boton(ADMIN, "", "a:comer:comprar")
+    assert "desayunar, +30" in str(res.pantalla.botones)
+    res = solo.boton(ADMIN, "", "a:domicilio")
+    assert "+30 🍔 hambre · ⏱️ 30 min · 💵 $6" in res.pantalla.texto and "¿Confirmar?" in res.pantalla.texto
+    res = solo.boton(ADMIN, "", "as:domicilio")
     assert "Empezó" in res.pantalla.texto and "termina a las 08:30" in res.pantalla.texto
     reloj.avanzar(30)
     solo.boton(ADMIN, "", "sim")
@@ -99,25 +101,24 @@ def test_comer_segun_la_hora(solo, reloj):
 
 
 def test_no_deja_hacer_lo_que_no_hace_falta(solo):
-    res = solo.boton(ADMIN, "", "a:comer:comprar")  # hambre 80, aún puede comer
+    res = solo.boton(ADMIN, "", "a:domicilio")  # hambre 80, aún puede comer
     assert res.alerta is None
     poner(solo, ADMIN, higiene=99)
-    solo.boton(ADMIN, "", "parar")
     res = solo.boton(ADMIN, "", "a:ducha")
     assert "no lo necesita" in res.alerta
 
 
 def test_mientras_hace_algo_no_puede_hacer_otra_cosa(solo):
     poner(solo, ADMIN, hambre=20)
-    solo.boton(ADMIN, "", "a:comer:comprar")
+    solo.boton(ADMIN, "", "as:domicilio")
     res = solo.boton(ADMIN, "", "a:tele")
-    assert "comiendo" in res.alerta
+    assert "esperando el pedido" in res.alerta
     assert "parar" in datos(res.pantalla)
 
 
 def test_parar_deja_el_efecto_parcial(solo, reloj):
     poner(solo, ADMIN, hambre=20)
-    solo.boton(ADMIN, "", "a:comer:comprar")
+    solo.boton(ADMIN, "", "as:domicilio")
     reloj.avanzar(15)
     res = solo.boton(ADMIN, "", "parar")
     assert "Paró" in res.pantalla.texto
@@ -130,7 +131,7 @@ def test_dormir_8_horas_no_congela_al_sim(solo, reloj):
     res = solo.boton(ADMIN, "", "a:dormir")
     assert datos(res.pantalla)[:2] == ["a:dormir:max", "a:dormir:6"]
     assert "Hasta recuperarse (8 h)" in str(res.pantalla.botones)
-    solo.boton(ADMIN, "", "a:dormir:max")
+    solo.boton(ADMIN, "", "as:dormir:max")
     reloj.avanzar(8 * 60 + 1)  # el jugador se fue a dormir de verdad
     res = solo.tick()
     assert any(a.para == ADMIN and "terminó" in a.texto and "Dormir" in a.texto for a in res.avisos)
@@ -166,7 +167,7 @@ def ir_al_dia(juego, reloj, uid, dia):
 def test_constancia_sube_la_energia_maxima(solo, reloj):
     for dia in (1, 2, 3):
         ir_al_dia(solo, reloj, ADMIN, dia)
-        solo.boton(ADMIN, "", "a:parque")
+        solo.boton(ADMIN, "", "as:parque")
         reloj.avanzar(61)
         res = solo.boton(ADMIN, "", "sim")
     assert "¡Constancia! 3 días seguidos" in res.pantalla.texto
@@ -197,16 +198,16 @@ def test_limpiar_una_zona_y_lavar_la_ropa(solo, reloj):
     h.zonas = json.dumps({"salon": 90, "cuarto": 0, "bano": 50, "closet": 0})
     h.ropa_sucia = 25
     solo.db.guardar_hogar(h)
-    texto = solo.boton(ADMIN, "", "acc:casa").pantalla.texto
+    texto = solo.boton(ADMIN, "", "acc:limpieza").pantalla.texto
     assert "🪳 sucio" in texto and "¡no queda limpia!" in texto
     assert "No queda ropa limpia" in solo.boton(ADMIN, "", "sim").pantalla.texto
     res = solo.boton(ADMIN, "", "a:limpiar")
     assert "a:limpiar:salon" in datos(res.pantalla)
-    solo.boton(ADMIN, "", "a:limpiar:salon")
+    solo.boton(ADMIN, "", "as:limpiar:salon")
     reloj.avanzar(31)
     res = solo.boton(ADMIN, "", "sim")
     assert "quedó reluciente" in res.pantalla.texto
-    solo.boton(ADMIN, "", "a:lavar")
+    solo.boton(ADMIN, "", "as:lavar")
     reloj.avanzar(61)
     solo.boton(ADMIN, "", "sim")
     h = solo._hogar(h.sala_id)
@@ -215,7 +216,7 @@ def test_limpiar_una_zona_y_lavar_la_ropa(solo, reloj):
 
 def test_ducharse_ensucia_el_bano_y_deja_ropa(solo):
     poner(solo, ADMIN, higiene=10)
-    solo.boton(ADMIN, "", "a:ducha")
+    solo.boton(ADMIN, "", "as:ducha")
     h = solo._hogar(solo.db.jugador(ADMIN).sala_id)
     assert json.loads(h.zonas)["bano"] == 8 and h.ropa_sucia == 2
 
@@ -223,9 +224,10 @@ def test_ducharse_ensucia_el_bano_y_deja_ropa(solo):
 # --- juntos ------------------------------------------------------------------------------
 
 def test_sin_pareja_no_hay_abrazos(solo):
-    texto = str(solo.boton(ADMIN, "", "acc:social").pantalla.botones)
-    assert "a:abrazar" not in texto and "Llamar a alguien por teléfono" in texto  # hablar solo = llamar
-    assert "Con tu pareja en la sala también podrán" in solo.boton(ADMIN, "", "acc:social").pantalla.texto
+    texto = str(solo.boton(ADMIN, "", "acc:pareja").pantalla.botones)
+    assert "a:abrazar" not in texto
+    assert "Con tu pareja en la sala también podrán" in solo.boton(ADMIN, "", "acc:pareja").pantalla.texto
+    assert "Llamar a un amigo o a la familia" in str(solo.boton(ADMIN, "", "acc:diversion").pantalla.botones)
     res = solo.boton(ADMIN, "", "a:abrazar")
     assert res.alerta == "Para esto necesitas a tu pareja en la sala."
 
@@ -234,6 +236,8 @@ def test_hacer_algo_juntos_es_mas_rapido(pareja, reloj):
     poner(pareja, ANA, higiene=20)
     poner(pareja, ADMIN, higiene=20)
     res = pareja.boton(ANA, "", "a:banarse")
+    assert "¿Confirmar?" in res.pantalla.texto and "aj:banarse" in datos(res.pantalla)
+    res = pareja.boton(ANA, "", "aj:banarse")
     assert "Le propusiste" in res.pantalla.texto
     propuesta = next(a for a in res.avisos if a.para == ADMIN)
     assert "te propone" in propuesta.texto and "21 min" in propuesta.texto
@@ -258,12 +262,12 @@ def test_accion_opcional_pregunta_solo_o_juntos(pareja):
 
 
 def test_rechazar_y_aceptar_tarde(pareja, reloj):
-    res = pareja.boton(ANA, "", "a:abrazar")
+    res = pareja.boton(ANA, "", "aj:abrazar")
     propuesta = next(a for a in res.avisos if a.para == ADMIN)
     no = next(d for fila in propuesta.botones for _, d in fila if d.endswith(":0"))
     res = pareja.boton(ADMIN, "", no)
     assert any(a.para == ANA and "dijo que ahora no" in a.texto for a in res.avisos)
-    res = pareja.boton(ANA, "", "a:besar")
+    res = pareja.boton(ANA, "", "aj:besar")
     propuesta = next(a for a in res.avisos if a.para == ADMIN)
     si = next(d for fila in propuesta.botones for _, d in fila if d.endswith(":1"))
     reloj.avanzar(20)
@@ -273,7 +277,7 @@ def test_rechazar_y_aceptar_tarde(pareja, reloj):
 def test_se_puede_aceptar_con_el_sim_en_pausa(pareja, reloj):
     reloj.avanzar(10)  # los dos congelados
     pareja.boton(ANA, "", "continuar")
-    res = pareja.boton(ANA, "", "a:abrazar")
+    res = pareja.boton(ANA, "", "aj:abrazar")
     propuesta = next(a for a in res.avisos if a.para == ADMIN)
     si = next(d for fila in propuesta.botones for _, d in fila if d.endswith(":1"))
     res = pareja.boton(ADMIN, "", si)
@@ -282,5 +286,5 @@ def test_se_puede_aceptar_con_el_sim_en_pausa(pareja, reloj):
 
 def test_la_pareja_fuera_de_linea_no_recibe_propuestas(pareja, reloj):
     pareja.boton(ADMIN, "", "salir")
-    res = pareja.boton(ANA, "", "a:abrazar")
+    res = pareja.boton(ANA, "", "aj:abrazar")
     assert "no está en línea" in res.alerta

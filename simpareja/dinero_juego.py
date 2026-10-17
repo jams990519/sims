@@ -69,34 +69,67 @@ class DineroMixin:
         h = self._hogar(j.sala_id)
         return D.falta_servicio(a.clave, D.servicios_cortados(json.loads(h.pendientes)))
 
-    def _costo_accion(self, j: Jugador, a: V.Accion, extra: str = "") -> tuple[int, str]:
-        if a.comida and extra in C.RECETAS:
-            return 0, ""  # de la nevera: ya se pagaron los ingredientes
-        if a.comida:
-            comida, _, _ = V.comida_del_momento(self._segundos_juego(j, self.reloj()))
-            return D.precio_comida(comida), f"🍽️ Comida: {comida}"
+    def _extras(self, j: Jugador) -> dict:
+        return json.loads(j.extras or "{}")
+
+    def _gimnasio_al_dia(self, j: Jugador, dia: int) -> bool:
+        return self._extras(j).get("gimnasio_hasta", 0) >= dia
+
+    def _costo_accion(self, j: Jugador, a: V.Accion, extra: str = "", juntos: bool = False,
+                      pareja: Jugador | None = None) -> tuple[int, str]:
+        """Lo que cuesta empezar la acción en total (para uno o para los dos) y el concepto."""
+        personas = 2 if juntos else 1
+        s = self._segundos_juego(j, self.reloj())
+        dia = V.dia_de_juego(s)
+        if a.clave == "comer":
+            return 0, ""  # de la nevera o del táper: ya se pagó
+        if a.clave == "domicilio" or (a.comida and extra == "comprar"):
+            comida, _, _ = V.comida_del_momento(s)
+            return D.precio_comida(comida) * D.DOMICILIO * personas, f"🛵 Pedido a domicilio ({comida})"
+        if a.clave in D.PRECIO_SALIDA:
+            precio = D.PRECIO_SALIDA[a.clave][1 if juntos else 0]
+            if V.es_fin_de_semana(dia):
+                precio = round(precio * (1 + D.RECARGO_FIN_DE_SEMANA))
+            return precio, f"{a.emoji} {a.titulo(juntos)}"
+        if a.clave == "gimnasio":
+            sin_cuota = [x for x in (j, pareja) if x is not None and not self._gimnasio_al_dia(x, dia)]
+            return D.GIMNASIO_MES * len(sin_cuota), "🏋️ Cuota del gimnasio (30 días)"
         if a.clave == "picar":
             return D.PRECIO_PICAR, "🍎 Algo para picar"
         return 0, ""
 
-    def _cobrar_accion(self, j: Jugador, a: V.Accion, juntos: bool = False, extra: str = "") -> str | None:
+    def _cobrar_accion(self, j: Jugador, a: V.Accion, juntos: bool = False, extra: str = "",
+                       pareja: Jugador | None = None) -> str | None:
         """Cobra lo que cuesta empezar la acción y suma su consumo. Devuelve un error si no se puede."""
         bloqueo = self._bloqueo_accion(j, a)
         if bloqueo:
             return bloqueo
-        if a.comida and extra in C.RECETAS:
+        if a.clave == "comer" and extra in C.RECETAS:
             error = self._sacar_de_la_nevera(j, extra, 2 if juntos else 1)
             if error:
                 return error
-        costo, concepto = self._costo_accion(j, a, extra)
+        elif a.clave == "comer" and extra == "taper":
+            if not j.taper:
+                return "No tienes ningún táper."
+            j.taper = ""
+            self.db.guardar_jugador(j)
+        elif a.clave == "comer":
+            return "Elige qué comer de la nevera."
+        costo, concepto = self._costo_accion(j, a, extra, juntos, pareja)
         if costo:
-            personas = 2 if juntos else 1
-            total = costo * personas
-            if not self._pagar(j, total, concepto + (" para dos" if juntos else "")):
+            if not self._pagar(j, costo, concepto):
                 return (
-                    f"💸 No alcanza el dinero ({D.dinero(total)}). "
+                    f"💸 No alcanza el dinero ({D.dinero(costo)}). "
                     "Pasen dinero a la cuenta compartida en 💰 Dinero."
                 )
+            if a.clave == "gimnasio":
+                dia = V.dia_de_juego(self._segundos_juego(j, self.reloj()))
+                for x in (j, pareja):
+                    if x is not None and not self._gimnasio_al_dia(x, dia):
+                        extras = self._extras(x)
+                        extras["gimnasio_hasta"] = dia + D.DIAS_POR_MES - 1
+                        x.extras = json.dumps(extras)
+                        self.db.guardar_jugador(x)
         consumo = D.CONSUMO.get(a.clave)
         if consumo:
             h = self._hogar(j.sala_id)
@@ -184,7 +217,7 @@ class DineroMixin:
         return lineas
 
     def _b_dinero(self, j: Jugador, arg: str, res, aviso: str | None = None) -> None:
-        from .juego import SALA, Pantalla, duracion
+        from .juego import Pantalla, duracion
 
         h = self._hogar(j.sala_id)
         res.notas += self._procesar_hogar(h)
@@ -215,7 +248,7 @@ class DineroMixin:
         botones = [
             [("⬆️ Cartera → compartida", "mover:dep"), ("⬇️ Compartida → cartera", "mover:ret")],
             [("📄 Facturas", "facturas"), ("🏡 Casa", "casa")],
-            [("🧍 Mi Sim", "sim"), SALA],
+            [("⬅️ Atrás", "mest"), ("🎮 Menú", "menu")],
         ]
         res.pantalla = Pantalla("\n".join(lineas), botones, clave="dinero")
 
@@ -335,6 +368,6 @@ class DineroMixin:
         lineas += ["", "🛋️ <i>Muebles y mejoras de la casa llegarán más adelante.</i>"]
         res.pantalla = Pantalla(
             "\n".join(lineas),
-            [[("🧹 Limpiar y lavar", "acc:casa"), ("🧊 Nevera", "nevera")], [("💰 Dinero", "dinero"), ("🧍 Mi Sim", "sim")]],
+            [[("🧹 Limpieza", "acc:limpieza"), ("💰 Dinero", "dinero")], [("⬅️ Atrás", "mcasa")]],
             clave="casa",
         )
