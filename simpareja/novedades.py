@@ -3,9 +3,16 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.11"
+VERSION = "0.12"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.12", [
+        "💗 <b>Medidor de relación</b> (💕 Pareja → Medidor): cada quien tiene un medidor de 0 a 100 % de lo "
+        "que siente por el otro. Empieza en 50 %.",
+        "➕➖ Lo mueves cuando quieras, subiéndolo o bajándolo, y eliges qué lo causó (o lo escribes). "
+        "Tu pareja recibe un aviso.",
+        "📜 Queda un historial de los cambios de los dos, y los porcentajes se ven en el perfil.",
+    ]),
     ("0.11", [
         "🎭 <b>Ánimo con foto</b> (/animo): eliges el color y, si quieres, mandas una foto y una frase corta "
         "(la frase puede ir en el pie de foto).",
