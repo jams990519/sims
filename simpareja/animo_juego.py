@@ -147,6 +147,10 @@ class AnimoMixin:
             lineas.append("📸 Con foto")
         return lineas
 
+    def _fecha_corta(self, j: Jugador, ts: float) -> str:
+        local = self._local(j, ts)
+        return f"{local.day}/{local.month}"
+
     def _fotos(self, j: Jugador) -> list[dict]:
         return [r for r in self._extras(j).get("animos", []) if r.get("foto")]
 
@@ -195,12 +199,17 @@ class AnimoMixin:
             botones += [fila[k:k + 3] for k in range(0, min(len(fila), 9), 3)]
         if not hay:
             lineas.append("Todavía no hay fotos. Cambia tu 🎭 estado de ánimo y agrega una foto: se guardan aquí.")
-        respuestas = [r for r in self._extras_hogar(self._hogar(j.sala_id)).get("recuerdos", []) if r["tipo"] == "respuesta"]
+        recuerdos = self._extras_hogar(self._hogar(j.sala_id)).get("recuerdos", [])
+        for tipo, titulo in (("aniversario", "🎂 <b>Aniversarios</b>"), ("cita", "🌹 <b>Citas</b>")):
+            de_tipo = [r for r in recuerdos if r["tipo"] == tipo]
+            if de_tipo:
+                lineas += ["", titulo] + [f"{r['texto']} · {self._fecha_corta(j, r['ts'])}" for r in reversed(de_tipo[-5:])]
+        respuestas = [r for r in recuerdos if r["tipo"] == "respuesta"]
         if respuestas:
             lineas += ["", "💬 <b>Respuestas que les gustaron</b>"]
             for r in reversed(respuestas[-5:]):
                 de = self.db.jugador(r["de"])
                 lineas.append(f"❓ {esc(r['pregunta'])}\n   {esc(de.personaje) if de else '…'}: «{esc(r['texto'])}»")
-        lineas += ["", "🚧 <i>Pronto también: aniversarios, citas e hitos.</i>"]
+        lineas += ["", "🚧 <i>Pronto también: los hitos de pareja.</i>"]
         botones.append([("🎭 Mi ánimo", "animos"), ("⬅️ Atrás", "mpar")])
         res.pantalla = Pantalla("\n".join(lineas), botones, clave="album")

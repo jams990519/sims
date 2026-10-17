@@ -3,9 +3,20 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.15"
+VERSION = "0.16"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.16", [
+        "🎂 <b>Aniversario mensual</b> (💕 Pareja → Aniversario): cada mes, el día en que empezaron a jugar juntos, "
+        "cumplen un mes más. Tres días antes les llega un aviso a los dos.",
+        "🎯 Lo planean juntos: uno propone el día (ese u otro cercano), qué hacer (cena en casa, restaurante, cine "
+        "o picnic en el parque) y el presupuesto, y el otro lo acepta.",
+        "🥂 Ese día, con los dos conectados, brindan y se dan un regalo (una carta, chocolates, flores, un peluche "
+        "o un perfume). Recompensa: +10 en el medidor de los dos y un recuerdo en el álbum.",
+        "🙂 Si no lo celebran, no pasa nada grave: solo se pierde la recompensa.",
+        "📸 El <b>álbum de recuerdos</b> ahora guarda aniversarios, citas (restaurante, cine o parque juntos), "
+        "respuestas que les gustaron y fotos de ánimo.",
+    ]),
     ("0.15", [
         "🎲 <b>Eventos sorpresa</b>: uno o dos por semana, al azar, les llega algo bueno, malo o de pareja.",
         "🎉 Buenos: bono en el trabajo ($100 a $200), el súper a mitad de precio ese día o un regalo que sube el ánimo.",

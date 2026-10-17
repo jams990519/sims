@@ -22,7 +22,6 @@ PRONTO = {
     "muebles": "🛋️ La tienda de muebles",
     "electronica": "📺 La tienda de electrónica",
     "influencer": "📱 El minijuego de influencer",
-    "aniversario": "🎂 El aniversario",
     "retos": "🎯 Los retos semanales",
     "hitos": "🏆 Los hitos de pareja",
 }
@@ -248,10 +247,12 @@ class MenuMixin:
             texto += "\nTodavía juegas sin pareja en la sala. Invítala con 💌 Invitar."
         pregunta = self._pregunta(self._hogar(j.sala_id)) if pareja else None
         falta = pregunta is not None and str(j.id) not in pregunta["respuestas"]
+        aniv = self._extras_hogar(self._hogar(j.sala_id)).get("aniv") if pareja else None
+        hoy_aniv = bool(aniv) and aniv["dia"] == self._hoy(j) and not aniv["hecho"]
         botones = [
             [("💞 Acciones en pareja", "acc:pareja")],
             [("💗 Medidor de relación", "medidor"), ("❓ Preguntas" + (" (1)" if falta else ""), "preg")],
-            [("🎂 Aniversario 🚧", "pronto:aniversario"), ("🎯 Retos 🚧", "pronto:retos")],
+            [("🎂 Aniversario" + (" 🎉" if hoy_aniv else ""), "aniv"), ("🎯 Retos 🚧", "pronto:retos")],
             [("🏆 Hitos 🚧", "pronto:hitos"), ("📸 Álbum", "album")],
             [("💌 Invitar", "invitar"), ("⬅️ Atrás", "menu")],
         ]
