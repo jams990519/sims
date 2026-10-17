@@ -9,7 +9,7 @@ from simpareja import vida as V
 from simpareja.config import Config
 from simpareja.db import DB
 from simpareja.juego import Juego
-from test_juego import ADMIN, ANA, Reloj, aceptar, crear_personaje, invitar
+from test_juego import ADMIN, ANA, Reloj, aceptar, crear_personaje, invitar  # noqa: F401
 
 
 @pytest.fixture

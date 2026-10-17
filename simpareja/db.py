@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS jugadores (
     accion            TEXT,                     -- JSON de la acción en curso
     energia_max       INTEGER NOT NULL DEFAULT 100,
     racha             TEXT NOT NULL DEFAULT '{}',  -- días seguidos de ejercicio
-    aviso_necesidad_ts REAL NOT NULL DEFAULT 0
+    aviso_necesidad_ts REAL NOT NULL DEFAULT 0,
+    cartera           INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS jugadores_sala ON jugadores(sala_id);
 
@@ -84,12 +85,30 @@ CREATE TABLE IF NOT EXISTS ultima_conexion (
     desconectado     REAL
 );
 
--- La casa de cada sala: suciedad de cada zona y ropa sucia acumulada.
+-- La casa de cada sala: limpieza, ropa sucia, cuenta compartida y facturas.
 CREATE TABLE IF NOT EXISTS hogares (
-    sala_id    INTEGER PRIMARY KEY,
-    zonas      TEXT NOT NULL DEFAULT '{}',
-    ropa_sucia INTEGER NOT NULL DEFAULT 0
+    sala_id       INTEGER PRIMARY KEY,
+    zonas         TEXT NOT NULL DEFAULT '{}',
+    ropa_sucia    INTEGER NOT NULL DEFAULT 0,
+    casa          TEXT NOT NULL DEFAULT '',     -- vacío hasta comprar la casa
+    cuenta        INTEGER NOT NULL DEFAULT 0,   -- cuenta compartida, en dólares
+    dia_hogar     INTEGER NOT NULL DEFAULT 0,   -- último día ya procesado (imprevistos, cobros)
+    proximo_cobro INTEGER NOT NULL DEFAULT 0,   -- día en que se cobran las facturas del mes
+    consumo       TEXT NOT NULL DEFAULT '{}',   -- consumo de luz y agua del mes, en dólares
+    pendientes    TEXT NOT NULL DEFAULT '[]'    -- facturas impagas, con recargo
 );
+
+-- Movimientos de dinero de la cuenta compartida y de las carteras.
+CREATE TABLE IF NOT EXISTS movimientos (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    sala_id    INTEGER NOT NULL,
+    jugador_id INTEGER,
+    cuenta     TEXT NOT NULL,                   -- 'compartida' | 'cartera'
+    monto      INTEGER NOT NULL,
+    concepto   TEXT NOT NULL,
+    ts         REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS movimientos_sala ON movimientos(sala_id, id);
 
 -- Propuestas para hacer una acción juntos.
 CREATE TABLE IF NOT EXISTS propuestas (
@@ -120,6 +139,13 @@ COLUMNAS_NUEVAS = [
     ("jugadores", "energia_max", "INTEGER NOT NULL DEFAULT 100"),
     ("jugadores", "racha", "TEXT NOT NULL DEFAULT '{}'"),
     ("jugadores", "aviso_necesidad_ts", "REAL NOT NULL DEFAULT 0"),
+    ("jugadores", "cartera", "INTEGER NOT NULL DEFAULT 0"),
+    ("hogares", "casa", "TEXT NOT NULL DEFAULT ''"),
+    ("hogares", "cuenta", "INTEGER NOT NULL DEFAULT 0"),
+    ("hogares", "dia_hogar", "INTEGER NOT NULL DEFAULT 0"),
+    ("hogares", "proximo_cobro", "INTEGER NOT NULL DEFAULT 0"),
+    ("hogares", "consumo", "TEXT NOT NULL DEFAULT '{}'"),
+    ("hogares", "pendientes", "TEXT NOT NULL DEFAULT '[]'"),
 ]
 
 
@@ -150,6 +176,7 @@ class Jugador:
     energia_max: int = 100
     racha: str = "{}"
     aviso_necesidad_ts: float = 0.0
+    cartera: int = 0
 
     @property
     def activo(self) -> bool:
@@ -165,6 +192,23 @@ class Hogar:
     sala_id: int
     zonas: str = "{}"
     ropa_sucia: int = 0
+    casa: str = ""
+    cuenta: int = 0
+    dia_hogar: int = 0
+    proximo_cobro: int = 0
+    consumo: str = "{}"
+    pendientes: str = "[]"
+
+
+@dataclass
+class Movimiento:
+    id: int | None
+    sala_id: int
+    jugador_id: int | None
+    cuenta: str
+    monto: int
+    concepto: str
+    ts: float
 
 
 @dataclass
@@ -345,6 +389,22 @@ class DB:
     def guardar_hogar(self, h: Hogar) -> None:
         with self.con:
             self.con.execute(_sql_upsert("hogares", Hogar), astuple(h))
+
+    def hogares(self) -> list[Hogar]:
+        return [Hogar(**f) for f in self.con.execute("SELECT * FROM hogares").fetchall()]
+
+    def anotar_movimiento(self, m: Movimiento) -> None:
+        with self.con:
+            self.con.execute(
+                "INSERT INTO movimientos (sala_id, jugador_id, cuenta, monto, concepto, ts) VALUES (?, ?, ?, ?, ?, ?)",
+                (m.sala_id, m.jugador_id, m.cuenta, m.monto, m.concepto, m.ts),
+            )
+
+    def movimientos(self, sala_id: int, limite: int = 8) -> list[Movimiento]:
+        filas = self.con.execute(
+            "SELECT * FROM movimientos WHERE sala_id = ? ORDER BY id DESC LIMIT ?", (sala_id, limite)
+        ).fetchall()
+        return [Movimiento(**f) for f in filas]
 
     def propuesta(self, pid: int) -> Propuesta | None:
         fila = self.con.execute("SELECT * FROM propuestas WHERE id = ?", (pid,)).fetchone()

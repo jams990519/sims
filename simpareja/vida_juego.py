@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 
+from . import dinero as D
 from . import personaje as P
 from . import vida as V
 from .db import Hogar, Jugador, Propuesta
@@ -44,6 +45,8 @@ class VidaMixin:
         if h is None:
             h = Hogar(sala_id, json.dumps({z: 0 for z in V.ZONAS}))
             self.db.guardar_hogar(h)
+        if not h.casa:
+            self._preparar_casa(h)
         return h
 
     def _multiplicadores(self, j: Jugador) -> dict:
@@ -186,6 +189,10 @@ class VidaMixin:
             cifra = f"{round(valor)}/{tope}" if n.clave == "energia" and tope != 100 else f"{round(valor)}"
             lineas.append(f"{n.emoji} {V.barra(valor, tope)} {cifra} {n.nombre}")
         h = self._hogar(j.sala_id)
+        lineas += ["", f"🏡 Casita · 🏦 Compartida {D.dinero(h.cuenta)} · 👛 Tu cartera {D.dinero(j.cartera)}"]
+        cortados = D.servicios_cortados(json.loads(h.pendientes))
+        if cortados:
+            lineas.append("❌ Servicio cortado: " + ", ".join(D.POR_CLAVE_FACTURA[c].nombre.lower() for c in cortados))
         avisos_casa = []
         if h.ropa_sucia >= V.ROPA_LIMITE:
             avisos_casa.append("🧺 No queda ropa limpia: la higiene baja más rápido.")
@@ -199,6 +206,7 @@ class VidaMixin:
         ]
         if haciendo:
             botones.insert(0, [("⏹️ Parar lo que está haciendo", "parar")])
+        botones.append([("💰 Dinero", "dinero"), ("🏡 Casa", "casa")])
         botones.append([("🔄 Actualizar", "sim"), SALA])
         return Pantalla("\n".join(lineas), botones, clave="sim")
 
@@ -233,11 +241,15 @@ class VidaMixin:
                 faltan_pareja.append(a.nombre.lower())
                 continue
             titulo = a.titulo(a.juntos == V.OBLIGATORIO)
+            precio = ""
             if a.comida:
-                _, comida, valor = V.comida_del_momento(s)
+                clave_comida, comida, valor = V.comida_del_momento(s)
                 titulo = f"{comida} (+{valor + a.efectos.get('hambre', 0)})" if a.clave == "comer" else f"Cocinar y {comida.lower()}"
+                precio = f" · {D.dinero(D.precio_comida(clave_comida))}"
+            elif a.clave == "picar":
+                precio = f" · {D.dinero(D.PRECIO_PICAR)}"
             duracion = "" if a.clave == "dormir" else f" · {_dur(a.minutos * 60)}"
-            botones.append([(f"{a.emoji} {titulo}{duracion}", f"a:{a.clave}")])
+            botones.append([(f"{a.emoji} {titulo}{precio}{duracion}", f"a:{a.clave}")])
         if faltan_pareja:
             lineas += ["", f"💞 Con tu pareja en la sala también podrán: {', '.join(faltan_pareja)}."]
         lineas += ["", "💡 Juntos terminan más rápido."] if pareja else []
@@ -280,7 +292,7 @@ class VidaMixin:
                 clave="acc:casa",
             )
             return
-        motivo = V.no_hace_falta(a, nec, j.energia_max)
+        motivo = V.no_hace_falta(a, nec, j.energia_max) or self._bloqueo_accion(j, a)
         if motivo:
             res.alerta = motivo
             self._b_categoria(j, a.categoria, res)
@@ -334,6 +346,11 @@ class VidaMixin:
             self._proponer(j, a, extra, pareja, res)
 
     def _hacer(self, j: Jugador, a: V.Accion, extra: str, res) -> None:
+        error = self._cobrar_accion(j, a)
+        if error:
+            res.alerta = error
+            self._b_categoria(j, a.categoria, res)
+            return
         datos = self._empezar(j, a, extra, None, self.reloj())
         res.ediciones += self._refrescar_sala(j.sala_id, excepto=j.id)
         titulo = a.titulo(False)
@@ -391,6 +408,14 @@ class VidaMixin:
             p.estado = "caducada"
             self.db.guardar_propuesta(p)
             res.alerta = f"{de.personaje} ya está haciendo otra cosa."
+            res.pantalla = self._pantalla_sim(j)
+            return
+        error = self._cobrar_accion(de, a, juntos=True)
+        if error:
+            p.estado = "caducada"
+            self.db.guardar_propuesta(p)
+            res.alerta = error
+            res.avisos.append(Aviso(de.id, f"No pudieron empezar {a.titulo(True).lower()}: {error}"))
             res.pantalla = self._pantalla_sim(j)
             return
         self._descongelar(j, ahora)

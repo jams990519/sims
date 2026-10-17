@@ -3,9 +3,21 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.3"
+VERSION = "0.4"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.4", [
+        "🏡 <b>¡Ya tienen casa!</b> Empezaron con $3.000 entre los dos y compraron la Casita "
+        "(baño, clóset, un cuarto y una sala-cocina-comedor grande) con $1.500 de entrada y una hipoteca "
+        "de $700 al mes. Mírala con /casa.",
+        "💰 <b>Dinero</b> (/dinero): cada quien tiene su 👛 cartera y hay una 🏦 cuenta compartida para la "
+        "casa y los gastos. Pueden pasar dinero de una a otra.",
+        "📄 Facturas del mes: hipoteca $700, luz $90 y agua $40 (suben con el uso), internet $50 y gas $30. "
+        "Se cobran solas cada 30 días; si no alcanza, hay un recargo del 10 % y se corta el servicio.",
+        "🍽️ Comer cuesta: $3 el desayuno, $5 el almuerzo y $4 la cena por persona.",
+        "🔧 Ojo con los imprevistos: averías y multas que llegan cuando menos lo esperan.",
+        "➡️ Lo siguiente: los trabajos, para ganar dinero.",
+    ]),
     ("0.3", [
         "🧍 <b>Mi Sim</b> (/sim): tu Sim ya tiene necesidades: 🍔 hambre, ⚡ energía, 🚿 higiene, 🎉 diversión "
         "y 💬 social. Bajan con su reloj; si alguna llega a 0 se pone de mal humor, y sin energía se duerme "
