@@ -1,0 +1,1 @@
+python-telegram-bot[job-queue,socks]>=22.0,<23
