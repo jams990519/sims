@@ -3,9 +3,19 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.8"
+VERSION = "0.9"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.9", [
+        "🔑 <b>Casa en renta</b>: ahora empiezan rentando la casita por $900 al mes, con un depósito de $900 "
+        "(de los $3.000 les quedan $2.100). Si ya jugaban, les devolví los $600 de diferencia de la entrada.",
+        "🎯 <b>Meta de ahorro</b>: en 💰 Dinero aparece «nuestra casa» con lo que falta para comprarla.",
+        "🚚 <b>Mudanza</b> (🏠 Casa → Renta y mudanza): con $3.900 ahorrados pueden mudarse a un apartamento "
+        "grande ($1.300 al mes) con un 🧸 cuarto extra. Les devuelven el depósito y aceptan los dos.",
+        "🏠 <b>Comprar «nuestra casa»</b> con $15.000 de entrada: la hipoteca ($1.200) es parecida a la renta, "
+        "pero la casa es suya.",
+        "🔨 Remodelar solo se puede en casa propia; en la de renta solo se ponen muebles.",
+    ]),
     ("0.8", [
         "🗓️ <b>Horario de trabajo real</b>: en 💼 Trabajo → Mi horario eliges los días, la hora de entrada y las "
         "horas (como mucho 8 al día). El sueldo es horas × pago por hora.",

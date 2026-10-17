@@ -104,6 +104,7 @@ LUGARES = {
     "mover": ("💰 Dinero", "moviendo dinero"),
     "facturas": ("📄 Facturas", "revisando las facturas"),
     "casa": ("🏡 Casa", "mirando la casa"),
+    "mudanza": ("🚚 Renta y mudanza", "pensando en mudarse"),
     "trabajo": ("💼 Trabajo", "mirando su trabajo"),
     "super": ("🛒 Súper", "en el súper"),
     "nevera": ("🧊 Nevera", "mirando la nevera"),
@@ -319,9 +320,10 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
             "🎮 Puedes jugar sin compañía o 💌 invitar a tu pareja a tu sala.\n"
             "🎮 En el <b>Menú</b> están 🏠 Casa, ⚡ Acciones, 📍 Lugares, 💼 Trabajo, 💕 Pareja, 👤 Estado y 💬 Chat. "
             "Cada acción muestra su efecto y su tiempo antes de confirmar; juntos terminan antes.\n"
-            "💰 Empiezan con $3.000, compran la Casita y pagan hipoteca, facturas y comida. "
-            "Cada quien tiene su cartera y hay una cuenta compartida.\n"
-            "💼 Cada quien elige su trabajo: decides las horas, cobras al terminar y con constancia llegan los ascensos.\n"
+            "💰 Empiezan con $3.000, rentan una casita ($900 al mes) y pagan renta, facturas y comida. "
+            "Cada quien tiene su cartera y hay una cuenta compartida; ahorrando se mudan o compran «nuestra casa».\n"
+            "💼 Cada quien elige su trabajo y su horario real: a esa hora tu Sim se va solo, y si están juntos "
+            "nunca se les obliga.\n"
             "🛒 Compran ingredientes en el súper y 🍳 cocinan paso a paso: ¡si te pasas de tiempo se quema!\n"
             "💬 En la sala, todo lo que escribas (texto, fotos, stickers, notas de voz) le llega a la otra persona.\n"
             f"🕒 El juego usa tu hora local real. Si pasas {self.cfg.pausa_min} min sin hacer nada, tu Sim se "
@@ -448,6 +450,10 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
             "hor": self._b_horario,
             "rapida": self._b_rapida,
             "zona": self._b_zona,
+            "mudanza": self._b_mudanza,
+            "mudok": self._b_mudanza_si,
+            "mudno": self._b_mudanza_no,
+            "remodelar": self._b_remodelar,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -993,6 +999,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
             "cocina": self._b_coccion, "menu": self._b_menu, "mcasa": self._b_menu_casa,
             "macc": self._b_menu_acciones, "mlug": self._b_menu_lugares, "mpar": self._b_menu_pareja,
             "mest": self._b_menu_estado, "perfil": self._b_perfil, "carrera": self._b_carrera,
+            "mudanza": self._b_mudanza,
         }.get(accion, self._b_menu)
         tmp = Resultado()
         manejador(j, arg, tmp)

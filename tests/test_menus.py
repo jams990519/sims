@@ -96,7 +96,7 @@ def test_lugares_con_precios(solo, reloj):
     poner(solo, ADMIN, hambre=10)
     assert "💵 $20" in solo.boton(ADMIN, "", "a:restaurante").pantalla.texto
     solo.boton(ADMIN, "", "as:restaurante")
-    assert hogar(solo).cuenta == 1480
+    assert hogar(solo).cuenta == 2080
     assert solo.db.jugador(ADMIN).lugar == "fuera:restaurante"
     reloj.avanzar(91)
     solo.boton(ADMIN, "", "sim")
@@ -115,7 +115,7 @@ def test_cita_en_el_cine_juntos(pareja):
     res = pareja.boton(ANA, "", "aj:cine")
     si = next(d for fila in res.avisos[0].botones for _, d in fila if d.endswith(":1"))
     pareja.boton(ADMIN, "", si)
-    assert hogar(pareja).cuenta == 1475
+    assert hogar(pareja).cuenta == 2075
 
 
 def test_cuota_del_gimnasio_una_vez_al_mes(solo, reloj):
@@ -126,7 +126,7 @@ def test_cuota_del_gimnasio_una_vez_al_mes(solo, reloj):
     solo.boton(ADMIN, "", "sim")
     assert "💵" not in solo.boton(ADMIN, "", "a:gimnasio").pantalla.texto
     solo.boton(ADMIN, "", "as:gimnasio")
-    assert hogar(solo).cuenta == 1470
+    assert hogar(solo).cuenta == 2070
 
 
 def test_lo_que_aun_no_existe_avisa_que_llega_pronto(solo):

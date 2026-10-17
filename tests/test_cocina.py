@@ -68,7 +68,7 @@ def test_comprar_en_el_super(solo):
     res = solo.boton(ADMIN, "", "sup:pagar")
     assert "Compra pagada: $9" in res.alerta
     assert json.loads(hogar(solo).despensa) == {"huevos": 24, "pan": 10}
-    assert hogar(solo).cuenta == 1500 - 9
+    assert hogar(solo).cuenta == 2100 - 9
     assert "¿Confirmar?" in res.pantalla.texto  # ir y volver lleva su tiempo
     solo.boton(ADMIN, "", "as:super:ir")
     assert json.loads(solo.db.jugador(ADMIN).accion)["k"] == "super"
@@ -182,7 +182,7 @@ def test_comer_de_la_nevera_es_gratis(solo):
     assert "gratis" not in res.pantalla.texto and "💵" not in res.pantalla.texto
     res = solo.boton(ADMIN, "", "as:comer:pasta")
     assert "Empezó" in res.pantalla.texto
-    assert json.loads(hogar(solo).nevera) == {} and hogar(solo).cuenta == 1500
+    assert json.loads(hogar(solo).nevera) == {} and hogar(solo).cuenta == 2100
 
 
 def test_tapper_para_el_trabajo(solo, reloj):

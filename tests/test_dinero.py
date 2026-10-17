@@ -37,27 +37,28 @@ def sin_imprevistos(monkeypatch):
     monkeypatch.setattr(D, "imprevisto", lambda rng: None)
 
 
-def test_empiezan_con_3000_y_compran_la_casita(solo):
+def test_empiezan_con_3000_y_rentan_la_casita(solo):
     h = hogar(solo)
-    assert h.casa == "casita" and h.cuenta == 1500
+    assert h.casa == "casita" and h.cuenta == 2100
     texto = solo.boton(ADMIN, "", "dinero").pantalla.texto
-    assert "Cuenta compartida: <b>$1.500</b>" in texto and "Tu cartera: <b>$0</b>" in texto
-    assert "+$3.000 💵 Ahorros iniciales" in texto and "−$1.500 🔑 Entrada de la Casita" in texto
+    assert "Cuenta compartida: <b>$2.100</b>" in texto and "Tu cartera: <b>$0</b>" in texto
+    assert "+$3.000 💵 Ahorros iniciales" in texto and "−$900 🔑 Depósito de la casita en renta" in texto
     assert "se cobran en 30 días" in texto
     casa = solo.boton(ADMIN, "", "casa").pantalla.texto
-    assert "Casita" in casa and "🔑 Hipoteca: $700 al mes" in casa and "💡 Luz: ✅ funciona" in casa
+    assert "Casita en renta" in casa and "🔑 Renta: $900 al mes · depósito de $900" in casa
+    assert "💡 Luz: ✅ funciona" in casa and "🧸" not in casa
 
 
 def test_la_pareja_comparte_la_cuenta(pareja):
     assert hogar(pareja, ANA).sala_id == hogar(pareja, ADMIN).sala_id
-    assert hogar(pareja, ANA).cuenta == 1500
+    assert hogar(pareja, ANA).cuenta == 2100
 
 
 def test_comer_cuesta_segun_la_comida(solo, reloj):
     poner(solo, ADMIN, hambre=20)
     assert "💵 $6" in solo.boton(ADMIN, "", "a:domicilio").pantalla.texto  # a domicilio cuesta el doble
     solo.boton(ADMIN, "", "as:domicilio")
-    assert hogar(solo).cuenta == 1494
+    assert hogar(solo).cuenta == 2094
     assert "−$6 🛵 Pedido a domicilio (desayuno) (Luis)" in solo.boton(ADMIN, "", "dinero").pantalla.texto
 
 
@@ -66,7 +67,7 @@ def test_comer_juntos_cuesta_por_dos(pareja):
     res = pareja.boton(ANA, "", "aj:domicilio")
     si = next(d for fila in res.avisos[0].botones for _, d in fila if d.endswith(":1"))
     pareja.boton(ADMIN, "", si)
-    assert hogar(pareja).cuenta == 1488
+    assert hogar(pareja).cuenta == 2088
 
 
 def test_sin_dinero_no_se_come_pero_paga_la_cartera(solo):
@@ -88,9 +89,9 @@ def test_pasar_dinero_entre_cartera_y_compartida(solo):
     assert "mv:ret:500" in str(res.pantalla.botones)
     res = solo.boton(ADMIN, "", "mv:ret:500")
     assert "Pasaste $500 a tu cartera" in res.pantalla.texto
-    assert solo.db.jugador(ADMIN).cartera == 500 and hogar(solo).cuenta == 1000
+    assert solo.db.jugador(ADMIN).cartera == 500 and hogar(solo).cuenta == 1600
     solo.boton(ADMIN, "", "mv:dep:100")
-    assert solo.db.jugador(ADMIN).cartera == 400 and hogar(solo).cuenta == 1100
+    assert solo.db.jugador(ADMIN).cartera == 400 and hogar(solo).cuenta == 1700
     assert solo.boton(ADMIN, "", "mv:dep:9999").alerta == "No hay suficiente dinero."
 
 
@@ -113,7 +114,7 @@ def test_cobro_mensual_de_las_facturas(solo, reloj, monkeypatch):
     ir_al_dia(solo, reloj, ADMIN, 31)
     res = solo.tick()
     aviso = next(a for a in res.avisos if a.para == ADMIN)
-    total = 700 + 102 + 46 + 50 + 30
+    total = 900 + 102 + 46 + 50 + 30
     assert f"Se cobraron las facturas del mes</b>: {D.dinero(total)}" in aviso.texto
     h = hogar(solo)
     assert h.cuenta == 2000 - total and h.consumo == "{}" and h.proximo_cobro == h.dia_hogar + 30
@@ -123,13 +124,13 @@ def test_cobro_mensual_de_las_facturas(solo, reloj, monkeypatch):
 def test_si_no_alcanza_hay_recargo_y_corte(solo, reloj, monkeypatch):
     sin_imprevistos(monkeypatch)
     h = hogar(solo)
-    h.cuenta = 780  # alcanza para la hipoteca y el agua, no para la luz
+    h.cuenta = 980  # alcanza para la renta y el agua, no para la luz
     solo.db.guardar_hogar(h)
     ir_al_dia(solo, reloj, ADMIN, 31)
     aviso = next(a for a in solo.tick().avisos if a.para == ADMIN)
     assert "No alcanzó para 💡 Luz: ahora deben $99" in aviso.texto and "no hay tele" in aviso.texto
     h = hogar(solo)
-    # se paga lo que alcanza en orden: hipoteca, (luz no), agua, (internet no), gas
+    # se paga lo que alcanza en orden: renta, (luz no), agua, (internet no), gas
     assert D.servicios_cortados(json.loads(h.pendientes)) == {"luz", "internet"}
     assert "Les cortaron la luz" in solo.boton(ADMIN, "", "a:tele").alerta
     assert "Servicio cortado" in solo.boton(ADMIN, "", "sim").pantalla.texto
@@ -150,10 +151,11 @@ def test_imprevistos(solo, reloj, monkeypatch):
     ir_al_dia(solo, reloj, ADMIN, 2)
     aviso = next(a for a in solo.tick().avisos if a.para == ADMIN)
     assert "Se rompió la lavadora: $200" in aviso.texto
-    assert hogar(solo).cuenta == 1300
+    assert hogar(solo).cuenta == 1900
 
 
 def test_dinero_formato():
     assert D.dinero(3000) == "$3.000"
     assert D.dinero(-1500) == "−$1.500"
-    assert D.total_mes({}) == 910
+    assert D.total_mes({}, D.CASAS["casita"]) == 1110
+    assert D.total_mes({}, D.CASAS["propia"]) == 1410

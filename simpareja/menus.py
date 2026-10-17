@@ -102,7 +102,7 @@ class MenuMixin:
             return
         botones = [
             [(("📍 " if clave == j.lugar else "") + f"{e} {nombre}", f"ir:{clave}")]
-            for clave, (e, nombre) in V.ZONAS.items()
+            for clave, (e, nombre) in self._zonas(j.sala_id).items()
         ]
         botones.append([("⬅️ Atrás", "mcasa")])
         res.pantalla = Pantalla(
@@ -112,7 +112,7 @@ class MenuMixin:
         )
 
     def _b_ir(self, j: Jugador, habitacion: str, res) -> None:
-        if habitacion not in V.ZONAS:
+        if habitacion not in self._zonas(j.sala_id):
             self._b_moverse(j, "", res)
             return
         if self._texto_accion(j, self.reloj()):
