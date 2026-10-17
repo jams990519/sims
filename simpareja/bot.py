@@ -34,6 +34,7 @@ log = logging.getLogger(__name__)
 COMANDOS = [
     BotCommand("start", "Entrar o seguir jugando"),
     BotCommand("sim", "Tu Sim: necesidades y acciones"),
+    BotCommand("trabajo", "Tu trabajo: horas, sueldo y ascensos"),
     BotCommand("dinero", "Cartera, cuenta compartida y facturas"),
     BotCommand("casa", "Tu casa y sus servicios"),
     BotCommand("sala", "Ver tu sala y quién está en línea"),
@@ -46,7 +47,7 @@ COMANDOS = [
     BotCommand("salir", "Salir y dejar tu Sim en pausa"),
     BotCommand("ayuda", "Cómo funciona"),
 ]
-COMANDOS_MENU = ["sim", "dinero", "casa", "sala", "menu", "invitar", "personajes", "animo", "ajustes", "conexion", "salir"]
+COMANDOS_MENU = ["sim", "trabajo", "dinero", "casa", "sala", "menu", "invitar", "personajes", "animo", "ajustes", "conexion", "salir"]
 
 # Tipos de mensaje que admiten pie de foto: se reenvían con el nombre en el pie.
 _CON_PIE = ("photo", "video", "animation", "audio", "document", "voice")

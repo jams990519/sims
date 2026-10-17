@@ -3,7 +3,7 @@
 Un juego de texto tipo *Los Sims* para jugar **en pareja** por Telegram ([@sims000bot](https://t.me/sims000bot)).
 Se entra **solo por invitación** y funciona en **cualquier país donde abra Telegram**, Cuba incluida.
 
-## Qué hay hasta ahora (versión 0.4)
+## Qué hay hasta ahora (versión 0.5)
 
 | | |
 |---|---|
@@ -14,6 +14,7 @@ Se entra **solo por invitación** y funciona en **cualquier país donde abra Tel
 | 🎬 **Acciones** | Comer (desayuno +30, almuerzo +45, cena +40 según la hora), cocinar, dormir (+12/h), siesta, ducha, bañarse juntos, dientes, tele, redes, parque, hablar, abrazar, besar, masaje, cita, limpiar una zona y lavar la ropa (la ropa sucia se acumula). Casi todas se pueden hacer **solo o juntos**: juntos terminan antes. |
 | 🏠 **Sala** | Muestra a cada quien con su avatar, su ánimo, si está 🟢 en línea (y qué hace), ❄️ en pausa o ⚫ fuera de línea, y la hora de su Sim. **Se actualiza sola.** |
 | 🏡 **Casa y dinero** | Empiezan con **$3.000** entre los dos y compran la Casita (baño, clóset, cuarto y sala-cocina-comedor) con **$1.500 de entrada** y **$700 de hipoteca** al mes. Cada quien tiene su 👛 cartera y hay una 🏦 cuenta compartida. Facturas mensuales: luz $90 y agua $40 (suben con el uso), internet $50 y gas $30; comida $3/$5/$4 por persona; imprevistos aleatorios; si no pagan, recargo del 10 % y corte del servicio. |
+| 💼 **Trabajos** | 7 trabajos de la tabla del diseño, con 3 niveles y sueldo por hora ($10 a $26). Horario de lunes a viernes, con sábados o rotativo (fines de semana y dos días libres entre semana). Se eligen las horas (4, 6, 8 o 10), se cobra al terminar en la cartera (menos $4 de transporte) y gasta 8 de energía por hora. Ascensos a los 5 y 10 días trabajados sin necesidades en rojo; con mal humor no se trabaja; renunciar devuelve al nivel 1. |
 | 🕒 **Reloj propio** | Cada Sim tiene su reloj, que corre como un día real, con días de la semana (empieza el lunes a las 08:00). Si pasan **5 minutos sin ninguna acción**, tu Sim se congela ❄️ y su reloj se para; al volver tocas **▶️ Continuar**. Mientras hace algo largo (dormir), el reloj sigue. La pausa es solo tuya. |
 | 🔁 **Última conexión** | Se guarda **solo la última**: en qué pantalla estabas, qué hacías, en qué sala y cuándo entraste y saliste. Al volver retomas justo ahí (`/conexion` lo muestra). |
 | 💬 **Chat interno** | Todo lo que escribas en el bot (texto, fotos, stickers, notas de voz) le llega a tu pareja con tu nombre y avatar. Chatear no descongela al Sim. |
@@ -21,7 +22,7 @@ Se entra **solo por invitación** y funciona en **cualquier país donde abra Tel
 
 **Orden de trabajo (una parte cada vez, cada una se sube sola):**
 1. ✅ Crear el personaje · 2. ✅ Sala y chat interno · 3. ✅ Reloj individual y pausa · 4. ✅ Necesidades y acciones básicas
-5. ✅ Casa, dinero y gastos · 6. Trabajos y días de la semana · 7. Súper y minijuego de cocina · 8. Medidor de relación
+5. ✅ Casa, dinero y gastos · 6. ✅ Trabajos y días de la semana · 7. Súper y minijuego de cocina · 8. Medidor de relación
 9. Influencer y ayuda de la pareja · 10. Estudios · 11. Lugares y mejoras de la casa
 
 ### ¿Por qué funciona en cualquier país?
@@ -88,6 +89,8 @@ simpareja/
 ├── vida_juego.py   # pantallas de Mi Sim, acciones en pareja y avisos
 ├── dinero.py       # facturas, precios, imprevistos (lógica pura)
 ├── dinero_juego.py # pantallas de dinero, facturas y casa; cobros de cada mes
+├── trabajo.py      # trabajos, horarios y ascensos (lógica pura)
+├── trabajo_juego.py # pantallas de trabajo, turnos y sueldos
 ├── novedades.py    # notas de cada versión (se anuncian solas al desplegar)
 ├── bot.py          # adaptador de Telegram (python-telegram-bot)
 ├── db.py           # SQLite

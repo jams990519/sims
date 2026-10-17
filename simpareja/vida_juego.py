@@ -83,7 +83,10 @@ class VidaMixin:
         j.necesidades = json.dumps({k: round(v, 3) for k, v in nec.items()})
         if sin_energia and not self._congelado(j, ahora):
             if j.accion:
+                interrumpida = self._accion(j)
                 j.accion = None
+                if interrumpida.get("k") == "trabajar":
+                    eventos.append((f"💼 Dejó de trabajar a mitad del turno.{self._cobrar_turno(j, interrumpida, s, False)}", True))
             datos = V.preparar(V.ACCIONES["dormir"], s, nec, j.energia_max, str(V.HORAS_DESMAYO))
             datos.update(rini=ahora, rfin=ahora + (datos["fin"] - datos["ini"]), con=None)
             j.accion = json.dumps(datos)
@@ -107,6 +110,8 @@ class VidaMixin:
             h.ropa_sucia = 0
             self.db.guardar_hogar(h)
             texto += " Toda la ropa está limpia 👕"
+        elif a.clave == "trabajar":
+            texto += self._cobrar_turno(j, accion, accion["fin"], completo=True)
         if a.ejercicio:
             racha, j.energia_max, subio = V.registrar_ejercicio(
                 json.loads(j.racha or "{}"), V.dia_de_juego(accion["fin"]), j.energia_max
@@ -190,6 +195,7 @@ class VidaMixin:
             lineas.append(f"{n.emoji} {V.barra(valor, tope)} {cifra} {n.nombre}")
         h = self._hogar(j.sala_id)
         lineas += ["", f"🏡 Casita · 🏦 Compartida {D.dinero(h.cuenta)} · 👛 Tu cartera {D.dinero(j.cartera)}"]
+        lineas.append(f"💼 {self._texto_puesto(j) or 'Sin trabajo todavía'}")
         cortados = D.servicios_cortados(json.loads(h.pendientes))
         if cortados:
             lineas.append("❌ Servicio cortado: " + ", ".join(D.POR_CLAVE_FACTURA[c].nombre.lower() for c in cortados))
@@ -206,7 +212,7 @@ class VidaMixin:
         ]
         if haciendo:
             botones.insert(0, [("⏹️ Parar lo que está haciendo", "parar")])
-        botones.append([("💰 Dinero", "dinero"), ("🏡 Casa", "casa")])
+        botones.append([("💼 Trabajo", "trabajo"), ("💰 Dinero", "dinero"), ("🏡 Casa", "casa")])
         botones.append([("🔄 Actualizar", "sim"), SALA])
         return Pantalla("\n".join(lineas), botones, clave="sim")
 
@@ -447,12 +453,16 @@ class VidaMixin:
     def _b_parar(self, j: Jugador, arg: str, res) -> None:
         accion = self._accion(j)
         if accion:
-            self._vivir(j, self.reloj())
+            ahora = self.reloj()
+            self._vivir(j, ahora)
             j.accion = None
             self.db.guardar_jugador(j)
             res.ediciones += self._refrescar_sala(j.sala_id, excepto=j.id)
             a = V.ACCIONES.get(accion["k"])
-            res.pantalla = self._pantalla_sim(j, f"⏹️ Paró: {a.emoji} {a.titulo(bool(accion.get('con')))}." if a else None)
+            texto = f"⏹️ Paró: {a.emoji} {a.titulo(bool(accion.get('con')))}." if a else None
+            if accion["k"] == "trabajar":
+                texto += self._cobrar_turno(j, accion, self._segundos_juego(j, ahora), completo=False)
+            res.pantalla = self._pantalla_sim(j, texto)
             return
         res.pantalla = self._pantalla_sim(j)
 

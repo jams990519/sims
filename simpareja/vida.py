@@ -209,10 +209,13 @@ _ACCIONES = (
            nombre_juntos="Limpiar juntos"),
     Accion("lavar", "🧺", "Lavar la ropa", "lavando la ropa", "casa", 60, {"energia": -5},
            nombre_juntos="Lavar la ropa juntos"),
+    # Se empieza desde la pantalla de trabajo, no desde las categorías.
+    Accion("trabajar", "💼", "Trabajar", "trabajando", "trabajo", 8 * 60, juntos=SOLO, ropa=1),
 )
 ACCIONES: dict[str, Accion] = {a.clave: a for a in _ACCIONES}
 
 ENERGIA_POR_HORA_DORMIDO = 12
+ENERGIA_TRABAJO_POR_HORA = 8
 HORAS_DESMAYO = 6  # si la energía llega a 0, se duerme donde esté
 
 
@@ -233,6 +236,10 @@ def preparar(
         )
         minutos = horas * 60
         efectos["energia"] = ENERGIA_POR_HORA_DORMIDO * horas
+    if a.clave == "trabajar":
+        horas = max(1, min(12, int(extra or 8)))
+        minutos = horas * 60
+        efectos["energia"] = -ENERGIA_TRABAJO_POR_HORA * horas
     if a.comida:
         efectos["hambre"] = efectos.get("hambre", 0) + comida_del_momento(segundos)[2]
     if juntos:

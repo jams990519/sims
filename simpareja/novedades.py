@@ -3,9 +3,20 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.4"
+VERSION = "0.5"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.5", [
+        "💼 <b>¡Trabajos!</b> (/trabajo) Elige uno de 7: manicurista, estudio de fotografía, supermercado, "
+        "reparto, cocina de restaurante, oficina o taller mecánico. Cada uno tiene 3 niveles y sueldo por hora.",
+        "🕗 Es automático: decides cuántas horas trabajas (4, 6, 8 o 10) y cobras en tu 👛 cartera al terminar. "
+        "Gasta 8 de energía por hora y $4 de transporte al día.",
+        "🗓️ Horarios: de lunes a viernes, de lunes a sábado o rotativo (incluye fines de semana, con dos días "
+        "libres entre semana).",
+        "📈 Ascensos: 5 días trabajados para el nivel 2 y 10 más para el nivel 3, siempre que no vayas con "
+        "necesidades en rojo. Con mal humor no se puede trabajar.",
+        "🚪 Puedes renunciar, pero el siguiente trabajo empieza desde abajo.",
+    ]),
     ("0.4", [
         "🏡 <b>¡Ya tienen casa!</b> Empezaron con $3.000 entre los dos y compraron la Casita "
         "(baño, clóset, un cuarto y una sala-cocina-comedor grande) con $1.500 de entrada y una hipoteca "

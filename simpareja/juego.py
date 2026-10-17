@@ -24,6 +24,7 @@ from . import vida as V
 from .config import Config
 from .db import DB, Invitacion, Jugador, UltimaConexion, Visitante
 from .dinero_juego import DineroMixin
+from .trabajo_juego import TrabajoMixin
 from .vida_juego import VidaMixin
 
 log = logging.getLogger(__name__)
@@ -92,6 +93,7 @@ LUGARES = {
     "mover": ("💰 Dinero", "moviendo dinero"),
     "facturas": ("📄 Facturas", "revisando las facturas"),
     "casa": ("🏡 Casa", "mirando la casa"),
+    "trabajo": ("💼 Trabajo", "mirando su trabajo"),
     "invitar": ("💌 Invitar", "invitando a alguien"),
     "invs": ("📋 Invitaciones enviadas", "revisando sus invitaciones"),
     "pjs": ("🪪 Personajes", "mirando los personajes"),
@@ -155,7 +157,7 @@ def en_filas(botones: list[tuple[str, str]], por_fila: int = 2) -> Botones:
     return [botones[i:i + por_fila] for i in range(0, len(botones), por_fila)]
 
 
-class Juego(VidaMixin, DineroMixin):
+class Juego(VidaMixin, DineroMixin, TrabajoMixin):
     def __init__(self, db: DB, cfg: Config, reloj=time.time, rng: random.Random | None = None):
         self.db = db
         self.cfg = cfg
@@ -266,6 +268,7 @@ class Juego(VidaMixin, DineroMixin):
                 return self._visitante(uid, nombre_tg)
             return Resultado(pantalla=self._pantalla_conexion(j), nuevo=True)
         data = {"sala": "sala", "menu": "sala", "sim": "sim", "dinero": "dinero", "casa": "casa",
+                "trabajo": "trabajo",
                 "invitar": "invitar", "ajustes": "ajustes",
                 "personajes": "pjs", "animo": "animos", "salir": "salir"}.get(nombre, "sala")
         res = self.boton(uid, nombre_tg, data)
@@ -283,10 +286,11 @@ class Juego(VidaMixin, DineroMixin):
             "con acciones: solo o juntos, que terminan antes.\n"
             "💰 Empiezan con $3.000, compran la Casita y pagan hipoteca, facturas y comida. "
             "Cada quien tiene su cartera y hay una cuenta compartida.\n"
+            "💼 Cada quien elige su trabajo: decides las horas, cobras al terminar y con constancia llegan los ascensos.\n"
             "💬 En la sala, todo lo que escribas (texto, fotos, stickers, notas de voz) le llega a la otra persona.\n"
             f"🕒 Tu Sim tiene su propio reloj, como un día real. Si pasas {self.cfg.pausa_min} min sin jugar se "
             "congela ❄️; al volver tocas ▶️ Continuar y sigues donde lo dejaste.\n\n"
-            "Comandos: /start · /sim · /dinero · /casa · /sala · /invitar · /personajes · /animo · /ajustes · /conexion · /novedades · /salir",
+            "Comandos: /start · /sim · /trabajo · /dinero · /casa · /sala · /invitar · /personajes · /animo · /ajustes · /conexion · /novedades · /salir",
             [[SALA]],
         )
 
@@ -380,6 +384,11 @@ class Juego(VidaMixin, DineroMixin):
             "facturas": self._b_facturas,
             "pagar": self._b_pagar,
             "casa": self._b_casa,
+            "trabajo": self._b_trabajo,
+            "vtrab": self._b_ver_trabajo,
+            "tomar": self._b_tomar_trabajo,
+            "renunciar": self._b_renunciar,
+            "trabajar": self._b_trabajar,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -921,6 +930,7 @@ class Juego(VidaMixin, DineroMixin):
             "pjs": self._b_personajes, "animo": self._b_animos, "ajustes": self._b_ajustes,
             "sim": self._b_sim, "acc": self._b_categoria, "dinero": self._b_dinero,
             "mover": self._b_mover, "facturas": self._b_facturas, "casa": self._b_casa,
+            "trabajo": self._b_trabajo,
         }.get(accion, self._b_sala)
         tmp = Resultado()
         manejador(j, arg, tmp)
@@ -1089,7 +1099,7 @@ class Juego(VidaMixin, DineroMixin):
             )
         else:
             lineas.append("🎮 Por ahora juegas sin compañía. Cuando quieras, invita a alguien con 💌.")
-        lineas += ["", "🚧 <i>Próximamente: trabajos, súper y cocina, relación.</i>"]
+        lineas += ["", "🚧 <i>Próximamente: súper y cocina, medidor de relación.</i>"]
         botones = [
             [("🎮 Mi Sim", "sim")],
             [("🎭 Mi ánimo", "animos"), ("🪪 Personajes", "pjs")],
