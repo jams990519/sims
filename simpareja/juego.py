@@ -33,6 +33,7 @@ from .menus import MenuMixin
 from .notas_juego import NotasMixin
 from .preguntas_juego import PreguntasMixin
 from .relacion_juego import RelacionMixin
+from .retos_juego import RetosMixin
 from .trabajo_juego import ZONAS_HORARIAS, TrabajoMixin, _hora_en
 from .vida_juego import VidaMixin
 
@@ -131,6 +132,7 @@ LUGARES = {
     "notas": ("📝 Notas en la nevera", "leyendo las notas de la nevera"),
     "notaesc": ("📝 Notas en la nevera", "escribiendo una nota para la nevera"),
     "aniv": ("🎂 Aniversario", "planeando el aniversario"),
+    "retos": ("🎯 Retos de la semana", "mirando el reto de la semana"),
     "ajustes": ("⚙️ Ajustes", "en los ajustes"),
     "renombrar": ("✏️ Cambiar nombre", "cambiando su nombre"),
 }
@@ -186,7 +188,7 @@ def en_filas(botones: list[tuple[str, str]], por_fila: int = 2) -> Botones:
 
 
 class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoMixin, RelacionMixin, PreguntasMixin,
-            NotasMixin, EventosMixin, AniversarioMixin):
+            NotasMixin, EventosMixin, AniversarioMixin, RetosMixin):
     def __init__(self, db: DB, cfg: Config, reloj=time.time, rng: random.Random | None = None):
         self.db = db
         self.cfg = cfg
@@ -436,6 +438,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         self._tick_trabajo(res)
         self._tick_eventos(res)
         self._tick_aniversario(res)
+        self._tick_retos(res)
         salas: set[int] = set()
         for j in self.db.jugadores_en_sala():
             estado = self._estado_presencia(j, ahora)
@@ -533,6 +536,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "anivok": self._b_aniv_aceptar,
             "anivb": self._b_aniv_brindis,
             "anivr": self._b_aniv_regalo,
+            "retos": self._b_retos,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -1086,6 +1090,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "medidor": self._b_medidor, "relmotivo": self._b_medidor,
             "preguntas": self._b_preguntas, "pregresp": self._b_preguntas,
             "notas": self._b_notas, "notaesc": self._b_notas, "aniv": self._b_aniversario,
+            "retos": self._b_retos,
         }.get(accion, self._b_menu)
         tmp = Resultado()
         manejador(j, arg, tmp)

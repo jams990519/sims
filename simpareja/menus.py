@@ -22,7 +22,6 @@ PRONTO = {
     "muebles": "🛋️ La tienda de muebles",
     "electronica": "📺 La tienda de electrónica",
     "influencer": "📱 El minijuego de influencer",
-    "retos": "🎯 Los retos semanales",
     "hitos": "🏆 Los hitos de pareja",
 }
 
@@ -252,7 +251,7 @@ class MenuMixin:
         botones = [
             [("💞 Acciones en pareja", "acc:pareja")],
             [("💗 Medidor de relación", "medidor"), ("❓ Preguntas" + (" (1)" if falta else ""), "preg")],
-            [("🎂 Aniversario" + (" 🎉" if hoy_aniv else ""), "aniv"), ("🎯 Retos 🚧", "pronto:retos")],
+            [("🎂 Aniversario" + (" 🎉" if hoy_aniv else ""), "aniv"), ("🎯 Retos", "retos")],
             [("🏆 Hitos 🚧", "pronto:hitos"), ("📸 Álbum", "album")],
             [("💌 Invitar", "invitar"), ("⬅️ Atrás", "menu")],
         ]

@@ -103,6 +103,7 @@ class VidaMixin:
             return ""
         texto = f"✅ {self._firma(j)} terminó: {a.emoji} {a.titulo(bool(accion.get('con')))}."
         self._recordar_cita(j, accion)
+        self._reto_accion(j, accion)
         h = self._hogar(j.sala_id)
         if a.clave == "limpiar" and accion.get("x") in V.ZONAS:
             zonas = json.loads(h.zonas)
