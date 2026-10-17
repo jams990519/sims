@@ -3,7 +3,7 @@
 Un juego de texto tipo *Los Sims* para jugar **en pareja** por Telegram ([@sims000bot](https://t.me/sims000bot)).
 Se entra **solo por invitación** y funciona en **cualquier país donde abra Telegram**, Cuba incluida.
 
-## Qué hay hasta ahora (versión 0.13)
+## Qué hay hasta ahora (versión 0.14)
 
 | | |
 |---|---|
@@ -14,6 +14,7 @@ Se entra **solo por invitación** y funciona en **cualquier país donde abra Tel
 | 🧍 **Necesidades** | Hambre (−6/h), energía (máx. 100, sube a 130 con constancia), higiene (−4/h), diversión (−5/h) y social (−3/h), de 0 a 100, que cambian con el reloj del Sim. Con alguna en 0 se pone de mal humor; sin energía se duerme donde esté. |
 | 🎬 **Acciones** | Comer (desayuno +30, almuerzo +45, cena +40 según la hora), cocinar, dormir (+12/h), siesta, ducha, bañarse juntos, dientes, tele, redes, parque, hablar, abrazar, besar, masaje, cita, limpiar una zona y lavar la ropa (la ropa sucia se acumula). Casi todas se pueden hacer **solo o juntos**: juntos terminan antes. |
 | 💗 **Medidor de relación** | Cada quien tiene un medidor de 0 a 100 % (empieza en 50 %) de lo que siente por el otro. Lo sube o lo baja cuando quiere eligiendo el motivo (o escribiéndolo); la pareja recibe un aviso y queda un historial de los dos. |
+| 📝 **Notas en la nevera** | Un jugador deja un mensaje en la nevera y su pareja lo ve al entrar al juego (o al volver de la pausa); mientras no lo lea, el menú y la sala lo marcan. También se dejan desde el trabajo. |
 | ❓ **Preguntas de pareja** | Según el color del ánimo aparecen preguntas (70, 10 por estado, de temas buenos y difíciles): al cambiar de ánimo o pidiendo una nueva. Los dos responden; el otro marca «me gustó» (sube su medidor y la respuesta va al álbum) o «no me gustó» (no baja nada solo: se ofrece hablarlo en el chat o bajar el medidor). Queda el registro de los temas que más gustan. |
 | 🎭 **Ánimo con foto** | Al cambiar de ánimo se elige el color y, si se quiere, una foto y una frase corta. La pareja recibe un aviso con la foto; en el perfil ve el color, la frase, la hora y la foto, y las fotos anteriores quedan en el 📸 álbum. Las fotos usan el almacenamiento de Telegram (se guarda solo su `file_id`). |
 | 🗺️ **Plano de la casa** | `/plano` dibuja la casa en texto monoespaciado (cuarto arriba a la izquierda, clóset y baño a la derecha, sala-cocina-comedor abajo; con cuarto extra si se mudan) y pone a cada Sim con su inicial donde está, con lo que hace y el tiempo que le falta. Se actualiza solo mientras está abierto. |
@@ -26,7 +27,7 @@ Se entra **solo por invitación** y funciona en **cualquier país donde abra Tel
 | 💬 **Chat interno** | Todo lo que escribas en el bot (texto, fotos, stickers, notas de voz) le llega a tu pareja con tu nombre y avatar. Chatear no descongela al Sim. |
 | 📢 **Novedades** | Cada vez que se despliega una versión nueva, el bot avisa a todos los jugadores de lo que cambió (`/novedades`). |
 
-**Actualización 2 (en curso, manda sobre lo anterior):** 1. ✅ Menús y submenús · 2. ✅ Horario de trabajo real y automático (máx. 8 h) · 3. ✅ Casa en renta · 4. ✅ Plano en texto · 5. ✅ Necesidad social · 6. ✅ Ánimo con foto · 7. ✅ Preguntas de pareja · 8. Notas en la nevera · 9. Eventos sorpresa · 10. Aniversario y álbum · 11. Retos semanales · 12. Hitos · 13. Objetos y tiendas · 14. Mascota
+**Actualización 2 (en curso, manda sobre lo anterior):** 1. ✅ Menús y submenús · 2. ✅ Horario de trabajo real y automático (máx. 8 h) · 3. ✅ Casa en renta · 4. ✅ Plano en texto · 5. ✅ Necesidad social · 6. ✅ Ánimo con foto · 7. ✅ Preguntas de pareja · 8. ✅ Notas en la nevera · 9. Eventos sorpresa · 10. Aniversario y álbum · 11. Retos semanales · 12. Hitos · 13. Objetos y tiendas · 14. Mascota
 
 **Primer diseño (una parte cada vez, cada una se sube sola):**
 1. ✅ Crear el personaje · 2. ✅ Sala y chat interno · 3. ✅ Reloj individual y pausa · 4. ✅ Necesidades y acciones básicas
@@ -105,6 +106,7 @@ simpareja/
 ├── relacion_juego.py # medidor de relación y su historial
 ├── preguntas.py    # banco de preguntas por estado de ánimo (lógica pura)
 ├── preguntas_juego.py # preguntas de pareja: responder, valorar, temas
+├── notas_juego.py  # notas en la nevera
 ├── novedades.py    # notas de cada versión (se anuncian solas al desplegar)
 ├── menus.py        # menú principal, submenús y plano de la casa
 ├── plano.py        # dibujo del plano en texto (lógica pura)
