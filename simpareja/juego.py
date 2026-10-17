@@ -28,6 +28,7 @@ from .animo_juego import AnimoMixin
 from .cocina_juego import CocinaMixin
 from .dinero_juego import DineroMixin
 from .menus import MenuMixin
+from .preguntas_juego import PreguntasMixin
 from .relacion_juego import RelacionMixin
 from .trabajo_juego import ZONAS_HORARIAS, TrabajoMixin, _hora_en
 from .vida_juego import VidaMixin
@@ -122,6 +123,8 @@ LUGARES = {
     "album": ("📸 Álbum de recuerdos", "mirando el álbum de recuerdos"),
     "medidor": ("💗 Medidor de relación", "mirando el medidor de relación"),
     "relmotivo": ("💗 Medidor de relación", "escribiendo por qué cambió su medidor"),
+    "preguntas": ("❓ Preguntas de pareja", "mirando las preguntas de pareja"),
+    "pregresp": ("❓ Preguntas de pareja", "respondiendo una pregunta de pareja"),
     "ajustes": ("⚙️ Ajustes", "en los ajustes"),
     "renombrar": ("✏️ Cambiar nombre", "cambiando su nombre"),
 }
@@ -176,7 +179,7 @@ def en_filas(botones: list[tuple[str, str]], por_fila: int = 2) -> Botones:
     return [botones[i:i + por_fila] for i in range(0, len(botones), por_fila)]
 
 
-class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoMixin, RelacionMixin):
+class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoMixin, RelacionMixin, PreguntasMixin):
     def __init__(self, db: DB, cfg: Config, reloj=time.time, rng: random.Random | None = None):
         self.db = db
         self.cfg = cfg
@@ -270,6 +273,9 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         pendiente = self._extras(j).get("rel_pendiente")
         if pantalla == "relmotivo" and pendiente and self.reloj() - pendiente["ts"] < ESPERA_TEXTO:
             return self._motivo_escrito
+        pendiente = self._extras(j).get("preg_pendiente")
+        if pantalla == "pregresp" and pendiente and self.reloj() - pendiente["ts"] < ESPERA_TEXTO:
+            return self._respuesta_escrita
         return None
 
     @_con_notas
@@ -502,6 +508,11 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "album": self._b_album,
             "medidor": self._b_medidor,
             "rel": self._b_relacion,
+            "preg": self._b_preguntas,
+            "pregn": self._b_nueva_pregunta,
+            "pregr": self._b_responder,
+            "pregv": self._b_valorar,
+            "pregt": self._b_temas,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -1050,6 +1061,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "mudanza": self._b_mudanza, "plano": self._b_plano,
             "animofoto": self._b_animos, "album": self._b_album,
             "medidor": self._b_medidor, "relmotivo": self._b_medidor,
+            "preguntas": self._b_preguntas, "pregresp": self._b_preguntas,
         }.get(accion, self._b_menu)
         tmp = Resultado()
         manejador(j, arg, tmp)
@@ -1222,8 +1234,8 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             )
         else:
             lineas.append("🎮 Por ahora juegas sin compañía. Cuando quieras, invita a alguien con 💌.")
-        lineas += ["", "🚧 <i>Próximamente: preguntas de pareja, notas en la nevera, eventos sorpresa, "
-                   "aniversario y mascota.</i>"]
+        lineas += ["", "🚧 <i>Próximamente: notas en la nevera, eventos sorpresa, aniversario, retos, hitos "
+                   "y mascota.</i>"]
         botones = [
             [("🎮 Menú", "menu")],
             [("🎭 Mi ánimo", "animos"), ("🪪 Personajes", "pjs")],

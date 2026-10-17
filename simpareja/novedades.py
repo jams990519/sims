@@ -3,9 +3,18 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.12"
+VERSION = "0.13"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.13", [
+        "❓ <b>Preguntas de pareja</b> (💕 Pareja → Preguntas): según el color del estado de ánimo aparecen "
+        "preguntas para conocerse mejor, de temas buenos y de temas difíciles (70 en total, 10 por estado).",
+        "🎭 Al cambiar de ánimo aparece una pregunta para los dos; también pueden pedir 🎲 una nueva.",
+        "✍️ Los dos responden y la respuesta le llega al otro, que marca 💗 «me gustó» o 🙈 «no me gustó».",
+        "💗 Si le gustó, sube su medidor y la respuesta se guarda en el 📸 álbum. Si no, no baja nada solo: "
+        "pueden hablarlo en el chat o bajar el medidor a mano.",
+        "📊 Queda el registro de qué temas les gustan más.",
+    ]),
     ("0.12", [
         "💗 <b>Medidor de relación</b> (💕 Pareja → Medidor): cada quien tiene un medidor de 0 a 100 % de lo "
         "que siente por el otro. Empieza en 50 %.",
