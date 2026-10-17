@@ -354,6 +354,7 @@ class AniversarioMixin:
         recuerdos.append({"tipo": "cita", "texto": CITAS[accion["k"]], "ts": self.reloj(), "rini": accion["rini"]})
         ex["recuerdos"] = recuerdos[-RECUERDOS:]
         self._guardar_extras_hogar(h, ex)
+        self._lograr_hito(h, "primera_cita")
 
     def _tick_aniversario(self, res) -> None:
         from .juego import Aviso
