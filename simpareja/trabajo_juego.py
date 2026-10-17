@@ -320,6 +320,8 @@ class TrabajoMixin:
             return "😡 Con mal humor no se puede trabajar: atiende la necesidad que está en 0.", ""
         if self._resfriado(j):
             return "🤒 Con este resfriado hoy no se trabaja. ¡A descansar!", ""
+        if self._de_viaje(j):
+            return "✈️ Están de viaje: estos días no se trabaja.", ""
         if empleo.get("pasaje") != hoy:  # si volvió a casa al rato, el pasaje de hoy ya está pagado
             if not self._pagar(j, T.TRANSPORTE, "🚌 Transporte al trabajo"):
                 return f"💸 No alcanza ni para el transporte ({D.dinero(T.TRANSPORTE)}).", ""
@@ -494,7 +496,7 @@ class TrabajoMixin:
             horario = empleo["horario"]
             local = self._local(j)
             hoy = local.toordinal()
-            if empleo.get("ultimo") == hoy or not T.trabaja(horario, local.weekday()):
+            if empleo.get("ultimo") == hoy or not T.trabaja(horario, local.weekday()) or self._de_viaje(j):
                 continue
             h, m = (int(x) for x in horario["inicio"].split(":"))
             if local < local.replace(hour=h, minute=m, second=0, microsecond=0) or self._trabajando(j):

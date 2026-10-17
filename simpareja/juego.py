@@ -36,6 +36,7 @@ from .preguntas_juego import PreguntasMixin
 from .relacion_juego import RelacionMixin
 from .retos_juego import RetosMixin
 from .trabajo_juego import ZONAS_HORARIAS, TrabajoMixin, _hora_en
+from .viaje_juego import ViajeMixin
 from .vida_juego import VidaMixin
 
 log = logging.getLogger(__name__)
@@ -135,6 +136,7 @@ LUGARES = {
     "aniv": ("🎂 Aniversario", "planeando el aniversario"),
     "retos": ("🎯 Retos de la semana", "mirando el reto de la semana"),
     "hitos": ("🏆 Hitos de pareja", "mirando los hitos de pareja"),
+    "viaje": ("✈️ Viajes", "planeando un viaje"),
     "ajustes": ("⚙️ Ajustes", "en los ajustes"),
     "renombrar": ("✏️ Cambiar nombre", "cambiando su nombre"),
 }
@@ -190,7 +192,7 @@ def en_filas(botones: list[tuple[str, str]], por_fila: int = 2) -> Botones:
 
 
 class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoMixin, RelacionMixin, PreguntasMixin,
-            NotasMixin, EventosMixin, AniversarioMixin, RetosMixin, HitosMixin):
+            NotasMixin, EventosMixin, AniversarioMixin, RetosMixin, HitosMixin, ViajeMixin):
     def __init__(self, db: DB, cfg: Config, reloj=time.time, rng: random.Random | None = None):
         self.db = db
         self.cfg = cfg
@@ -437,6 +439,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         self._tick_vida(ahora, res)
         self._tick_cocina(res)
         self._tick_dinero(res)
+        self._tick_viaje(res)
         self._tick_trabajo(res)
         self._tick_eventos(res)
         self._tick_aniversario(res)
@@ -541,6 +544,9 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "anivr": self._b_aniv_regalo,
             "retos": self._b_retos,
             "hitos": self._b_hitos,
+            "viaje": self._b_viaje,
+            "viajeok": self._b_viaje_aceptar,
+            "viajeno": self._b_viaje_no,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -1094,7 +1100,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "medidor": self._b_medidor, "relmotivo": self._b_medidor,
             "preguntas": self._b_preguntas, "pregresp": self._b_preguntas,
             "notas": self._b_notas, "notaesc": self._b_notas, "aniv": self._b_aniversario,
-            "retos": self._b_retos, "hitos": self._b_hitos,
+            "retos": self._b_retos, "hitos": self._b_hitos, "viaje": self._b_viaje,
         }.get(accion, self._b_menu)
         tmp = Resultado()
         manejador(j, arg, tmp)

@@ -338,7 +338,7 @@ def avanzar(nec: dict, desde: float, hasta: float, accion: dict | None, energia_
     extra_accion = (accion or {}).get("mult", {})  # p. ej. más hambre trabajando sin táper
     for n in NECESIDADES:
         if n.clave == "energia":
-            baja = n.baja_por_hora * max(0.0, horas - horas_ocupado)
+            baja = n.baja_por_hora * max(0.0, horas - horas_ocupado) * multiplicadores.get(n.clave, 1.0)
         else:
             horas_efectivas = horas + horas_ocupado * (extra_accion.get(n.clave, 1.0) - 1)
             baja = n.baja_por_hora * horas_efectivas * multiplicadores.get(n.clave, 1.0)

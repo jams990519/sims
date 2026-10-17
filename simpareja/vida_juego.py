@@ -51,6 +51,8 @@ class VidaMixin:
         return h
 
     def _multiplicadores(self, j: Jugador) -> dict:
+        if self._de_viaje(j):
+            return {n.clave: 0.0 for n in V.NECESIDADES}  # de viaje, las necesidades no bajan
         h = self._hogar(j.sala_id)
         m = {}
         if h.ropa_sucia >= V.ROPA_LIMITE:

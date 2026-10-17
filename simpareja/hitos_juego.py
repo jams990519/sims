@@ -38,7 +38,7 @@ HITOS = (
     Hito("mascota", "🐾", "Mascota", "Adoptar un perro o un gato ($150, de acuerdo los dos).", 10,
          "+$40 al mes de comida.", listo=False),
     Hito("viaje", "✈️", "Primer viaje", "Un viaje juntos ($800 a $2.000) con días libres.", 20,
-         "Diversión y energía al máximo.", listo=False),
+         "Diversión y energía al máximo."),
     Hito("compromiso", "💍", "Compromiso", "Relación de los dos por encima del 80 %, viaje hecho y un anillo.", 20,
          "Si la respuesta es no, se conserva el anillo.", listo=False),
     Hito("boda", "💒", "Boda", "Estar comprometidos: planifican lugar, invitados, comida y fecha.", 25,
@@ -79,7 +79,9 @@ class HitosMixin:
                 pronto = " 🚧" if not hito.listo else ""
                 lineas.append(f"⬜ {hito.emoji} {hito.nombre}{pronto}: <i>{hito.requisito}</i>")
         lineas += ["", f"Llevan {len(celebrados)} de {len(HITOS)}."]
-        res.pantalla = Pantalla("\n".join(lineas), [[("📸 Álbum", "album"), ("⬅️ Atrás", "mpar")]], clave="hitos")
+        res.pantalla = Pantalla(
+            "\n".join(lineas), [[("✈️ Viajes", "viaje"), ("📸 Álbum", "album")], [("⬅️ Atrás", "mpar")]], clave="hitos"
+        )
 
     def _tick_hitos(self, res) -> None:
         """Detecta el primer mes y celebra los hitos logrados cuando los dos están conectados."""
