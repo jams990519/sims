@@ -6,13 +6,16 @@ Cada submenú tiene "⬅️ Atrás", y cada acción termina en una ficha para co
 
 from __future__ import annotations
 
+import html
+
+from . import cocina as C
 from . import personaje as P
+from . import plano as PL
 from . import vida as V
-from .db import Jugador
+from .db import EN_JUEGO, Jugador
 
 # Lo que todavía no existe: se ve en el menú, pero avisa que llega pronto.
 PRONTO = {
-    "plano": "🗺️ El plano de la casa",
     "objetos": "🪑 Los objetos de la casa",
     "notas": "📝 Las notas en la nevera",
     "mascota": "🐾 La mascota",
@@ -85,7 +88,7 @@ class MenuMixin:
             f"📍 Estás en: {V.nombre_habitacion(j.lugar)}",
         ]
         botones = [
-            [("🗺️ Ver plano 🚧", "pronto:plano"), ("🚶 Moverse", "moverse")],
+            [("🗺️ Ver plano", "plano"), ("🚶 Moverse", "moverse")],
             [("🧊 Nevera y despensa", "nevera"), ("🪑 Objetos 🚧", "pronto:objetos")],
             [("📝 Notas en la nevera 🚧", "pronto:notas"), ("🐾 Mascota 🚧", "pronto:mascota")],
             [("🔑 Renta y mudanza", "casa")],
@@ -93,36 +96,111 @@ class MenuMixin:
         ]
         res.pantalla = Pantalla("\n".join(lineas), botones, clave="mcasa")
 
-    def _b_moverse(self, j: Jugador, arg: str, res) -> None:
+    def _b_moverse(self, j: Jugador, volver: str, res) -> None:
+        """moverse · moverse:plano (desde el plano, y vuelve a él)."""
         from .juego import Pantalla
 
+        volver = "plano" if volver == "plano" else "mcasa"
         if j.lugar.startswith(V.FUERA):
             res.alerta = "Tu Sim está fuera de casa."
-            self._b_menu_casa(j, "", res)
+            self._volver_de_moverse(j, volver, res)
             return
+        sufijo = ":plano" if volver == "plano" else ""
         botones = [
-            [(("📍 " if clave == j.lugar else "") + f"{e} {nombre}", f"ir:{clave}")]
+            [(("📍 " if clave == j.lugar else "") + f"{e} {nombre}", f"ir:{clave}{sufijo}")]
             for clave, (e, nombre) in self._zonas(j.sala_id).items()
         ]
-        botones.append([("⬅️ Atrás", "mcasa")])
+        botones.append([("⬅️ Atrás", volver)])
         res.pantalla = Pantalla(
             f"🚶 <b>¿A dónde vas?</b>\n📍 Ahora estás en: {V.nombre_habitacion(j.lugar)}",
             botones,
             clave="mcasa",
         )
 
-    def _b_ir(self, j: Jugador, habitacion: str, res) -> None:
+    def _volver_de_moverse(self, j: Jugador, volver: str, res, aviso: str | None = None) -> None:
+        if volver == "plano":
+            res.pantalla = self._pantalla_plano(j, aviso)
+        else:
+            self._b_menu_casa(j, "", res, aviso)
+
+    def _b_ir(self, j: Jugador, arg: str, res) -> None:
+        habitacion, _, volver = arg.partition(":")
         if habitacion not in self._zonas(j.sala_id):
-            self._b_moverse(j, "", res)
+            self._b_moverse(j, volver, res)
             return
         if self._texto_accion(j, self.reloj()):
             res.alerta = "Tu Sim está ocupado ahora. Para lo que está haciendo primero."
-            self._b_menu_casa(j, "", res)
+            self._volver_de_moverse(j, volver, res)
             return
         j.lugar = habitacion
         self.db.guardar_jugador(j)
         res.ediciones += self._refrescar_sala(j.sala_id, excepto=j.id)
-        self._b_menu_casa(j, "", res, f"🚶 Ahora estás en {V.nombre_habitacion(habitacion)}.")
+        self._volver_de_moverse(j, volver, res, f"🚶 Ahora estás en {V.nombre_habitacion(habitacion)}.")
+
+    # --- 🗺️ Plano ----------------------------------------------------------
+
+    def _estado_en_plano(self, m: Jugador, ahora: float) -> str:
+        """'🍳 cocinando arroz con pollo (12 min)', '❄️ en pausa'…"""
+        from .vida_juego import _dur
+
+        accion = self._accion(m)
+        a = V.ACCIONES.get(accion["k"]) if accion and accion["rfin"] > ahora else None
+        if a is not None:
+            texto = f"{a.emoji} {a.verbo}"
+            falta = accion["rfin"] - ahora
+            coccion = self._coccion(self._hogar(m.sala_id)) if a.clave == "cocinar" else None
+            if coccion and m.id in coccion["cocineros"]:
+                r = C.RECETAS[coccion["receta"]]
+                texto += f" {r.nombre.lower()}"
+                _, listo, _ = self._tiempos_paso(coccion)
+                siguientes = r.pasos[coccion["paso"] + 1:]
+                falta = max(0.0, listo - ahora) + sum(C.minutos_paso(mi, coccion["juntos"]) * 60 for _, mi in siguientes)
+            if accion.get("con"):
+                otro = self.db.jugador(accion["con"])
+                texto += f" con {html.escape(otro.personaje)}" if otro else ""
+            return f"{texto} ({_dur(falta)})"
+        if m.lugar.startswith(V.FUERA):
+            return "📍 fuera de casa"
+        if self._congelado(m, ahora):
+            return "❄️ en pausa"
+        return "🧍 sin hacer nada"
+
+    def _pantalla_plano(self, j: Jugador, aviso: str | None = None):
+        """🏠 Casa → Ver plano: la casa en texto, con cada Sim donde está. Se actualiza sola."""
+        from .juego import CONTINUAR, Pantalla
+
+        ahora = self.reloj()
+        casa = self._casa(self._hogar(j.sala_id))
+        miembros = [m for m in self.db.miembros_sala(j.sala_id) if m.estado in EN_JUEGO]
+        miembros.sort(key=lambda m: m.id != j.id)  # primero tú
+        letras = PL.iniciales([m.personaje for m in miembros])
+        dentro, fuera = {}, []
+        for m, letra in zip(miembros, letras):
+            if m.lugar in casa.zonas:
+                dentro.setdefault(m.lugar, []).append(letra)
+            else:
+                fuera.append(letra)
+        lineas = [aviso, ""] if aviso else []
+        pausado = self._congelado(j, ahora)
+        if pausado:
+            lineas += ["❄️ <b>Tu Sim está en pausa.</b> Toca ▶️ Continuar para seguir.", ""]
+        lineas.append(f"{casa.emoji} <b>{casa.nombre}</b> — {V.reloj_texto(self._local(j))}")
+        lineas.append("<pre>" + html.escape("\n".join(PL.dibujar(casa.zonas, dentro))) + "</pre>")
+        if fuera:
+            lineas.append(f"🚗 Fuera de casa: {html.escape(PL.marcas(fuera))}")
+        for m, letra in zip(miembros, letras):
+            quien = f"{html.escape(m.personaje)}{' (tú)' if m.id == j.id else ''}"
+            lineas.append(f"<code>[{html.escape(letra)}]</code> {quien}: {self._estado_en_plano(m, ahora)}")
+        botones = [
+            [("🚶 Moverse", "moverse:plano"), ("⚡ Acciones", "macc")],
+            [("🔄 Actualizar", "plano"), ("⬅️ Atrás", "mcasa")],
+        ]
+        if pausado:
+            botones.insert(0, [CONTINUAR])
+        return Pantalla("\n".join(lineas), botones, es_sala=True, clave="plano")
+
+    def _b_plano(self, j: Jugador, arg: str, res) -> None:
+        res.pantalla = self._pantalla_plano(j)
 
     # --- ⚡ Acciones --------------------------------------------------------
 

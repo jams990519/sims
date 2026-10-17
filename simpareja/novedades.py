@@ -3,9 +3,17 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.9"
+VERSION = "0.10"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.10", [
+        "🗺️ <b>Plano de la casa</b> (/plano o 🏠 Casa → Ver plano): la casa dibujada en texto, con el cuarto, "
+        "el clóset, el baño y la sala-cocina-comedor.",
+        "🧍 Cada Sim aparece con su inicial en la habitación donde está, con lo que hace y el tiempo que le "
+        "falta (por ejemplo: cocinando arroz con pollo, 12 min). Si salió, aparece «fuera de casa».",
+        "🔄 Si dejas el plano abierto, se actualiza solo cuando tu pareja se mueve o cambia de acción.",
+        "🚶 Desde el plano puedes moverte de habitación y vuelves a él.",
+    ]),
     ("0.9", [
         "🔑 <b>Casa en renta</b>: ahora empiezan rentando la casita por $900 al mes, con un depósito de $900 "
         "(de los $3.000 les quedan $2.100). Si ya jugaban, les devolví los $600 de diferencia de la entrada.",
