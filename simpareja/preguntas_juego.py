@@ -161,6 +161,8 @@ class PreguntasMixin:
         respuesta = texto.strip()[:RESPUESTA_MAX]
         pregunta["respuestas"][str(j.id)] = respuesta
         self._guardar_extras_hogar(h, extras_h)
+        if len(pregunta["respuestas"]) >= 2:
+            self._avanzar_reto(h, "preguntas", pregunta["id"])
         pareja = self._pareja_en_sala(j)
         if pareja is not None:
             res.avisos.append(Aviso(

@@ -3,9 +3,16 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.16"
+VERSION = "0.17"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.17", [
+        "🎯 <b>Retos de la semana</b> (💕 Pareja → Retos): cada lunes llega un reto para hacer juntos, como "
+        "cocinar juntos 3 veces, tener una cita el fin de semana, darse 5 abrazos o responder 2 preguntas.",
+        "🏆 Al cumplirlo ganan dinero para la cuenta compartida ($100 a $200) o +5 en el medidor de los dos. "
+        "Los objetos como premio llegarán con las tiendas.",
+        "📊 Ves el progreso, los días que quedan y los retos que ya cumplieron.",
+    ]),
     ("0.16", [
         "🎂 <b>Aniversario mensual</b> (💕 Pareja → Aniversario): cada mes, el día en que empezaron a jugar juntos, "
         "cumplen un mes más. Tres días antes les llega un aviso a los dos.",

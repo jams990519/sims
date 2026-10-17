@@ -3,7 +3,7 @@
 Un juego de texto tipo *Los Sims* para jugar **en pareja** por Telegram ([@sims000bot](https://t.me/sims000bot)).
 Se entra **solo por invitación** y funciona en **cualquier país donde abra Telegram**, Cuba incluida.
 
-## Qué hay hasta ahora (versión 0.16)
+## Qué hay hasta ahora (versión 0.17)
 
 | | |
 |---|---|
@@ -14,6 +14,7 @@ Se entra **solo por invitación** y funciona en **cualquier país donde abra Tel
 | 🧍 **Necesidades** | Hambre (−6/h), energía (máx. 100, sube a 130 con constancia), higiene (−4/h), diversión (−5/h) y social (−3/h), de 0 a 100, que cambian con el reloj del Sim. Con alguna en 0 se pone de mal humor; sin energía se duerme donde esté. |
 | 🎬 **Acciones** | Comer (desayuno +30, almuerzo +45, cena +40 según la hora), cocinar, dormir (+12/h), siesta, ducha, bañarse juntos, dientes, tele, redes, parque, hablar, abrazar, besar, masaje, cita, limpiar una zona y lavar la ropa (la ropa sucia se acumula). Casi todas se pueden hacer **solo o juntos**: juntos terminan antes. |
 | 💗 **Medidor de relación** | Cada quien tiene un medidor de 0 a 100 % (empieza en 50 %) de lo que siente por el otro. Lo sube o lo baja cuando quiere eligiendo el motivo (o escribiéndolo); la pareja recibe un aviso y queda un historial de los dos. |
+| 🎯 **Retos semanales** | Cada lunes, un reto para hacer juntos (cocinar juntos 3 veces, una cita el fin de semana, 5 abrazos, limpiar juntos, comer juntos, responder preguntas, parque, tele…). Al cumplirlo ganan dinero ($100 a $200) o +5 en el medidor de los dos. |
 | 🎂 **Aniversario y álbum** | Cada mes cumplen un mes más (desde que juegan juntos). Aviso tres días antes; planean juntos el día, el plan (cena en casa, restaurante, cine o parque) y el presupuesto; ese día, con los dos conectados, brindan y se dan un regalo: +10 en el medidor de los dos y un recuerdo. Si no se celebra, solo se pierde la recompensa. El 📸 álbum guarda aniversarios, citas, respuestas que gustaron y fotos de ánimo. |
 | 🎲 **Eventos sorpresa** | Uno o dos por semana, al azar. Buenos: bono en el trabajo, súper a mitad de precio ese día, regalo que sube el ánimo. Malos: avería de la nevera o la ducha (se arregla o se deja así), resfriado (menos energía y sin trabajar uno o dos días), apagón de unas horas, gasto inesperado. De pareja: día de lluvia (sin salidas), visita familiar (limpiar y cocinar), antojo (si el otro prepara esa comida sube la relación) o una pregunta de pareja. `EVENTOS=0` los apaga. |
 | 📝 **Notas en la nevera** | Un jugador deja un mensaje en la nevera y su pareja lo ve al entrar al juego (o al volver de la pausa); mientras no lo lea, el menú y la sala lo marcan. También se dejan desde el trabajo. |
@@ -29,7 +30,7 @@ Se entra **solo por invitación** y funciona en **cualquier país donde abra Tel
 | 💬 **Chat interno** | Todo lo que escribas en el bot (texto, fotos, stickers, notas de voz) le llega a tu pareja con tu nombre y avatar. Chatear no descongela al Sim. |
 | 📢 **Novedades** | Cada vez que se despliega una versión nueva, el bot avisa a todos los jugadores de lo que cambió (`/novedades`). |
 
-**Actualización 2 (en curso, manda sobre lo anterior):** 1. ✅ Menús y submenús · 2. ✅ Horario de trabajo real y automático (máx. 8 h) · 3. ✅ Casa en renta · 4. ✅ Plano en texto · 5. ✅ Necesidad social · 6. ✅ Ánimo con foto · 7. ✅ Preguntas de pareja · 8. ✅ Notas en la nevera · 9. ✅ Eventos sorpresa · 10. ✅ Aniversario y álbum · 11. Retos semanales · 12. Hitos · 13. Objetos y tiendas · 14. Mascota
+**Actualización 2 (en curso, manda sobre lo anterior):** 1. ✅ Menús y submenús · 2. ✅ Horario de trabajo real y automático (máx. 8 h) · 3. ✅ Casa en renta · 4. ✅ Plano en texto · 5. ✅ Necesidad social · 6. ✅ Ánimo con foto · 7. ✅ Preguntas de pareja · 8. ✅ Notas en la nevera · 9. ✅ Eventos sorpresa · 10. ✅ Aniversario y álbum · 11. ✅ Retos semanales · 12. Hitos · 13. Objetos y tiendas · 14. Mascota
 
 **Primer diseño (una parte cada vez, cada una se sube sola):**
 1. ✅ Crear el personaje · 2. ✅ Sala y chat interno · 3. ✅ Reloj individual y pausa · 4. ✅ Necesidades y acciones básicas
@@ -112,6 +113,7 @@ simpareja/
 ├── eventos.py      # eventos sorpresa: cuáles, cada cuánto (lógica pura)
 ├── eventos_juego.py # eventos sorpresa dentro del juego
 ├── aniversario_juego.py # aniversario mensual, citas y recuerdos
+├── retos_juego.py  # retos semanales de pareja
 ├── novedades.py    # notas de cada versión (se anuncian solas al desplegar)
 ├── menus.py        # menú principal, submenús y plano de la casa
 ├── plano.py        # dibujo del plano en texto (lógica pura)

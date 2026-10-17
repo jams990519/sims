@@ -326,6 +326,8 @@ class CocinaMixin:
         self.db.guardar_hogar(h)
         self._terminar_coccion(h, coccion)
         self._evento_cocinado(h, coccion)
+        if coccion["juntos"]:
+            self._avanzar_reto(h, "cocinar")
         noticia = f"🍽️ <b>¡{r.nombre} listo!</b> {coccion['porciones']} porción(es) en la nevera."
         res.avisos += [Aviso(c, noticia, [[("🍽️ Comer", f"a:comer:{r.clave}")]]) for c in coccion["cocineros"] if c != j.id]
         res.pantalla = Pantalla(
