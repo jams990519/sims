@@ -31,6 +31,7 @@ from .cocina_juego import CocinaMixin
 from .dinero_juego import DineroMixin
 from .eventos_juego import EventosMixin
 from .hitos_juego import HitosMixin
+from .influencer_juego import InfluencerMixin
 from .mascota_juego import MascotaMixin
 from .menus import MenuMixin
 from .notas_juego import NotasMixin
@@ -146,6 +147,7 @@ LUGARES = {
     "tienda": ("🛍️ Tienda", "de compras"),
     "mascota": ("🐾 Mascota", "con la mascota"),
     "mascnombre": ("🐾 Mascota", "eligiendo el nombre de la mascota"),
+    "influ": ("📱 Influencer", "preparando un video"),
     "ajustes": ("⚙️ Ajustes", "en los ajustes"),
     "renombrar": ("✏️ Cambiar nombre", "cambiando su nombre"),
 }
@@ -202,7 +204,7 @@ def en_filas(botones: list[tuple[str, str]], por_fila: int = 2) -> Botones:
 
 class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoMixin, RelacionMixin, PreguntasMixin,
             NotasMixin, EventosMixin, AniversarioMixin, RetosMixin, HitosMixin, ViajeMixin, BodaMixin, TiendasMixin,
-            MascotaMixin):
+            MascotaMixin, InfluencerMixin):
     def __init__(self, db: DB, cfg: Config, reloj=time.time, rng: random.Random | None = None):
         self.db = db
         self.cfg = cfg
@@ -455,6 +457,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         self._tick_viaje(res)
         self._tick_trabajo(res)
         self._tick_mascota(res)
+        self._tick_influencer(res)
         self._tick_eventos(res)
         self._tick_aniversario(res)
         self._tick_retos(res)
@@ -580,6 +583,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "mascad": self._b_adoptar,
             "mascok": self._b_adopcion_si,
             "mascno": self._b_adopcion_no,
+            "influ": self._b_influencer,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -1135,7 +1139,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "notas": self._b_notas, "notaesc": self._b_notas, "aniv": self._b_aniversario,
             "retos": self._b_retos, "hitos": self._b_hitos, "viaje": self._b_viaje,
             "comp": self._b_compromiso, "boda": self._b_boda, "objetos": self._b_objetos, "tienda": self._b_tienda,
-            "mascota": self._b_mascota, "mascnombre": self._b_mascota,
+            "mascota": self._b_mascota, "mascnombre": self._b_mascota, "influ": self._b_influencer,
         }.get(accion, self._b_menu)
         tmp = Resultado()
         manejador(j, arg, tmp)

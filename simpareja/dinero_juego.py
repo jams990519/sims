@@ -95,7 +95,7 @@ class DineroMixin:
     def _bloqueo_accion(self, j: Jugador, a: V.Accion) -> str | None:
         h = self._hogar(j.sala_id)
         return (D.falta_servicio(a.clave, D.servicios_cortados(json.loads(h.pendientes))) or self._bloqueo_evento(j, a)
-                or self._falta_objeto(j, a) or self._falta_mascota(j, a))
+                or self._falta_objeto(j, a) or self._falta_mascota(j, a) or self._falta_video(j, a))
 
     def _extras(self, j: Jugador) -> dict:
         return json.loads(j.extras or "{}")

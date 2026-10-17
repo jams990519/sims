@@ -165,7 +165,8 @@ class EventosMixin:
             if all(ahora - m.ultima_actividad > E.SIN_JUGAR for m in miembros):
                 continue  # nadie juega: no se acumulan sorpresas
             con_trabajo = [m for m in miembros if self._empleo(m).get("clave")]
-            evento = E.elegir(self.rng, len(miembros) > 1, bool(con_trabajo))
+            con_videos = any(self._influ(m).get("videos") for m in miembros)
+            evento = E.elegir(self.rng, len(miembros) > 1, bool(con_trabajo), con_videos)
             textos, botones = self._lanzar_evento(h, evento, miembros, con_trabajo)
             ex = self._extras_hogar(h)
             ex["eventos"]["historial"] = (ex["eventos"].get("historial", []) + [{"clave": evento.clave, "ts": ahora}])[-HISTORIAL:]
@@ -189,6 +190,14 @@ class EventosMixin:
             self.db.guardar_jugador(m)
             self._anotar_movimiento(h.sala_id, m.id, "cartera", monto, "💼 Bono en el trabajo")
             texto = f"💼🎉 <b>Bono en el trabajo</b>: {self._firma(m)} recibió {D.dinero(monto)} en su cartera."
+        elif evento.clave == "viral":
+            m = rng.choice([x for x in miembros if self._influ(x).get("videos")])
+            nuevos = rng.randint(*E.VIRAL)
+            datos = self._influ(m)
+            datos["seguidores"] += nuevos
+            self._guardar_influ(m, datos)
+            texto = f"📱🔥 <b>¡Video viral!</b> Un video de {self._firma(m)} explotó: +{nuevos} seguidores de golpe."
+            botones = [[("📱 Influencer", "influ")]]
         elif evento.clave == "oferta":
             ex["oferta_hasta"] = self._fin_del_dia(miembros[0])
             texto = "🛒🎉 <b>Oferta en el súper</b>: hoy toda la compra está a mitad de precio."

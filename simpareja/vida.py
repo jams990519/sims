@@ -246,6 +246,15 @@ _ACCIONES = (
     Accion("pasear", "🐕", "Pasear al perro", "paseando al perro", "mascota", 45,
            {"diversion": 10, "energia": -5, "social": 5}, habitacion=FUERA, ropa=1, ejercicio=True,
            nombre_juntos="Pasear al perro juntos", efectos_juntos={"social": 20}),
+    # 📱 Influencer (desde 💼 Trabajo → Influencer)
+    Accion("grabar", "🎥", "Grabar un video", "grabando un video", "influencer", 60, {"energia": -10, "diversion": 5},
+           nombre_juntos="Grabar juntos (sale en el video)"),
+    Accion("editar", "✂️", "Editar y publicar el video", "editando un video", "influencer", 30, {"energia": -3},
+           juntos=SOLO),
+    Accion("aprender_redes", "📚", "Aprender sobre redes", "aprendiendo sobre redes", "influencer", 60,
+           {"energia": -5}, juntos=SOLO),
+    Accion("guion", "✍️", "Escribir el guion del video de tu pareja", "escribiendo un guion", "influencer", 20,
+           {"diversion": 5}, juntos=SOLO),
     # 📍 Lugares (fuera de casa; en pareja, una salida cuenta como cita)
     Accion("super", "🛒", "Hacer el súper", "en el súper", "super", 45, {"energia": -5},
            habitacion=FUERA, nombre_juntos="Ir al súper juntos"),
