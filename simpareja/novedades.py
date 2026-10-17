@@ -3,9 +3,19 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.5"
+VERSION = "0.6"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.6", [
+        "🛒 <b>Súper</b> (/super): compren ingredientes que van a la 🧊 nevera y despensa compartidas. "
+        "Los sábados y domingos hay ofertas.",
+        "🍳 <b>Cocinar</b> (/cocina): 6 recetas (huevos revueltos, café con tostadas, arroz con pollo, pasta, "
+        "sopa de verduras y sándwich) que se preparan paso a paso en tiempo real. Te aviso cuando cada paso "
+        "está listo… ¡y si te pasas de tiempo, se quema! 🔥",
+        "💞 Cocinar juntos es más rápido y cualquiera de los dos puede pasar al siguiente paso.",
+        "🍽️ Comer lo cocinado es gratis; si no hay nada en la nevera, pueden comprar algo hecho.",
+        "🥡 Guarda una porción en un táper para el trabajo. Sin táper, trabajando el hambre baja más rápido.",
+    ]),
     ("0.5", [
         "💼 <b>¡Trabajos!</b> (/trabajo) Elige uno de 7: manicurista, estudio de fotografía, supermercado, "
         "reparto, cocina de restaurante, oficina o taller mecánico. Cada uno tiene 3 niveles y sueldo por hora.",

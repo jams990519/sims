@@ -1,0 +1,143 @@
+"""Súper, ingredientes y recetas (parte 7). Lógica pura, sin Telegram ni base de datos."""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+
+from . import vida as V
+
+OFERTA_FIN_DE_SEMANA = 0.20  # el súper tiene ofertas los sábados y domingos
+FACTOR_JUNTOS = V.FACTOR_JUNTOS
+MARGEN_MINIMO = 2  # minutos de margen para tocar "listo" antes de que se queme
+
+
+@dataclass(frozen=True)
+class Ingrediente:
+    clave: str
+    emoji: str
+    nombre: str
+    paquete: str  # cómo se vende
+    unidades: int  # cuántas unidades trae el paquete
+    precio: float
+    lugar: str  # 'nevera' | 'despensa'
+
+
+INGREDIENTES: dict[str, Ingrediente] = {i.clave: i for i in (
+    Ingrediente("huevos", "🥚", "Huevos", "docena", 12, 3.0, "nevera"),
+    Ingrediente("pan", "🍞", "Pan", "bolsa de 10 rebanadas", 10, 2.5, "despensa"),
+    Ingrediente("cafe", "☕", "Café", "paquete para 10 tazas", 10, 4.0, "despensa"),
+    Ingrediente("mantequilla", "🧈", "Mantequilla", "barra (8 usos)", 8, 2.5, "nevera"),
+    Ingrediente("arroz", "🍚", "Arroz", "bolsa de 5 raciones", 5, 2.5, "despensa"),
+    Ingrediente("pollo", "🍗", "Pollo", "bandeja de 2 raciones", 2, 5.0, "nevera"),
+    Ingrediente("pasta", "🍝", "Pasta", "paquete de 4 raciones", 4, 2.0, "despensa"),
+    Ingrediente("tomate", "🥫", "Salsa de tomate", "frasco de 2 raciones", 2, 2.0, "despensa"),
+    Ingrediente("verduras", "🥕", "Verduras", "bolsa de 2 raciones", 2, 3.0, "nevera"),
+    Ingrediente("jamon", "🥓", "Jamón", "paquete de 4 lonchas", 4, 3.0, "nevera"),
+    Ingrediente("queso", "🧀", "Queso", "paquete de 4 lonchas", 4, 3.0, "nevera"),
+)}
+
+
+@dataclass(frozen=True)
+class Receta:
+    clave: str
+    emoji: str
+    nombre: str
+    comida: str  # 'desayuno' | 'almuerzo' | 'cena'
+    ingredientes: dict  # unidades por porción
+    pasos: tuple[tuple[str, int], ...]  # (qué hacer, minutos)
+
+    @property
+    def minutos(self) -> int:
+        return sum(m for _, m in self.pasos)
+
+
+RECETAS: dict[str, Receta] = {r.clave: r for r in (
+    Receta("huevos", "🍳", "Huevos revueltos con pan", "desayuno", {"huevos": 2, "pan": 1}, (
+        ("🥣 Batir los huevos", 2),
+        ("🍳 Cocinarlos removiendo en la sartén", 4),
+        ("🍞 Tostar el pan y servir", 2),
+    )),
+    Receta("tostadas", "☕", "Café con tostadas", "desayuno", {"cafe": 1, "pan": 2, "mantequilla": 1}, (
+        ("☕ Preparar el café", 4),
+        ("🍞 Tostar el pan", 2),
+        ("🧈 Untar la mantequilla y servir", 1),
+    )),
+    Receta("arroz_pollo", "🍛", "Arroz con pollo", "almuerzo", {"arroz": 1, "pollo": 1}, (
+        ("🍗 Dorar el pollo", 6),
+        ("🧅 Sofreír y añadir el arroz", 3),
+        ("🔥 Cocer a fuego lento", 12),
+        ("🍽️ Reposar y servir", 2),
+    )),
+    Receta("pasta", "🍝", "Pasta con salsa de tomate", "almuerzo", {"pasta": 1, "tomate": 1}, (
+        ("💧 Hervir el agua", 5),
+        ("🍝 Cocer la pasta", 9),
+        ("🥫 Calentar la salsa y mezclar", 3),
+    )),
+    Receta("sopa", "🥣", "Sopa de verduras", "cena", {"verduras": 1}, (
+        ("🔪 Picar las verduras", 5),
+        ("🔥 Hervir la sopa", 15),
+        ("🧂 Sazonar y servir", 2),
+    )),
+    Receta("sandwich", "🥪", "Sándwich de jamón y queso", "cena", {"pan": 2, "jamon": 1, "queso": 1}, (
+        ("🥪 Armar el sándwich", 2),
+        ("🔥 Dorarlo en la sartén", 4),
+    )),
+)}
+
+COMIDAS = (("desayuno", "🌅 Desayunos"), ("almuerzo", "☀️ Almuerzos"), ("cena", "🌙 Cenas"))
+
+
+def precio(ingrediente: str, dia: int) -> float:
+    base = INGREDIENTES[ingrediente].precio
+    return round(base * (1 - OFERTA_FIN_DE_SEMANA), 2) if V.es_fin_de_semana(dia) else base
+
+
+def total_carrito(carrito: dict, dia: int) -> float:
+    return round(sum(precio(i, dia) * n for i, n in carrito.items() if i in INGREDIENTES), 2)
+
+
+def guardar_compra(despensa: dict, carrito: dict) -> dict:
+    """Suma los paquetes comprados (en unidades) a la nevera y despensa."""
+    despensa = dict(despensa)
+    for i, paquetes in carrito.items():
+        if i in INGREDIENTES:
+            despensa[i] = despensa.get(i, 0) + paquetes * INGREDIENTES[i].unidades
+    return despensa
+
+
+def faltan(despensa: dict, receta: Receta, porciones: int) -> dict:
+    """Ingredientes que faltan para cocinar esas porciones (vacío si alcanza)."""
+    return {
+        i: n * porciones - despensa.get(i, 0)
+        for i, n in receta.ingredientes.items() if despensa.get(i, 0) < n * porciones
+    }
+
+
+def usar(despensa: dict, receta: Receta, porciones: int) -> dict:
+    despensa = dict(despensa)
+    for i, n in receta.ingredientes.items():
+        despensa[i] = despensa.get(i, 0) - n * porciones
+        if despensa[i] <= 0:
+            despensa.pop(i)
+    return despensa
+
+
+def minutos_paso(minutos: int, juntos: bool) -> int:
+    return max(1, round(minutos * FACTOR_JUNTOS)) if juntos else minutos
+
+
+def margen(minutos: int) -> int:
+    """Minutos de gracia después de que el paso está listo; si se pasan, se quema."""
+    return max(MARGEN_MINIMO, math.ceil(minutos * 0.5))
+
+
+def duracion_maxima(receta: Receta, juntos: bool) -> int:
+    """Minutos que dura la acción de cocinar si se toca cada paso en el último momento."""
+    return sum(minutos_paso(m, juntos) + margen(minutos_paso(m, juntos)) for _, m in receta.pasos)
+
+
+def texto_ingredientes(ingredientes: dict, porciones: int = 1) -> str:
+    return ", ".join(
+        f"{INGREDIENTES[i].emoji} {INGREDIENTES[i].nombre.lower()} ×{n * porciones}" for i, n in ingredientes.items()
+    )

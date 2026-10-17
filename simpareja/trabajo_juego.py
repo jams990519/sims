@@ -9,10 +9,14 @@ from __future__ import annotations
 
 import json
 
+from . import cocina as C
 from . import dinero as D
 from . import trabajo as T
 from . import vida as V
 from .db import Jugador
+
+TAPER_HAMBRE = 40  # lo que quita el táper durante el turno
+SIN_COMIDA_HAMBRE = 1.5  # sin táper, el hambre baja más rápido trabajando
 
 
 class TrabajoMixin:
@@ -186,6 +190,16 @@ class TrabajoMixin:
         datos = self._empezar(j, V.ACCIONES["trabajar"], horas, None, ahora)
         res.ediciones += self._refrescar_sala(j.sala_id, excepto=j.id)
         aviso = f"💼 ¡A trabajar! Sales a las {V.hora_texto(datos['fin'])} y cobras al terminar."
+        if j.taper:
+            # El táper le quita el hambre a mitad del turno.
+            datos["ef"]["hambre"] = datos["ef"].get("hambre", 0) + TAPER_HAMBRE
+            aviso += f"\n🥡 Lleva su táper de {C.RECETAS[j.taper].nombre.lower() if j.taper in C.RECETAS else 'comida'}."
+            j.taper = ""
+        else:
+            datos["mult"] = {"hambre": SIN_COMIDA_HAMBRE}
+            aviso += "\n⚠️ Va sin comida: el hambre bajará más rápido. (Prepara un táper la próxima vez.)"
+        j.accion = json.dumps(datos)
+        self.db.guardar_jugador(j)
         if empleo["rojo"]:
             aviso += "\n⚠️ Vas con necesidades en rojo: este día no contará para el ascenso."
         res.pantalla = self._pantalla_sim(j, aviso)
