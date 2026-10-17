@@ -27,6 +27,7 @@ from .db import DB, Invitacion, Jugador, UltimaConexion, Visitante
 from .animo_juego import AnimoMixin
 from .cocina_juego import CocinaMixin
 from .dinero_juego import DineroMixin
+from .eventos_juego import EventosMixin
 from .menus import MenuMixin
 from .notas_juego import NotasMixin
 from .preguntas_juego import PreguntasMixin
@@ -183,7 +184,7 @@ def en_filas(botones: list[tuple[str, str]], por_fila: int = 2) -> Botones:
 
 
 class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoMixin, RelacionMixin, PreguntasMixin,
-            NotasMixin):
+            NotasMixin, EventosMixin):
     def __init__(self, db: DB, cfg: Config, reloj=time.time, rng: random.Random | None = None):
         self.db = db
         self.cfg = cfg
@@ -431,6 +432,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         self._tick_cocina(res)
         self._tick_dinero(res)
         self._tick_trabajo(res)
+        self._tick_eventos(res)
         salas: set[int] = set()
         for j in self.db.jugadores_en_sala():
             estado = self._estado_presencia(j, ahora)
@@ -522,6 +524,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "pregt": self._b_temas,
             "notas": self._b_notas,
             "notan": self._b_nota_nueva,
+            "arreglar": self._b_arreglar,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:

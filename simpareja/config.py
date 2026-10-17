@@ -30,7 +30,7 @@ class Config:
     nombre_juego: str = "SimPareja"
     admins: frozenset[int] = field(default_factory=frozenset)
     db_ruta: str = "datos/simpareja.db"
-    # Minutos sin jugar hasta que el Sim se congela (y su reloj se para).
+    # Minutos sin jugar hasta que el Sim se congela (y deja de gastar necesidades).
     pausa_min: int = 5
     # Minutos sin actividad hasta pasar de "en línea" a "en pausa" y luego a "fuera de línea".
     en_linea_min: int = 5
@@ -39,6 +39,8 @@ class Config:
     max_sala: int = 2
     invitacion_dias: int = 7
     max_invitaciones_activas: int = 5
+    # Eventos sorpresa (uno o dos por semana); EVENTOS=0 los apaga.
+    eventos: bool = True
     # Opcionales, para servidores en países donde Telegram está bloqueado.
     proxy: str = ""
     api_url: str = ""
@@ -58,6 +60,7 @@ class Config:
             max_sala=int(e("MAX_SALA", cls.max_sala)),
             invitacion_dias=int(e("INVITACION_DIAS", cls.invitacion_dias)),
             max_invitaciones_activas=int(e("MAX_INVITACIONES", cls.max_invitaciones_activas)),
+            eventos=e("EVENTOS", "1") not in ("0", "no", "false"),
             proxy=e("TELEGRAM_PROXY", ""),
             api_url=e("TELEGRAM_API_URL", ""),
         )

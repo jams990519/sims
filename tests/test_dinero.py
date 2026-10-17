@@ -33,10 +33,6 @@ def hogar(juego, uid=ADMIN):
     return juego._hogar(juego.db.jugador(uid).sala_id)
 
 
-def sin_imprevistos(monkeypatch):
-    monkeypatch.setattr(D, "imprevisto", lambda rng: None)
-
-
 def test_empiezan_con_3000_y_rentan_la_casita(solo):
     h = hogar(solo)
     assert h.casa == "casita" and h.cuenta == 2100
@@ -105,8 +101,7 @@ def test_el_uso_sube_la_luz_y_el_agua(solo, reloj):
     assert consumo == {"agua": 0.6, "luz": 0.3}
 
 
-def test_cobro_mensual_de_las_facturas(solo, reloj, monkeypatch):
-    sin_imprevistos(monkeypatch)
+def test_cobro_mensual_de_las_facturas(solo, reloj):
     h = hogar(solo)
     h.cuenta = 2000
     h.consumo = json.dumps({"luz": 12.4, "agua": 6})
@@ -121,8 +116,7 @@ def test_cobro_mensual_de_las_facturas(solo, reloj, monkeypatch):
     assert not solo.tick().avisos  # no se cobra dos veces
 
 
-def test_si_no_alcanza_hay_recargo_y_corte(solo, reloj, monkeypatch):
-    sin_imprevistos(monkeypatch)
+def test_si_no_alcanza_hay_recargo_y_corte(solo, reloj):
     h = hogar(solo)
     h.cuenta = 980  # alcanza para la renta y el agua, no para la luz
     solo.db.guardar_hogar(h)
@@ -144,14 +138,6 @@ def test_si_no_alcanza_hay_recargo_y_corte(solo, reloj, monkeypatch):
     assert "Ya volvió el servicio" in res.pantalla.texto
     assert solo.db.jugador(ADMIN).cartera == 101
     assert solo.boton(ADMIN, "", "a:tele").alerta is None
-
-
-def test_imprevistos(solo, reloj, monkeypatch):
-    monkeypatch.setattr(D, "imprevisto", lambda rng: ("🔧 Se rompió la lavadora", 200))
-    ir_al_dia(solo, reloj, ADMIN, 2)
-    aviso = next(a for a in solo.tick().avisos if a.para == ADMIN)
-    assert "Se rompió la lavadora: $200" in aviso.texto
-    assert hogar(solo).cuenta == 1900
 
 
 def test_dinero_formato():

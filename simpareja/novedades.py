@@ -3,9 +3,18 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.14"
+VERSION = "0.15"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.15", [
+        "🎲 <b>Eventos sorpresa</b>: uno o dos por semana, al azar, les llega algo bueno, malo o de pareja.",
+        "🎉 Buenos: bono en el trabajo ($100 a $200), el súper a mitad de precio ese día o un regalo que sube el ánimo.",
+        "🔧 Malos: se rompe la nevera o la ducha (arreglarla cuesta $150 a $300, o la dejan así), un resfriado "
+        "(menos energía y uno o dos días sin trabajar), un apagón de unas horas o un gasto inesperado ($50 a $100).",
+        "💞 De pareja: día de lluvia (se cancela el plan de salir), visita familiar (hay que limpiar la sala y "
+        "cocinar), un antojo (si el otro prepara esa comida, sube la relación) o una pregunta de pareja.",
+        "ℹ️ Las averías y multas diarias de antes ahora son estos eventos. Lo que está pasando se ve en el 🎮 menú.",
+    ]),
     ("0.14", [
         "📝 <b>Notas en la nevera</b> (🏠 Casa → Notas): deja un mensaje y tu pareja lo ve al entrar al juego "
         "(o al volver de la pausa).",

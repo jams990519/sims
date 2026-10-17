@@ -55,6 +55,9 @@ class MenuMixin:
         elif pausado:
             lineas.append("❄️ Tu Sim está en pausa: toca ▶️ Continuar.")
         lineas.append(_resumen_necesidades(self._nec(j)))
+        eventos = self._eventos_activos(j)
+        if eventos:
+            lineas += ["🎲 " + " · ".join(eventos)]
         pareja = self._pareja_en_sala(j)
         if pareja:
             lineas.append(f"💞 {self._firma(pareja)}: {self._texto_presencia(pareja, ahora)}")

@@ -12,6 +12,7 @@ import json
 
 from . import cocina as C
 from . import dinero as D
+from . import eventos as E
 from . import vida as V
 from .db import Hogar, Jugador, Movimiento
 
@@ -92,7 +93,7 @@ class DineroMixin:
 
     def _bloqueo_accion(self, j: Jugador, a: V.Accion) -> str | None:
         h = self._hogar(j.sala_id)
-        return D.falta_servicio(a.clave, D.servicios_cortados(json.loads(h.pendientes)))
+        return D.falta_servicio(a.clave, D.servicios_cortados(json.loads(h.pendientes))) or self._bloqueo_evento(j, a)
 
     def _extras(self, j: Jugador) -> dict:
         return json.loads(j.extras or "{}")
@@ -181,19 +182,7 @@ class DineroMixin:
         pasos = 0
         while h.dia_hogar < dia and pasos < MAX_DIAS_POR_VEZ:
             pasos += 1
-            h.dia_hogar += 1
-            suceso = D.imprevisto(self.rng)
-            if suceso:
-                texto, costo = suceso
-                if h.cuenta >= costo:
-                    h.cuenta -= costo
-                    self._anotar_movimiento(h.sala_id, None, "compartida", -costo, texto)
-                    noticias.append(f"{texto}: {D.dinero(costo)}, pagado de la cuenta compartida.")
-                else:
-                    pendientes = json.loads(h.pendientes)
-                    pendientes.append({"clave": "imprevisto", "monto": costo, "concepto": texto})
-                    h.pendientes = json.dumps(pendientes)
-                    noticias.append(f"{texto}: {D.dinero(costo)}. No alcanzó la cuenta: queda pendiente.")
+            h.dia_hogar += 1  # las averías y multas ahora son eventos sorpresa
             if h.dia_hogar >= h.proximo_cobro:
                 noticias.append(self._cobrar_mes(h))
         if pasos:
@@ -400,11 +389,19 @@ class DineroMixin:
         for clave in D.SERVICIOS:
             f = D.POR_CLAVE_FACTURA[clave]
             lineas.append(f"{f.emoji} {f.nombre}: {'❌ cortado' if clave in cortados else '✅ funciona'}")
+        averias = self._extras_hogar(h).get("averias", {})
+        botones = []
+        if averias:
+            lineas += ["", "<b>Averías</b>"]
+            for cosa, costo in averias.items():
+                emoji, nombre, _, sin = E.AVERIAS[cosa]
+                lineas.append(f"{emoji} Se rompió {nombre}: {sin}.")
+                botones.append([(f"🔧 Arreglar {nombre} ({D.dinero(costo)})", f"arreglar:{cosa}")])
         lineas += ["", "🔨 En su casa pueden remodelar." if casa.propia else
                    "🛋️ En una casa de renta solo se ponen muebles; remodelar, solo en casa propia."]
         res.pantalla = Pantalla(
             "\n".join(lineas),
-            [
+            botones + [
                 [("🚚 Renta y mudanza", "mudanza"), ("🔨 Remodelar", "remodelar")],
                 [("🧹 Limpieza", "acc:limpieza"), ("💰 Dinero", "dinero")],
                 [("⬅️ Atrás", "mcasa")],

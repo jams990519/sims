@@ -17,8 +17,9 @@ def reloj():
     return Reloj()
 
 
-def nuevo_juego(reloj):
-    return Juego(DB(":memory:"), Config(token="x", admins=frozenset({ADMIN})), reloj=reloj, rng=random.Random(5))
+def nuevo_juego(reloj, eventos=False):
+    cfg = Config(token="x", admins=frozenset({ADMIN}), eventos=eventos)
+    return Juego(DB(":memory:"), cfg, reloj=reloj, rng=random.Random(5))
 
 
 @pytest.fixture
