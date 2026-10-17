@@ -103,7 +103,7 @@ CAMPOS: tuple[Campo, ...] = (
         ("rubio", "🟡", "Rubio"),
         ("rojizo", "🟠", "Rojizo"),
         ("canoso", "⚪", "Canoso"),
-        ("rosa", "🩷", "Rosa"),
+        ("rosa", "🌸", "Rosa"),
         ("azul", "🔵", "Azul"),
         ("morado", "🟣", "Morado"),
         ("verde", "🟢", "Verde"),
@@ -115,7 +115,7 @@ CAMPOS: tuple[Campo, ...] = (
         ("avellana", "🌰", "Avellana"),
         ("verdes", "🟢", "Verdes"),
         ("azules", "🔵", "Azules"),
-        ("grises", "🩶", "Grises"),
+        ("grises", "🔘", "Grises"),
     )),
     Campo("detalles", "✨", "Detalles", "Toca los detalles que quieras (varios o ninguno):", _ops(
         ("lentes", "👓", "Lentes"),
@@ -167,16 +167,13 @@ CAMPOS: tuple[Campo, ...] = (
         Opcion("deporte", "🏆", "Cuerpo de atleta", frase="Sueña con estar en plena forma."),
     ), seccion=PERSONALIDAD),
     Campo("animo", "🎭", "Ánimo", "¿Cómo se siente ahora mismo?", _ops(
-        ("feliz", "😊", "Feliz", None, None, "🟡"),
-        ("enamorado", "😍", "Enamorado", "Enamorada", "Con el corazón contento", "🩷"),
-        ("tranquilo", "😌", "Tranquilo", "Tranquila", "En calma", "🟢"),
-        ("emocionado", "🤩", "Emocionado", "Emocionada", "Con emoción", "🟠"),
-        ("jugueton", "😜", "Juguetón", "Juguetona", "Con ganas de jugar", "🩵"),
-        ("cansado", "😴", "Cansado", "Cansada", "Con sueño", "🟤"),
-        ("aburrido", "😐", "Aburrido", "Aburrida", "Con aburrimiento", "⚪"),
+        ("feliz", "😊", "Feliz", None, None, "🟢"),
+        ("coqueto", "😏", "Coqueto", "Coqueta", "Con ganas de coquetear", "🌸"),
         ("triste", "😢", "Triste", None, None, "🔵"),
         ("enojado", "😠", "Enojado", "Enojada", "Con enojo", "🔴"),
-        ("estresado", "😰", "Estresado", "Estresada", "Con estrés", "🟣"),
+        ("energia", "⚡", "Con energía", None, None, "🟡"),
+        ("cansado", "😴", "Cansado", "Cansada", "Con sueño", "🔘"),
+        ("inspirado", "✨", "Inspirado", "Inspirada", "Con inspiración", "🟣"),
     ), seccion=PERSONALIDAD),
 )
 
@@ -249,7 +246,7 @@ def etiqueta(ap: dict, campo: str) -> str:
 
 
 def animo(ap: dict) -> str:
-    """Estado de ánimo con su color, p. ej. '🩷 😍 Enamorada'."""
+    """Estado de ánimo con su color, p. ej. '🌸 😏 Coqueta'."""
     o = ANIMO.opcion(ap.get("animo"))
     return o.boton(ap.get("genero")) if o else ""
 

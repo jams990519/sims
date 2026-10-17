@@ -3,20 +3,25 @@
 Un juego de texto tipo *Los Sims* para jugar **en pareja** por Telegram ([@sims000bot](https://t.me/sims000bot)).
 Se entra **solo por invitación** y funciona en **cualquier país donde abra Telegram**, Cuba incluida.
 
-## Qué hay hasta ahora (versión 0.2)
+## Qué hay hasta ahora (versión 0.3)
 
 | | |
 |---|---|
 | 🔐 **Entrada solo por invitación** | Quien abre el bot sin estar invitado ve su **código personal**. Se lo pasa a alguien que ya juega, que escribe `invitar_CÓDIGO` y elige si entra como pareja (a su sala) o con sala propia. A la persona invitada le llega un aviso para **aceptar o rechazar**. Cada código solo sirve para su dueño. |
 | 🧑‍🎨 **Creador de personaje** | **Aspecto**: género, edad, piel, forma del cuerpo, estatura, peinado, color de pelo, ojos, detalles y estilo. **Personalidad**: hasta 3 rasgos, una aspiración de vida y un estado de ánimo con su color. Botón 🎲 al azar en cada paso, ficha editable, textos en masculino, femenino o neutro y avatar en emoji (👩🏾‍🦱, 🧔🏽‍♂️, 👱🏼‍♀️…). |
-| 🎮 **Jugar o invitar** | Al terminar el personaje eliges **Jugar** (también sin compañía) o **Invitar**. |
+| 🎮 **Jugar o invitar** | Al terminar el personaje eliges **Jugar** (también sin compañía, sin esperar a nadie) o **Invitar**. |
+| 🧍 **Necesidades** | Hambre (−6/h), energía (máx. 100, sube a 130 con constancia), higiene (−4/h), diversión (−5/h) y social (−3/h), de 0 a 100, que cambian con el reloj del Sim. Con alguna en 0 se pone de mal humor; sin energía se duerme donde esté. |
+| 🎬 **Acciones** | Comer (desayuno +30, almuerzo +45, cena +40 según la hora), cocinar, dormir (+12/h), siesta, ducha, bañarse juntos, dientes, tele, redes, parque, hablar, abrazar, besar, masaje, cita, limpiar una zona y lavar la ropa (la ropa sucia se acumula). Casi todas se pueden hacer **solo o juntos**: juntos terminan antes. |
 | 🏠 **Sala** | Muestra a cada quien con su avatar, su ánimo, si está 🟢 en línea (y qué hace), ❄️ en pausa o ⚫ fuera de línea, y la hora de su Sim. **Se actualiza sola.** |
-| 🕒 **Reloj propio** | Cada Sim tiene su reloj, que corre como un día real (empieza el Día 1 a las 08:00). Si pasas **5 minutos sin jugar**, tu Sim se congela ❄️ y su reloj se para; al volver tocas **▶️ Continuar**. La pausa es solo tuya: tu pareja sigue jugando. |
+| 🕒 **Reloj propio** | Cada Sim tiene su reloj, que corre como un día real, con días de la semana (empieza el lunes a las 08:00). Si pasan **5 minutos sin ninguna acción**, tu Sim se congela ❄️ y su reloj se para; al volver tocas **▶️ Continuar**. Mientras hace algo largo (dormir), el reloj sigue. La pausa es solo tuya. |
 | 🔁 **Última conexión** | Se guarda **solo la última**: en qué pantalla estabas, qué hacías, en qué sala y cuándo entraste y saliste. Al volver retomas justo ahí (`/conexion` lo muestra). |
 | 💬 **Chat interno** | Todo lo que escribas en el bot (texto, fotos, stickers, notas de voz) le llega a tu pareja con tu nombre y avatar. Chatear no descongela al Sim. |
 | 📢 **Novedades** | Cada vez que se despliega una versión nueva, el bot avisa a todos los jugadores de lo que cambió (`/novedades`). |
 
-**Próximas partes, una a una:** casa y dinero (3.000 para empezar, cartera de cada uno y cuenta compartida) → compras → acciones del día solos o juntos (tele, cocinar, bañarse, limpiar, lavar la ropa) → cocina como minijuego → trabajo automático por horas → medidor de relación.
+**Orden de trabajo (una parte cada vez, cada una se sube sola):**
+1. ✅ Crear el personaje · 2. ✅ Sala y chat interno · 3. ✅ Reloj individual y pausa · 4. ✅ Necesidades y acciones básicas
+5. Casa, dinero y gastos · 6. Trabajos y días de la semana · 7. Súper y minijuego de cocina · 8. Medidor de relación
+9. Influencer y ayuda de la pareja · 10. Estudios · 11. Lugares y mejoras de la casa
 
 ### ¿Por qué funciona en cualquier país?
 - Quien juega **solo necesita Telegram**: no hay pagos, ni tarjetas, ni correo, ni apps aparte.
@@ -76,8 +81,11 @@ pytest
 
 ```
 simpareja/
-├── apariencia.py   # opciones del creador de personaje, avatar en emoji y descripción
-├── juego.py        # lógica: invitaciones, creador, sala, presencia y chat (sin Telegram)
+├── personaje.py    # creador de personaje: aspecto, personalidad, ánimo, avatar y descripción
+├── juego.py        # lógica: invitaciones, creador, sala, presencia, reloj y chat (sin Telegram)
+├── vida.py         # necesidades, acciones y calendario (lógica pura)
+├── vida_juego.py   # pantallas de Mi Sim, acciones en pareja y avisos
+├── novedades.py    # notas de cada versión (se anuncian solas al desplegar)
 ├── bot.py          # adaptador de Telegram (python-telegram-bot)
 ├── db.py           # SQLite
 ├── config.py       # variables de entorno
