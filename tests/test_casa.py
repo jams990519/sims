@@ -75,8 +75,7 @@ def test_mudarse_sin_pareja(solo):
     assert "↩️ Depósito devuelto" in texto and "🚚 Camión de mudanza" in texto
 
 
-def test_la_renta_nueva_se_cobra_con_las_facturas(solo, reloj, monkeypatch):
-    monkeypatch.setattr(D, "imprevisto", lambda rng: None)
+def test_la_renta_nueva_se_cobra_con_las_facturas(solo, reloj):
     poner_cuenta(solo, 4000)
     solo.boton(ADMIN, "", "mudanza:apartamento:si")
     assert "🔑 Renta: $1.300" in solo.boton(ADMIN, "", "facturas").pantalla.texto

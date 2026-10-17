@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from . import vida as V
 
 OFERTA_FIN_DE_SEMANA = 0.20  # el súper tiene ofertas los sábados y domingos
+OFERTA_SORPRESA = 0.5  # evento sorpresa: la compra a mitad de precio ese día
 FACTOR_JUNTOS = V.FACTOR_JUNTOS
 MARGEN_MINIMO = 2  # minutos de margen para tocar "listo" antes de que se queme
 
@@ -88,13 +89,16 @@ RECETAS: dict[str, Receta] = {r.clave: r for r in (
 COMIDAS = (("desayuno", "🌅 Desayunos"), ("almuerzo", "☀️ Almuerzos"), ("cena", "🌙 Cenas"))
 
 
-def precio(ingrediente: str, finde: bool) -> float:
+def precio(ingrediente: str, finde: bool, oferta: bool = False) -> float:
+    """Precio de un paquete: con oferta (evento sorpresa) a mitad de precio; el fin de semana, −20 %."""
     base = INGREDIENTES[ingrediente].precio
+    if oferta:
+        return round(base * OFERTA_SORPRESA, 2)
     return round(base * (1 - OFERTA_FIN_DE_SEMANA), 2) if finde else base
 
 
-def total_carrito(carrito: dict, finde: bool) -> float:
-    return round(sum(precio(i, finde) * n for i, n in carrito.items() if i in INGREDIENTES), 2)
+def total_carrito(carrito: dict, finde: bool, oferta: bool = False) -> float:
+    return round(sum(precio(i, finde, oferta) * n for i, n in carrito.items() if i in INGREDIENTES), 2)
 
 
 def guardar_compra(despensa: dict, carrito: dict) -> dict:

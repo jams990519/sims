@@ -67,11 +67,14 @@ class CocinaMixin:
         from .juego import Pantalla
 
         dia = self._finde(j)
+        oferta = self._oferta_super(j)
         carrito = self._carrito(j)
         h = self._hogar(j.sala_id)
         lineas = [aviso, ""] if aviso else []
         lineas.append("🛒 <b>Súper</b>")
-        if dia:
+        if oferta:
+            lineas.append("🎉 ¡Oferta sorpresa: hoy toda la compra a mitad de precio!")
+        elif dia:
             lineas.append(f"🎉 ¡Ofertas de fin de semana: todo un {round(C.OFERTA_FIN_DE_SEMANA * 100)} % más barato!")
         else:
             lineas.append("💡 Los sábados y domingos hay ofertas.")
@@ -82,16 +85,16 @@ class CocinaMixin:
                 f"{C.INGREDIENTES[i].emoji} {C.INGREDIENTES[i].nombre} ({C.INGREDIENTES[i].paquete}) ×{n}"
                 for i, n in carrito.items() if i in C.INGREDIENTES
             ]
-            lineas.append(f"<b>Total: ${C.total_carrito(carrito, dia):.2f}</b>")
+            lineas.append(f"<b>Total: ${C.total_carrito(carrito, dia, oferta):.2f}</b>")
         else:
             lineas.append("🧺 Toca un producto para añadirlo al carrito.")
         lineas.append(f"🏦 Compartida {D.dinero(h.cuenta)} · 👛 Tu cartera {D.dinero(j.cartera)}")
         productos = [
-            (f"{i.emoji} {i.nombre} ${C.precio(c, dia):.2f}", f"sup:+:{c}") for c, i in C.INGREDIENTES.items()
+            (f"{i.emoji} {i.nombre} ${C.precio(c, dia, oferta):.2f}", f"sup:+:{c}") for c, i in C.INGREDIENTES.items()
         ]
         botones = [productos[k:k + 2] for k in range(0, len(productos), 2)]
         if carrito:
-            botones.append([(f"✅ Pagar ${C.total_carrito(carrito, dia):.2f}", "sup:pagar"), ("🗑️ Vaciar", "sup:vaciar")])
+            botones.append([(f"✅ Pagar ${C.total_carrito(carrito, dia, oferta):.2f}", "sup:pagar"), ("🗑️ Vaciar", "sup:vaciar")])
         botones.append([("🧊 Nevera", "nevera"), ("⬅️ Atrás", "mlug")])
         res.pantalla = Pantalla("\n".join(lineas), botones, clave="super")
 
@@ -113,7 +116,7 @@ class CocinaMixin:
     def _pagar_super(self, j: Jugador, carrito: dict, res) -> None:
         if self._ocupado(j, res):
             return
-        total = math.ceil(C.total_carrito(carrito, self._finde(j)))
+        total = math.ceil(C.total_carrito(carrito, self._finde(j), self._oferta_super(j)))
         if not self._pagar(j, total, "🛒 Compra en el súper"):
             res.alerta = f"💸 No alcanza: la compra cuesta {D.dinero(total)}."
             self._b_super(j, "", res)
@@ -322,6 +325,7 @@ class CocinaMixin:
         h.nevera = json.dumps(nevera)
         self.db.guardar_hogar(h)
         self._terminar_coccion(h, coccion)
+        self._evento_cocinado(h, coccion)
         noticia = f"🍽️ <b>¡{r.nombre} listo!</b> {coccion['porciones']} porción(es) en la nevera."
         res.avisos += [Aviso(c, noticia, [[("🍽️ Comer", f"a:comer:{r.clave}")]]) for c in coccion["cocineros"] if c != j.id]
         res.pantalla = Pantalla(

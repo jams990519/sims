@@ -108,6 +108,7 @@ class VidaMixin:
             zonas[accion["x"]] = 0
             h.zonas = json.dumps(zonas)
             self.db.guardar_hogar(h)
+            self._evento_limpio(h, accion["x"])
             texto += f" {V.ZONAS[accion['x']][1]} quedó reluciente ✨"
         elif a.clave == "lavar":
             h.ropa_sucia = 0

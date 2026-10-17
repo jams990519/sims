@@ -318,6 +318,8 @@ class TrabajoMixin:
             return "Hoy es tu día libre.", ""
         if V.de_mal_humor(nec):
             return "😡 Con mal humor no se puede trabajar: atiende la necesidad que está en 0.", ""
+        if self._resfriado(j):
+            return "🤒 Con este resfriado hoy no se trabaja. ¡A descansar!", ""
         if empleo.get("pasaje") != hoy:  # si volvió a casa al rato, el pasaje de hoy ya está pagado
             if not self._pagar(j, T.TRANSPORTE, "🚌 Transporte al trabajo"):
                 return f"💸 No alcanza ni para el transporte ({D.dinero(T.TRANSPORTE)}).", ""

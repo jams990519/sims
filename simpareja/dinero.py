@@ -3,13 +3,11 @@ lógica pura, sin Telegram ni base de datos."""
 
 from __future__ import annotations
 
-import random
 from dataclasses import dataclass
 
 DINERO_INICIAL = 3000  # lo que tienen entre los dos al empezar
 DIAS_POR_MES = 30
 RECARGO = 0.10  # por pagar tarde
-PROBABILIDAD_IMPREVISTO = 0.08  # por día
 CAMION = 150  # lo que cuesta cada mudanza
 ENTRADA_ANTIGUA = 1500  # lo que pagaban antes por la casita (para devolver la diferencia)
 
@@ -103,16 +101,6 @@ CONSUMO = {
     "limpiar": {"agua": 0.30},
 }
 
-IMPREVISTOS = (
-    ("🔧", "Se rompió la lavadora", 150, 300),
-    ("🚿", "Hubo una fuga de agua en el baño", 150, 280),
-    ("🧊", "Se dañó la nevera", 180, 300),
-    ("🔌", "Se quemó un enchufe y hubo que llamar al electricista", 150, 220),
-    ("🚓", "Les pusieron una multa de tránsito", 60, 150),
-    ("📢", "Les pusieron una multa por ruido", 50, 120),
-)
-
-
 def dinero(cantidad: float) -> str:
     """'$3.000' con punto de miles (y '−$50' si es negativo)."""
     signo = "−" if cantidad < 0 else ""
@@ -154,14 +142,6 @@ def falta_servicio(accion: str, cortados: set[str]) -> str | None:
             f = POR_CLAVE_FACTURA[servicio]
             return f"{f.emoji} Les cortaron {f.con_articulo}: {f.sin_servicio}. Paguen la factura en 💰 Dinero."
     return None
-
-
-def imprevisto(rng: random.Random) -> tuple[str, int] | None:
-    """Con cierta probabilidad, una avería o una multa: (descripción, costo)."""
-    if rng.random() >= PROBABILIDAD_IMPREVISTO:
-        return None
-    emoji, texto, minimo, maximo = rng.choice(IMPREVISTOS)
-    return f"{emoji} {texto}", rng.randint(minimo, maximo)
 
 
 def cobrar_mes(cuenta: int, consumo: dict, casa: Casa) -> tuple[int, list[tuple[str, int]], list[dict]]:

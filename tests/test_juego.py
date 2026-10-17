@@ -36,7 +36,7 @@ def reloj():
 
 @pytest.fixture
 def juego(reloj):
-    cfg = Config(token="x", admins=frozenset({ADMIN}))
+    cfg = Config(token="x", admins=frozenset({ADMIN}), eventos=False)
     return Juego(DB(":memory:"), cfg, reloj=reloj, rng=random.Random(7))
 
 
