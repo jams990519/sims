@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import html
 import json
+import logging
 import random
 import re
 import secrets
@@ -16,9 +17,12 @@ import time
 from dataclasses import dataclass, field
 from urllib.parse import quote
 
-from . import apariencia as A
+from . import novedades as N
+from . import personaje as P
 from .config import Config
-from .db import DB, Invitacion, Jugador
+from .db import DB, Invitacion, Jugador, UltimaConexion, Visitante
+
+log = logging.getLogger(__name__)
 
 Botones = list[list[tuple[str, str]]]
 
@@ -28,6 +32,8 @@ class Pantalla:
     texto: str
     botones: Botones = field(default_factory=list)
     es_sala: bool = False
+    # Clave para volver a construir esta pantalla al reconectarse (None = no se guarda).
+    clave: str | None = None
 
 
 @dataclass
@@ -56,16 +62,35 @@ class Resultado:
 
 
 ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # sin 0/O ni 1/I para que no se confundan
-LARGO_CODIGO = 8
+LARGO_CODIGO_PERSONAL = 6
+LARGO_CODIGO_INVITACION = 10
 NOMBRE_RE = re.compile(r"[^\W\d_][\w '.\-]{1,19}")
-CODIGO_RE = re.compile(r"[A-Z0-9]{6,12}")
+INVITAR_RE = re.compile(r"/?invitar[_\s]+([A-Za-z0-9]{4,12})(?:@\w+)?", re.IGNORECASE)
 MINUTO = 60
+HORA = 3600
 DIA = 86400
+HORA_INICIAL = 8 * HORA  # el día 1 del Sim empieza a las 08:00
 AVISO_CONEXION_CADA = 30 * MINUTO
-MAX_FALLOS_CODIGO = 5
+MAX_FALLOS_CODIGO = 8
 VENTANA_FALLOS = 15 * MINUTO
 
 SALA = ("🏠 Sala", "sala")
+CONTINUAR = ("▶️ Continuar", "continuar")
+
+# Pantallas que se guardan como "última conexión": (lugar, qué estaba haciendo).
+LUGARES = {
+    "nombre": ("✍️ Nombre del personaje", "eligiendo el nombre de su personaje"),
+    "creador": ("🧑‍🎨 Creador de personaje", "creando su personaje"),
+    "bienvenida": ("✨ Personaje recién creado", "decidiendo si jugar o invitar"),
+    "sala": ("🏠 Sala", "en la sala"),
+    "invitar": ("💌 Invitar", "invitando a alguien"),
+    "invs": ("📋 Invitaciones enviadas", "revisando sus invitaciones"),
+    "pjs": ("🪪 Personajes", "mirando los personajes"),
+    "animo": ("🎭 Estado de ánimo", "eligiendo su estado de ánimo"),
+    "ajustes": ("⚙️ Ajustes", "en los ajustes"),
+    "renombrar": ("✏️ Cambiar nombre", "cambiando su nombre"),
+}
+CHATEANDO = "💬 chateando"
 
 
 def esc(texto: str) -> str:
@@ -92,6 +117,12 @@ def duracion(seg: float) -> str:
     return "1 día" if d == 1 else f"{d} días"
 
 
+def hora_de_juego(segundos: float) -> str:
+    """'Día 1 · 08:00' para 0 segundos de juego."""
+    s = int(HORA_INICIAL + segundos)
+    return f"Día {1 + s // DIA} · {s % DIA // HORA:02d}:{s % HORA // MINUTO:02d}"
+
+
 def normalizar_codigo(texto: str) -> str:
     return re.sub(r"[\s\-]", "", texto).upper()
 
@@ -109,53 +140,52 @@ class Juego:
         self.bot_usuario = "sims000bot"
         self._fallos: dict[int, list[float]] = {}
 
+    @property
+    def pausa(self) -> float:
+        return self.cfg.pausa_min * MINUTO
+
     # ------------------------------------------------------------------
     # Entradas desde Telegram
     # ------------------------------------------------------------------
 
     def inicio(self, uid: int, nombre_tg: str, carga: str | None = None) -> Resultado:
-        """/start, con o sin código de invitación."""
+        """/start: quien no juega ve su código personal; quien juega retoma donde lo dejó."""
         j = self.db.jugador(uid)
         if j is None:
-            if carga:
-                return self._entrar_con_codigo(uid, nombre_tg, carga)
-            if uid in self.cfg.admins:
-                return self._crear_jugador(uid, nombre_tg, None)
-            return Resultado(pantalla=self._candado(uid), nuevo=True)
-        if j.estado == "nombrando":
-            return Resultado(pantalla=self._pedir_nombre(j), nuevo=True)
-        if j.estado == "creando":
-            return Resultado(pantalla=self._pantalla_creador(j), nuevo=True)
-        if j.estado == "renombrando":
-            j.estado = "activo"
-        res = self._tocar(j)
-        aviso = "ℹ️ Ya estás dentro del juego. Los enlaces de invitación son para gente nueva." if carga else None
-        res.pantalla = self._pantalla_sala(j, aviso)
-        res.nuevo = True
-        return res
+            return self._visitante(uid, nombre_tg)
+        if j.estado == "activo" and self._congelado(j, self.reloj()):
+            return self._pausa(j, nuevo=True)
+        return self._reanudar(j)
 
     def texto(self, uid: int, nombre_tg: str, texto: str) -> Resultado:
         j = self.db.jugador(uid)
         if j is None:
-            if CODIGO_RE.fullmatch(normalizar_codigo(texto)):
-                return self._entrar_con_codigo(uid, nombre_tg, texto)
-            return Resultado(pantalla=self._candado(uid), nuevo=True)
+            return self._visitante(uid, nombre_tg)
         if j.estado in ("nombrando", "renombrando"):
-            return self._recibir_nombre(j, texto)
-        if j.estado == "creando":
-            res = Resultado(pantalla=self._pantalla_creador(j), nuevo=True)
+            res = self._recibir_nombre(j, texto)
+        elif j.estado == "creando":
+            res = self._tocar(j)
+            res.pantalla = self._pantalla_creador(j)
             res.pantalla.texto = "👇 Usa los botones para elegir.\n\n" + res.pantalla.texto
-            return res
-        return self._chat(j, texto)
+            res.nuevo = True
+        else:
+            invitar = INVITAR_RE.fullmatch(texto.strip())
+            if invitar is None:
+                return self._chat(j, texto)
+            res = self._tocar(j)
+            self._invitar_codigo(j, invitar.group(1), res)
+            res.nuevo = True
+        self._anotar(j.id, res)
+        return res
 
     def media(self, uid: int) -> Resultado:
         """Foto, sticker, nota de voz, etc.: se reenvía a la sala como parte del chat."""
         j = self.db.jugador(uid)
         if j is None:
-            return Resultado(pantalla=self._candado(uid), nuevo=True)
+            return self._visitante(uid, "")
         if not j.activo:
             return Resultado(pantalla=Pantalla("✋ Primero termina de crear tu personaje."), nuevo=True)
-        res = self._tocar(j, avisar_conexion=False)
+        res = self._tocar(j, jugada=False)
         otros = self._companeros(j)
         if not otros:
             res.pantalla = self._sin_companeros()
@@ -163,70 +193,85 @@ class Juego:
             return res
         for o in otros:
             res.avisos.append(Aviso(o.id, f"💬 {self._firma(j)}:", chat=True, copiar=True))
+        self._anotar(j.id, res, CHATEANDO)
         return res
 
     def boton(self, uid: int, nombre_tg: str, data: str) -> Resultado:
+        accion, _, arg = data.partition(":")
         j = self.db.jugador(uid)
         if j is None:
-            return Resultado(pantalla=self._candado(uid))
+            return self._boton_visitante(uid, nombre_tg, accion, arg)
         if j.estado == "nombrando":
             return Resultado(alerta="✍️ Primero escribe el nombre de tu personaje.")
-        accion, _, arg = data.partition(":")
-        if j.estado == "creando":
-            if not accion.startswith("ap"):
-                return Resultado(alerta="🧑‍🎨 Primero termina de crear tu personaje.")
-            return self._creador(j, accion, arg, Resultado())
-        if j.estado == "renombrando":
-            j.estado = "activo"
         if accion == "salir":
             return self._salir(j)
+        if j.estado == "renombrando":
+            j.estado = "activo"
+        if accion in ("continuar", "volver"):
+            return self._continuar(j)
+        if j.estado == "activo" and self._congelado(j, self.reloj()):
+            return self._pausa(j)
         res = self._tocar(j)
-        if accion.startswith("ap"):
-            return self._creador(j, accion, arg, res)
-        manejador = {
-            "sala": self._b_sala,
-            "act": self._b_actualizar,
-            "invitar": self._b_invitar,
-            "inv": self._b_generar,
-            "ver": self._b_ver_invitacion,
-            "invs": self._b_mis_invitaciones,
-            "anular": self._b_anular,
-            "pjs": self._b_personajes,
-            "ajustes": self._b_ajustes,
-            "avisos": self._b_avisos,
-            "renombrar": self._b_renombrar,
-        }.get(accion)
-        if manejador is None:
-            res.alerta = "Ese botón ya no funciona."
-            res.pantalla = self._pantalla_sala(j)
+        if j.estado == "creando" and not accion.startswith("ap"):
+            res.alerta = "🧑‍🎨 Primero termina de crear tu personaje."
             return res
-        manejador(j, arg, res)
+        if accion.startswith("ap"):
+            res = self._creador(j, accion, arg, res)
+        else:
+            manejador = self._manejadores().get(accion)
+            if manejador is None:
+                res.alerta = "Ese botón ya no funciona."
+                res.pantalla = self._pantalla_sala(j)
+            else:
+                manejador(j, arg, res)
+        self._anotar(j.id, res)
         return res
 
-    def comando(self, uid: int, nombre_tg: str, nombre: str) -> Resultado:
+    def comando(self, uid: int, nombre_tg: str, nombre: str, args: list[str] | None = None) -> Resultado:
         """Comandos de menú (/invitar, /sala, /ajustes…) que abren una pantalla en mensaje nuevo."""
+        if nombre == "invitar" and args:
+            return self.texto(uid, nombre_tg, f"invitar_{args[0]}")
+        if nombre == "conexion":
+            j = self.db.jugador(uid)
+            if j is None:
+                return self._visitante(uid, nombre_tg)
+            return Resultado(pantalla=self._pantalla_conexion(j), nuevo=True)
         data = {"sala": "sala", "menu": "sala", "invitar": "invitar", "ajustes": "ajustes",
-                "personajes": "pjs", "salir": "salir"}.get(nombre, "sala")
+                "personajes": "pjs", "animo": "animos", "salir": "salir"}.get(nombre, "sala")
         res = self.boton(uid, nombre_tg, data)
         res.nuevo = True
         return res
 
-    def unirme(self, uid: int, nombre_tg: str, codigo: str) -> Resultado:
-        if self.db.jugador(uid) is not None:
-            return self.inicio(uid, nombre_tg, codigo)
-        return self._entrar_con_codigo(uid, nombre_tg, codigo)
-
     def ayuda(self) -> Pantalla:
         return Pantalla(
-            f"❓ <b>{esc(self.cfg.nombre_juego)}: cómo funciona</b>\n\n"
-            "🔐 Se entra <b>solo por invitación</b>: cada enlace sirve una vez.\n"
-            "🧑‍🎨 Creas tu personaje: nombre, cuerpo, pelo, ojos, estilo…\n"
+            f"❓ <b>{esc(self.cfg.nombre_juego)}: cómo funciona</b> · versión {N.VERSION}\n\n"
+            "🔐 Se entra <b>solo por invitación</b>: al abrir el bot ves tu código personal, se lo pasas "
+            "a quien ya juega y esa persona escribe <code>invitar_TUCÓDIGO</code>.\n"
+            "🧑‍🎨 Creas tu personaje: aspecto, rasgos, aspiración y estado de ánimo.\n"
             "🎮 Puedes jugar sin compañía o 💌 invitar a tu pareja a tu sala.\n"
             "💬 En la sala, todo lo que escribas (texto, fotos, stickers, notas de voz) le llega a la otra persona.\n"
-            "🟢 En la sala se ve quién está en línea, ausente o fuera de línea.\n\n"
-            "Comandos: /start · /sala · /invitar · /personajes · /ajustes · /salir",
+            f"🕒 Tu Sim tiene su propio reloj, como un día real. Si pasas {self.cfg.pausa_min} min sin jugar se "
+            "congela ❄️; al volver tocas ▶️ Continuar y sigues donde lo dejaste.\n\n"
+            "Comandos: /start · /sala · /invitar · /personajes · /animo · /ajustes · /conexion · /novedades · /salir",
             [[SALA]],
         )
+
+    def novedades(self) -> Pantalla:
+        return Pantalla(self._texto_novedades(N.NOVEDADES[:2], titulo="📢 <b>Novedades</b>"), [[SALA]])
+
+    def anunciar_novedades(self) -> Resultado:
+        """Al arrancar una versión nueva, avisa a todos los jugadores de lo que cambió (una sola vez)."""
+        anterior = self.db.meta("version_anunciada")
+        if anterior == N.VERSION:
+            return Resultado()
+        self.db.guardar_meta("version_anunciada", N.VERSION)
+        cambios = N.desde(anterior)
+        if not cambios:
+            return Resultado()
+        texto = self._texto_novedades(
+            cambios, titulo=f"🆕 <b>¡{esc(self.cfg.nombre_juego)} se actualizó a la versión {N.VERSION}!</b>"
+        )
+        return Resultado(avisos=[Aviso(j.id, texto, [[SALA]]) for j in self.db.todos_los_jugadores()])
 
     def registrar_pantalla(self, uid: int, msg_id: int, es_sala: bool) -> None:
         """El bot avisa qué mensaje muestra la sala, para poder actualizarlo en vivo."""
@@ -248,62 +293,220 @@ class Juego:
             self.db.guardar_jugador(j)
 
     def tick(self) -> Resultado:
-        """Se llama cada minuto: detecta quién pasó a ausente o fuera de línea."""
+        """Se llama cada minuto: detecta quién pasó a en pausa o fuera de línea."""
         ahora = self.reloj()
         res = Resultado()
         salas: set[int] = set()
         for j in self.db.jugadores_en_sala():
             estado = self._estado_presencia(j, ahora)
-            if estado != j.presencia:
-                j.presencia = estado
-                self.db.guardar_jugador(j)
-                salas.add(j.sala_id)
+            if estado == j.presencia:
+                continue
+            j.presencia = estado
+            self.db.guardar_jugador(j)
+            salas.add(j.sala_id)
+            if estado == "fuera":
+                uc = self._ultima(j)
+                if uc.desconectado is None:
+                    uc.desconectado = j.ultima_actividad
+                    self.db.guardar_ultima_conexion(uc)
         for sala_id in salas:
             res.ediciones += self._refrescar_sala(sala_id)
         return res
 
+    def _manejadores(self):
+        return {
+            "sala": self._b_sala,
+            "act": self._b_actualizar,
+            "invitar": self._b_invitar,
+            "invc": self._b_confirmar_invitacion,
+            "invs": self._b_mis_invitaciones,
+            "anular": self._b_anular,
+            "pjs": self._b_personajes,
+            "animos": self._b_animos,
+            "animo": self._b_animo,
+            "ajustes": self._b_ajustes,
+            "avisos": self._b_avisos,
+            "renombrar": self._b_renombrar,
+            "conexion": self._b_conexion,
+        }
+
+    def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
+        lineas = [titulo]
+        for version, notas in cambios:
+            lineas += ["", f"<b>Versión {version}</b>"] + [f"• {n}" for n in notas]
+        return "\n".join(lineas)
+
     # ------------------------------------------------------------------
-    # Entrada por invitación y creación del personaje
+    # Visitantes: código personal e invitaciones
     # ------------------------------------------------------------------
 
-    def _candado(self, uid: int) -> Pantalla:
-        return Pantalla(
-            f"🔒 <b>{esc(self.cfg.nombre_juego)} es solo por invitación.</b>\n\n"
-            "Pídele a alguien que ya juega que te envíe su enlace de invitación y ábrelo.\n"
-            "Si te dieron un código, escríbelo aquí.\n\n"
-            f"🆔 Tu ID de Telegram: <code>{uid}</code>"
+    def _codigo_libre(self, largo: int, existe) -> str:
+        while True:
+            codigo = "".join(secrets.choice(ALFABETO) for _ in range(largo))
+            if not existe(codigo):
+                return codigo
+
+    def _registrar_visitante(self, uid: int, nombre_tg: str) -> Visitante:
+        v = self.db.visitante(uid)
+        if v is None:
+            codigo = self._codigo_libre(LARGO_CODIGO_PERSONAL, self.db.visitante_por_codigo)
+            v = Visitante(id=uid, codigo=codigo, nombre_tg=nombre_tg, creado=self.reloj())
+            self.db.guardar_visitante(v)
+        elif nombre_tg and v.nombre_tg != nombre_tg:
+            v.nombre_tg = nombre_tg
+            self.db.guardar_visitante(v)
+        return v
+
+    def _visitante(self, uid: int, nombre_tg: str) -> Resultado:
+        if uid in self.cfg.admins:
+            return self._crear_jugador(uid, nombre_tg, None)
+        if not self.cfg.admins and self.db.contar_jugadores() == 0:
+            log.warning("No hay ADMIN_IDS ni jugadores: %s (%s) entra como primer jugador.", uid, nombre_tg)
+            return self._crear_jugador(uid, nombre_tg, None)
+        v = self._registrar_visitante(uid, nombre_tg)
+        pendientes = self.db.invitaciones_para(uid, self.reloj())
+        if pendientes:
+            return Resultado(pantalla=self._pantalla_invitado(pendientes[0]), nuevo=True)
+        return Resultado(pantalla=self._candado(v), nuevo=True)
+
+    def _candado(self, v: Visitante, nota: str | None = None) -> Pantalla:
+        lineas = [nota, ""] if nota else []
+        lineas += [
+            f"🔒 <b>{esc(self.cfg.nombre_juego)} es solo por invitación.</b>",
+            "",
+            f"🔑 Tu código personal: <code>{v.codigo}</code>",
+            "",
+            "Pásale este código a quien te va a invitar (tu pareja o alguien que ya juegue). "
+            "Esa persona tiene que escribir en el bot:",
+            f"<code>invitar_{v.codigo}</code>",
+            "",
+            "Cuando lo haga, te llegará aquí un aviso para entrar. 💌",
+        ]
+        return Pantalla("\n".join(lineas), [[("🔄 Ya me invitaron", "vis")]])
+
+    def _pantalla_invitado(self, inv: Invitacion) -> Pantalla:
+        creador = self.db.jugador(inv.creador)
+        quien = self._firma(creador) if creador else "Alguien"
+        detalle = (
+            "💞 Entrarás a su sala como pareja." if inv.tipo == "pareja" else "🏠 Tendrás tu propia sala."
         )
+        return Pantalla(
+            f"💌 <b>¡Tienes una invitación!</b>\n\n"
+            f"{quien} te invitó a jugar {esc(self.cfg.nombre_juego)}.\n{detalle}",
+            [[("✅ Aceptar y crear mi personaje", f"acepto:{inv.codigo}")],
+             [("❌ No, gracias", f"rechazo:{inv.codigo}")]],
+        )
+
+    def _boton_visitante(self, uid: int, nombre_tg: str, accion: str, codigo: str) -> Resultado:
+        if accion not in ("acepto", "rechazo"):
+            res = self._visitante(uid, nombre_tg)
+            res.nuevo = False
+            return res
+        ahora = self.reloj()
+        inv = self.db.invitacion(codigo)
+        creador = self.db.jugador(inv.creador) if inv else None
+        if inv is None or inv.para_id != uid or not inv.vigente(ahora) or creador is None or not creador.activo:
+            res = self._visitante(uid, nombre_tg)
+            res.alerta = "Esa invitación ya no está disponible."
+            res.nuevo = False
+            return res
+        quien = esc(nombre_tg) if nombre_tg else "La persona que invitaste"
+        if accion == "rechazo":
+            inv.anulada = 1
+            self.db.guardar_invitacion(inv)
+            v = self._registrar_visitante(uid, nombre_tg)
+            res = Resultado(pantalla=self._candado(v, "👌 Invitación rechazada."))
+            res.avisos.append(Aviso(creador.id, f"😕 <b>{quien}</b> no aceptó tu invitación."))
+            return res
+        inv.usada_por = uid
+        inv.usada_ts = ahora
+        self.db.guardar_invitacion(inv)
+        res = self._crear_jugador(uid, nombre_tg, inv)
+        res.nuevo = False
+        res.avisos.append(Aviso(creador.id, f"🎟️ <b>{quien}</b> aceptó tu invitación y está creando su personaje…"))
+        return res
+
+    # --- quien ya juega invita escribiendo invitar_CÓDIGO ---
 
     def _fallos_recientes(self, uid: int, ahora: float) -> list[float]:
         fallos = [t for t in self._fallos.get(uid, []) if ahora - t < VENTANA_FALLOS]
         self._fallos[uid] = fallos
         return fallos
 
-    def _entrar_con_codigo(self, uid: int, nombre_tg: str, texto: str) -> Resultado:
+    def _invitar_codigo(self, j: Jugador, codigo: str, res: Resultado) -> None:
         ahora = self.reloj()
-        if len(self._fallos_recientes(uid, ahora)) >= MAX_FALLOS_CODIGO:
-            return Resultado(
-                pantalla=Pantalla("⏳ Demasiados intentos. Espera unos minutos y vuelve a probar."),
-                nuevo=True,
+        codigo = normalizar_codigo(codigo)
+        volver = [[("💌 Invitar", "invitar"), SALA]]
+        if len(self._fallos_recientes(j.id, ahora)) >= MAX_FALLOS_CODIGO:
+            res.pantalla = Pantalla("⏳ Demasiados códigos equivocados. Espera unos minutos y vuelve a probar.", volver)
+            return
+        v = self.db.visitante_por_codigo(codigo)
+        if v is None:
+            self._fallos[j.id].append(ahora)
+            res.pantalla = Pantalla(
+                f"❌ No encontré el código <code>{esc(codigo)}</code>.\n\n"
+                f"Revisa que esté bien escrito: son {LARGO_CODIGO_PERSONAL} letras y números, y la otra "
+                f"persona lo ve al abrir @{esc(self.bot_usuario)} y tocar <b>Iniciar</b>.",
+                volver,
             )
-        inv = self.db.invitacion(normalizar_codigo(texto))
-        creador = self.db.jugador(inv.creador) if inv else None
-        if inv is None or not inv.vigente(ahora) or creador is None or not creador.activo:
-            self._fallos[uid].append(ahora)
-            return Resultado(
-                pantalla=Pantalla(
-                    "❌ Ese enlace o código no es válido, ya se usó o venció.\n"
-                    "Pídele uno nuevo a quien te invitó."
-                ),
-                nuevo=True,
-            )
-        inv.usada_por = uid
-        inv.usada_ts = ahora
+            return
+        if self.db.jugador(v.id) is not None:
+            res.pantalla = Pantalla("ℹ️ Esa persona ya está jugando.", volver)
+            return
+        botones: Botones = []
+        if self._hay_lugar(j):
+            botones.append([("💞 Como mi pareja (entra a mi sala)", f"invc:{v.codigo}:pareja")])
+        botones.append([("👋 Con su propia sala", f"invc:{v.codigo}:amigo")])
+        botones.append([("❌ Cancelar", "sala")])
+        res.pantalla = Pantalla(
+            f"🔑 El código <code>{v.codigo}</code> es de <b>{esc(v.nombre_tg or 'alguien')}</b> en Telegram.\n\n"
+            "¿Cómo quieres invitar a esta persona?",
+            botones,
+        )
+
+    def _b_confirmar_invitacion(self, j: Jugador, arg: str, res: Resultado) -> None:
+        ahora = self.reloj()
+        codigo, _, tipo = arg.partition(":")
+        v = self.db.visitante_por_codigo(codigo)
+        if v is None or self.db.jugador(v.id) is not None or tipo not in ("pareja", "amigo"):
+            res.alerta = "Esa persona ya no se puede invitar."
+            self._b_invitar(j, "", res)
+            return
+        if tipo == "pareja" and not self._hay_lugar(j):
+            res.alerta = "Tu sala ya está completa."
+            self._b_invitar(j, "", res)
+            return
+        activas = [i for i in self.db.invitaciones_de(j.id, 50) if i.vigente(ahora)]
+        if len(activas) >= self.cfg.max_invitaciones_activas:
+            res.alerta = f"Ya tienes {len(activas)} invitaciones sin respuesta. Anula alguna en 📋."
+            self._b_mis_invitaciones(j, "", res)
+            return
+        # Solo vale la invitación más reciente para cada persona.
+        for vieja in self.db.invitaciones_para(v.id, ahora):
+            vieja.anulada = 1
+            self.db.guardar_invitacion(vieja)
+        inv = Invitacion(
+            codigo=self._codigo_libre(LARGO_CODIGO_INVITACION, self.db.invitacion),
+            creador=j.id,
+            tipo=tipo,
+            sala_id=j.sala_id if tipo == "pareja" else None,
+            creada=ahora,
+            expira=ahora + self.cfg.invitacion_dias * DIA,
+            para_id=v.id,
+        )
         self.db.guardar_invitacion(inv)
-        res = self._crear_jugador(uid, nombre_tg, inv)
-        quien = esc(nombre_tg) if nombre_tg else "Alguien"
-        res.avisos.append(Aviso(creador.id, f"🎟️ <b>{quien}</b> abrió tu invitación y está creando su personaje…"))
-        return res
+        pantalla = self._pantalla_invitado(inv)
+        res.avisos.append(Aviso(v.id, pantalla.texto, pantalla.botones))
+        res.pantalla = Pantalla(
+            f"✅ <b>Invitación enviada a {esc(v.nombre_tg or 'esa persona')}.</b>\n\n"
+            "Le llegó un aviso en el bot para aceptarla. Te aviso cuando entre.\n"
+            f"⏳ Vence en {duracion(inv.expira - ahora + MINUTO)}.",
+            [[("📋 Invitaciones enviadas", "invs"), SALA]],
+        )
+
+    # ------------------------------------------------------------------
+    # Creación del personaje
+    # ------------------------------------------------------------------
 
     def _crear_jugador(self, uid: int, nombre_tg: str, inv: Invitacion | None) -> Resultado:
         ahora = self.reloj()
@@ -317,7 +520,11 @@ class Juego:
             creado=ahora,
         )
         self.db.guardar_jugador(j)
-        return Resultado(pantalla=self._pedir_nombre(j), nuevo=True)
+        res = self._tocar(j)
+        res.pantalla = self._pedir_nombre(j)
+        res.nuevo = True
+        self._anotar(j.id, res)
+        return res
 
     def _pedir_nombre(self, j: Jugador) -> Pantalla:
         texto = f"🎉 <b>¡Te damos la bienvenida a {esc(self.cfg.nombre_juego)}!</b>\n\n"
@@ -325,24 +532,24 @@ class Juego:
         if anfitrion:
             texto += f"Te invitó <b>{esc(anfitrion.personaje)}</b>.\n\n"
         texto += "Primero vas a crear tu personaje.\n✍️ <b>¿Cómo se llamará?</b> Escribe el nombre aquí abajo."
-        return Pantalla(texto)
+        return Pantalla(texto, clave="nombre")
 
     def _recibir_nombre(self, j: Jugador, texto: str) -> Resultado:
+        res = self._tocar(j)
         nombre = " ".join(texto.split())
         if not NOMBRE_RE.fullmatch(nombre):
             botones = [[("❌ Cancelar", "sala")]] if j.estado == "renombrando" else []
-            return Resultado(
-                pantalla=Pantalla(
-                    "✋ Ese nombre no me sirve. Usa entre 2 y 20 caracteres, empezando por una letra "
-                    "(puede llevar espacios). Prueba otra vez:",
-                    botones,
-                ),
-                nuevo=True,
+            res.pantalla = Pantalla(
+                "✋ Ese nombre no me sirve. Usa entre 2 y 20 caracteres, empezando por una letra "
+                "(puede llevar espacios). Prueba otra vez:",
+                botones,
             )
+            res.nuevo = True
+            return res
         j.personaje = nombre
         if j.estado == "renombrando":
             j.estado = "activo"
-            res = self._tocar(j)
+            self.db.guardar_jugador(j)
             res.ediciones += self._refrescar_sala(j.sala_id, excepto=j.id)
             res.pantalla = self._pantalla_sala(j, f"✏️ Ahora tu personaje se llama <b>{esc(nombre)}</b>.")
             res.nuevo = True
@@ -350,9 +557,11 @@ class Juego:
         j.estado = "creando"
         j.borrador = "{}"
         self.db.guardar_jugador(j)
-        return Resultado(pantalla=self._pantalla_creador(j), nuevo=True)
+        res.pantalla = self._pantalla_creador(j)
+        res.nuevo = True
+        return res
 
-    # --- creador de personaje (sirve para crearlo y para cambiar la apariencia) ---
+    # --- creador de personaje (sirve para crearlo y para cambiarlo después) ---
 
     def _borrador(self, j: Jugador) -> dict:
         return json.loads(j.borrador) if j.borrador else {}
@@ -373,93 +582,115 @@ class Juego:
             return res
         b = self._borrador(j)
         campo_actual = None
-        if accion == "ap":
+        if accion == "ap":  # elegir una opción de un campo simple
             campo, _, valor = arg.partition(":")
-            c = A.POR_CLAVE.get(campo)
+            c = P.POR_CLAVE.get(campo)
             if c is not None and not c.multiple:
-                A.elegir(b, campo, A.al_azar(c, self.rng) if valor == "?" else valor)
-        elif accion == "apd":
-            if arg == "?":
-                b["detalles"] = A.al_azar(A.POR_CLAVE["detalles"], self.rng)
-                b.pop("_det", None)
-            else:
-                b["_det"] = A.alternar_detalle(b.get("_det", b.get("detalles", [])), arg)
-                campo_actual = A.POR_CLAVE["detalles"]
-        elif accion == "apdl":
-            b["detalles"] = b.pop("_det", b.get("detalles", []))
-        elif accion == "ape":
-            campo_actual = A.POR_CLAVE.get(arg)
+                P.elegir(b, campo, P.al_azar(c, self.rng) if valor == "?" else valor)
+        elif accion == "apm":  # marcar o desmarcar en un campo de varias opciones
+            campo, _, valor = arg.partition(":")
+            c = P.POR_CLAVE.get(campo)
+            if c is not None and c.multiple:
+                if valor == "?":
+                    b[campo] = P.al_azar(c, self.rng)
+                    b.pop("_sel", None)
+                else:
+                    seleccion = b.get("_sel", {}).get(campo, b.get(campo, []))
+                    seleccion, res.alerta = P.alternar(c, seleccion, valor)
+                    b["_sel"] = {campo: seleccion}
+                    campo_actual = c
+        elif accion == "apml":  # listo con un campo de varias opciones
+            c = P.POR_CLAVE.get(arg)
+            if c is not None and c.multiple:
+                seleccion = b.get("_sel", {}).get(arg, b.get(arg, []))
+                if len(seleccion) < c.minimo:
+                    res.alerta = f"Elige al menos {c.minimo}."
+                    campo_actual = c
+                else:
+                    b[arg] = seleccion
+                    b.pop("_sel", None)
+        elif accion == "ape":  # volver a un campo para cambiarlo
+            campo_actual = P.POR_CLAVE.get(arg)
             if campo_actual is not None and campo_actual.multiple:
-                b["_det"] = list(b.get("detalles", []))
+                b["_sel"] = {arg: list(b.get(arg, []))}
         elif accion == "apr":
-            b = A.todo_al_azar(self.rng)
+            b = P.todo_al_azar(self.rng)
         elif accion == "apx" and j.estado != "creando":
             j.borrador = None
             self.db.guardar_jugador(j)
             self._b_personajes(j, "", res)
             return res
-        elif accion == "apok" and A.completa(b):
-            return self._confirmar_apariencia(j, b, res)
+        elif accion == "apok" and P.completa(b):
+            return self._confirmar_personaje(j, b, res)
         self._guardar_borrador(j, b)
         res.pantalla = self._pantalla_creador(j, campo_actual)
         return res
 
-    def _pantalla_creador(self, j: Jugador, campo: A.Campo | None = None) -> Pantalla:
+    def _pantalla_creador(self, j: Jugador, campo: P.Campo | None = None) -> Pantalla:
         b = self._borrador(j)
-        campo = campo or A.siguiente_campo(b)
+        clave = f"creador:{campo.clave}" if campo else "creador"
+        campo = campo or P.siguiente_campo(b)
         if campo is None:
             return self._pantalla_ficha(j, b)
-        visibles = A.campos_visibles(b)
+        genero = b.get("genero")
+        visibles = P.campos_visibles(b)
         paso = next((i for i, c in enumerate(visibles) if c.clave == campo.clave), 0) + 1
         verbo = "Creando" if j.estado == "creando" else "Editando"
         texto = (
-            f"🧑‍🎨 <b>{verbo} a {esc(j.personaje)}</b> {A.avatar(b)}\n"
-            f"Paso {paso} de {len(visibles)} · {campo.emoji} {campo.titulo}\n\n"
+            f"🧑‍🎨 <b>{verbo} a {esc(j.personaje)}</b> {P.avatar(b)}\n"
+            f"Paso {paso} de {len(visibles)} · {campo.seccion}: {campo.emoji} {campo.titulo}\n\n"
             f"<b>{campo.pregunta}</b>"
         )
         if campo.multiple:
-            elegidos = b.get("_det", b.get("detalles", []))
+            elegidos = b.get("_sel", {}).get(campo.clave, b.get(campo.clave, []))
             opciones = [
-                (("✅ " if o.clave in elegidos else "") + f"{o.emoji} {o.nombre}", f"apd:{o.clave}")
+                (("✅ " if o.clave in elegidos else "") + o.boton(genero), f"apm:{campo.clave}:{o.clave}")
                 for o in campo.opciones
             ]
-            botones = en_filas(opciones) + [[("🎲 Al azar", "apd:?"), ("✅ Listo", "apdl")]]
+            cuenta = f" ({len(elegidos)}/{campo.maximo})" if campo.maximo else ""
+            botones = en_filas(opciones) + [
+                [("🎲 Al azar", f"apm:{campo.clave}:?"), (f"✅ Listo{cuenta}", f"apml:{campo.clave}")]
+            ]
         else:
             actual = b.get(campo.clave)
             opciones = [
-                (("✅ " if o.clave == actual else "") + f"{o.emoji} {o.nombre}", f"ap:{campo.clave}:{o.clave}")
+                (("✅ " if o.clave == actual else "") + o.boton(genero), f"ap:{campo.clave}:{o.clave}")
                 for o in campo.opciones
             ]
             botones = en_filas(opciones) + [[("🎲 Al azar", f"ap:{campo.clave}:?")]]
-        if A.completa(b):
+        if P.completa(b):
             botones.append([("⬅️ Volver a la ficha", "apf")])
         elif paso > 1:
             botones.append([("⬅️ Atrás", f"ape:{visibles[paso - 2].clave}")])
-        return Pantalla(texto, botones)
+        return Pantalla(texto, botones, clave=clave)
 
     def _pantalla_ficha(self, j: Jugador, b: dict) -> Pantalla:
-        lineas = [f"🪪 <b>Ficha de {esc(j.personaje)}</b>  {A.avatar(b)}", ""]
-        for c in A.campos_visibles(b):
-            lineas.append(f"{c.emoji} {c.titulo}: <b>{A.etiqueta(b, c.clave)}</b>")
-        lineas += ["", f"<i>{esc(A.descripcion(j.personaje, b))}</i>", "", "¿Te gusta cómo quedó?"]
-        editar = [(f"✏️ {c.titulo}", f"ape:{c.clave}") for c in A.campos_visibles(b)]
+        lineas = [f"🪪 <b>Ficha de {esc(j.personaje)}</b>  {P.avatar(b)}"]
+        seccion = None
+        for c in P.campos_visibles(b):
+            if c.seccion != seccion:
+                seccion = c.seccion
+                lineas += ["", f"<b>{seccion}</b>"]
+            lineas.append(f"{c.emoji} {c.titulo}: <b>{P.etiqueta(b, c.clave)}</b>")
+        lineas += ["", f"<i>{esc(P.descripcion(j.personaje, b))}</i>", "", "¿Te gusta cómo quedó?"]
+        editar = [(f"✏️ {c.titulo}", f"ape:{c.clave}") for c in P.campos_visibles(b)]
         botones = en_filas(editar) + [
             [("🎲 Sorpréndeme (todo al azar)", "apr")],
             [("✅ ¡Listo, así me gusta!", "apok")],
         ]
         if j.estado != "creando":
             botones.append([("❌ Cancelar cambios", "apx")])
-        return Pantalla("\n".join(lineas), botones)
+        return Pantalla("\n".join(lineas), botones, clave="creador")
 
-    def _confirmar_apariencia(self, j: Jugador, b: dict, res: Resultado) -> Resultado:
-        b.pop("_det", None)
+    def _confirmar_personaje(self, j: Jugador, b: dict, res: Resultado) -> Resultado:
+        b.pop("_sel", None)
         j.apariencia = json.dumps(b, ensure_ascii=False)
         j.borrador = None
         if j.estado != "creando":
             self.db.guardar_jugador(j)
             res.ediciones += self._refrescar_sala(j.sala_id, excepto=j.id)
             self._b_personajes(j, "", res)
-            res.alerta = "✅ Apariencia guardada"
+            res.alerta = "✅ Personaje guardado"
             return res
         return self._entrar_a_sala(j)
 
@@ -479,7 +710,12 @@ class Juego:
         else:
             j.sala_id = self.db.crear_sala(j.id, ahora)
         j.estado = "activo"
+        j.reloj_juego = 0.0
+        j.reloj_desde = ahora
+        j.ultima_jugada = ahora
         res = self._tocar(j, avisar_conexion=False)
+        if not res.ediciones:  # alguien nuevo en la sala: hay que redibujarla siempre
+            res.ediciones = self._refrescar_sala(j.sala_id, excepto=j.id)
         for o in self._companeros(j):
             res.avisos.append(Aviso(
                 o.id,
@@ -497,9 +733,9 @@ class Juego:
 
     def _pantalla_bienvenida(self, j: Jugador, anfitrion: Jugador | None) -> Pantalla:
         lineas = [
-            f"✨ <b>¡Personaje creado!</b> {A.avatar(j.ap)} <b>{esc(j.personaje)}</b>",
+            f"✨ <b>¡Personaje creado!</b> {P.avatar(j.ap)} <b>{esc(j.personaje)}</b>",
             "",
-            f"<i>{esc(A.descripcion(j.personaje, j.ap))}</i>",
+            f"<i>{esc(P.descripcion(j.personaje, j.ap))}</i>",
             "",
         ]
         if anfitrion:
@@ -511,12 +747,157 @@ class Juego:
         lineas += [
             "<b>¿Qué quieres hacer ahora?</b>",
             "🎮 <b>Jugar</b>: entra a tu sala y empieza, con o sin compañía.",
-            "💌 <b>Invitar</b>: manda un enlace a tu pareja o a quien quieras.",
+            "💌 <b>Invitar</b>: invita a tu pareja o a quien quieras.",
         ]
-        return Pantalla("\n".join(lineas), [[("🎮 Jugar", "sala"), ("💌 Invitar", "invitar")]])
+        return Pantalla(
+            "\n".join(lineas), [[("🎮 Jugar", "sala"), ("💌 Invitar", "invitar")]], clave="bienvenida"
+        )
 
     # ------------------------------------------------------------------
-    # Presencia (en línea / ausente / fuera de línea)
+    # Reloj del Sim: corre como un día real y se congela sin actividad
+    # ------------------------------------------------------------------
+
+    def _congelado(self, j: Jugador, ahora: float) -> bool:
+        return bool(j.salio) or j.reloj_desde is None or ahora - j.ultima_jugada >= self.pausa
+
+    def _segundos_juego(self, j: Jugador, ahora: float) -> float:
+        if j.reloj_desde is None:
+            return j.reloj_juego
+        hasta = ahora if not j.salio else j.ultima_actividad
+        hasta = min(hasta, j.ultima_jugada + self.pausa)
+        return j.reloj_juego + max(0.0, hasta - j.reloj_desde)
+
+    def _congelar(self, j: Jugador, ahora: float) -> None:
+        if j.reloj_desde is not None:
+            j.reloj_juego = self._segundos_juego(j, ahora)
+            j.reloj_desde = None
+
+    def _pausa(self, j: Jugador, nuevo: bool = False) -> Resultado:
+        """Pantalla de 'tu Sim estaba en pausa': hay que tocar Continuar para seguir."""
+        ahora = self.reloj()
+        desde = j.ultima_jugada + self.pausa if j.ultima_jugada and not j.salio else j.ultima_actividad
+        self._congelar(j, ahora)
+        res = self._tocar(j, jugada=False)
+        uc = self.db.ultima_conexion(j.id)
+        lugar = uc.lugar if uc and uc.lugar else LUGARES["sala"][0]
+        res.pantalla = Pantalla(
+            "❄️ <b>Tu Sim estaba en pausa</b>\n\n"
+            f"{self._firma(j)} se quedó en pausa hace {duracion(ahora - desde)}, en <b>{lugar}</b>.\n"
+            f"🕒 Su reloj se detuvo en: <b>{hora_de_juego(j.reloj_juego)}</b>\n\n"
+            "La pausa es solo tuya: tu pareja pudo seguir jugando.",
+            [[CONTINUAR]],
+        )
+        res.nuevo = nuevo
+        return res
+
+    def _continuar(self, j: Jugador) -> Resultado:
+        ahora = self.reloj()
+        if j.estado == "activo" and self._congelado(j, ahora):
+            self._congelar(j, ahora)
+            j.reloj_desde = ahora
+            j.ultima_jugada = ahora
+        return self._reanudar(j, nuevo=False, saludo="▶️ <b>¡Seguimos!</b>")
+
+    # ------------------------------------------------------------------
+    # Última conexión: guardar dónde se quedó y retomarlo al volver
+    # ------------------------------------------------------------------
+
+    def _ultima(self, j: Jugador) -> UltimaConexion:
+        return self.db.ultima_conexion(j.id) or UltimaConexion(jugador_id=j.id)
+
+    def _anotar(self, uid: int, res: Resultado, actividad: str | None = None) -> None:
+        """Sobrescribe la última conexión con la pantalla que se acaba de mostrar."""
+        clave = res.pantalla.clave if res.pantalla else None
+        if clave is None and actividad is None:
+            return
+        j = self.db.jugador(uid)
+        if j is None:
+            return
+        uc = self._ultima(j)
+        if clave is not None:
+            uc.pantalla = clave
+            uc.lugar, uc.actividad = LUGARES[clave.partition(":")[0]]
+        if actividad is not None:
+            uc.actividad = actividad
+        uc.estado = j.estado
+        uc.sala_id = j.sala_id
+        uc.ultima_actividad = self.reloj()
+        self.db.guardar_ultima_conexion(uc)
+
+    def _reanudar(self, j: Jugador, nuevo: bool = True, saludo: str = "👋 <b>¡Hola de nuevo!</b>") -> Resultado:
+        ahora = self.reloj()
+        previa = self.db.ultima_conexion(j.id)
+        res = self._tocar(j)
+        pantalla, nota = self._reconstruir(j, previa)
+        cabecera = []
+        if previa is not None and previa.ultima_actividad:
+            cabecera.append(
+                f"{saludo} Retomas donde lo dejaste: <b>{previa.lugar}</b> "
+                f"· hace {duracion(ahora - previa.ultima_actividad)}."
+            )
+        if nota:
+            cabecera.append(nota)
+        if cabecera:
+            pantalla.texto = "\n".join(cabecera) + "\n\n" + pantalla.texto
+        res.pantalla = pantalla
+        res.nuevo = nuevo
+        self._anotar(j.id, res)
+        return res
+
+    def _reconstruir(self, j: Jugador, previa: UltimaConexion | None) -> tuple[Pantalla, str | None]:
+        """Vuelve a armar la pantalla guardada, comprobando que siga siendo válida."""
+        if j.estado == "nombrando":
+            return self._pedir_nombre(j), None
+        if j.estado == "renombrando":
+            return self._pantalla_renombrar(j), None
+        accion, _, arg = (previa.pantalla if previa else "sala").partition(":")
+        if j.estado == "creando" or (accion == "creador" and j.borrador is not None):
+            return self._pantalla_creador(j, P.POR_CLAVE.get(arg)), None
+        nota = None
+        if j.sala_id is None:
+            j.sala_id = self.db.crear_sala(j.id, self.reloj())
+            self.db.guardar_jugador(j)
+            nota = "🔧 Tu sala no aparecía y la volví a crear."
+        elif previa is not None and previa.sala_id is not None and previa.sala_id != j.sala_id:
+            return self._pantalla_sala(j), "ℹ️ Tu sala cambió desde la última vez."
+        if accion == "bienvenida":
+            return self._pantalla_bienvenida(j, None), nota
+        manejador = {
+            "sala": self._b_sala, "invitar": self._b_invitar, "invs": self._b_mis_invitaciones,
+            "pjs": self._b_personajes, "animo": self._b_animos, "ajustes": self._b_ajustes,
+        }.get(accion, self._b_sala)
+        tmp = Resultado()
+        manejador(j, arg, tmp)
+        return tmp.pantalla, nota
+
+    def _pantalla_conexion(self, j: Jugador) -> Pantalla:
+        ahora = self.reloj()
+        uc = self.db.ultima_conexion(j.id)
+        if uc is None:
+            return Pantalla("🧾 Todavía no hay ninguna conexión guardada.", [[SALA]])
+        if uc.desconectado:
+            salida = f"hace {duracion(ahora - uc.desconectado)}"
+        else:
+            salida = "— (sigues conectado)" if self._estado_presencia(j, ahora) != "fuera" else "—"
+        reloj = ""
+        if j.activo:
+            estado = "❄️ en pausa" if self._congelado(j, ahora) else "▶️ corriendo"
+            reloj = f"🕒 Reloj del Sim: {hora_de_juego(self._segundos_juego(j, ahora))} ({estado})\n"
+        return Pantalla(
+            "🧾 <b>Tu última conexión guardada</b>\n\n"
+            f"📍 Lugar: <b>{uc.lugar or '—'}</b>\n"
+            f"🎬 Haciendo: {esc(uc.actividad or '—')}\n"
+            f"🏠 Sala n.º {uc.sala_id if uc.sala_id is not None else '—'}\n"
+            f"{reloj}"
+            f"🔌 Entraste: hace {duracion(ahora - uc.conectado_desde)}\n"
+            f"🕒 Última actividad: hace {duracion(ahora - uc.ultima_actividad)}\n"
+            f"🚪 Salida: {salida}\n\n"
+            "<i>Solo se guarda la última. Es lo que se usa para devolverte al mismo sitio cuando vuelves.</i>",
+            [[("⬅️ Volver", "volver")]],
+        )
+
+    # ------------------------------------------------------------------
+    # Presencia (en línea / en pausa / fuera de línea)
     # ------------------------------------------------------------------
 
     def _estado_presencia(self, j: Jugador, ahora: float) -> str:
@@ -529,21 +910,28 @@ class Juego:
             return "ausente"
         return "fuera"
 
-    def _texto_presencia(self, j: Jugador, ahora: float) -> str:
+    def _texto_presencia(self, j: Jugador, ahora: float, actividad: str | None = None) -> str:
         estado = self._estado_presencia(j, ahora)
         hace = duracion(ahora - j.ultima_actividad)
         if estado == "en_linea":
-            return "🟢 en línea"
+            if self._congelado(j, ahora):
+                return "🟢 en línea · ❄️ Sim en pausa"
+            return f"🟢 en línea · {esc(actividad)}" if actividad else "🟢 en línea"
         if estado == "ausente":
-            return f"🟡 ausente · activo hace {hace}"
+            return f"❄️ en pausa · hace {hace}"
         if j.ultima_actividad:
             return f"⚫ fuera de línea · visto hace {hace}"
         return "⚫ fuera de línea"
 
-    def _tocar(self, j: Jugador, avisar_conexion: bool = True) -> Resultado:
-        """Marca actividad: quien usa el bot aparece en línea y su sala se actualiza."""
+    def _tocar(self, j: Jugador, avisar_conexion: bool = True, jugada: bool = True) -> Resultado:
+        """Marca actividad: quien usa el bot aparece en línea y su sala se actualiza.
+
+        `jugada` indica una acción de juego (el chat no lo es): mantiene el reloj del Sim corriendo.
+        """
         ahora = self.reloj()
         estaba = self._estado_presencia(j, ahora)
+        if jugada and j.estado == "activo" and not self._congelado(j, ahora):
+            j.ultima_jugada = ahora
         j.ultima_actividad = ahora
         j.salio = 0
         cambio = j.presencia != "en_linea"
@@ -555,6 +943,11 @@ class Juego:
         if avisar:
             j.aviso_conexion_ts = ahora
         self.db.guardar_jugador(j)
+        uc = self._ultima(j)
+        if estaba == "fuera" or not uc.conectado_desde:
+            uc.conectado_desde = ahora
+            uc.desconectado = None
+            self.db.guardar_ultima_conexion(uc)
         res = Resultado()
         if not j.activo:
             return res
@@ -567,16 +960,21 @@ class Juego:
         return res
 
     def _salir(self, j: Jugador) -> Resultado:
+        ahora = self.reloj()
+        self._congelar(j, ahora)
         j.salio = 1
         j.presencia = "fuera"
         self.db.guardar_jugador(j)
+        uc = self._ultima(j)
+        uc.desconectado = ahora
+        self.db.guardar_ultima_conexion(uc)
         res = Resultado(ediciones=self._refrescar_sala(j.sala_id, excepto=j.id))
         res.pantalla = Pantalla(
-            "🚪 <b>Saliste de la sala.</b>\n"
-            "Ahora apareces ⚫ fuera de línea.\n\n"
-            "Los mensajes de tu sala te seguirán llegando aquí. "
-            "Para volver, toca el botón o escribe /start.",
-            [[("🏠 Volver a entrar", "sala")]],
+            "🚪 <b>Saliste del juego.</b>\n"
+            "Ahora apareces ⚫ fuera de línea y tu Sim queda en pausa ❄️.\n\n"
+            f"Guardé dónde estabas (<b>{uc.lugar or LUGARES['sala'][0]}</b>): al volver, sigues desde ahí.\n"
+            "Los mensajes de tu sala te seguirán llegando. Para volver, toca el botón o escribe /start.",
+            [[("🔁 Volver a entrar", "volver")]],
         )
         return res
 
@@ -585,7 +983,7 @@ class Juego:
     # ------------------------------------------------------------------
 
     def _firma(self, j: Jugador) -> str:
-        return f"{A.avatar(j.ap)} <b>{esc(j.personaje)}</b>"
+        return f"{P.avatar(j.ap)} <b>{esc(j.personaje)}</b>"
 
     def _companeros(self, j: Jugador) -> list[Jugador]:
         return [m for m in self.db.miembros_sala(j.sala_id) if m.id != j.id]
@@ -601,11 +999,25 @@ class Juego:
         ahora = self.reloj()
         miembros = self.db.miembros_sala(j.sala_id)
         otros = [m for m in miembros if m.id != j.id]
+        pausado = self._congelado(j, ahora)
         lineas = [aviso, ""] if aviso else []
+        if pausado:
+            lineas += [
+                f"❄️ <b>Tu Sim está en pausa.</b> Pasaron {self.cfg.pausa_min} min sin jugar y su reloj "
+                "se detuvo. Toca ▶️ Continuar para seguir.",
+                "",
+            ]
         lineas += [f"🏠 <b>Sala de {esc(unir([m.personaje for m in miembros]))}</b>", ""]
         for m in miembros:
-            yo = " (tú)" if m.id == j.id else ""
-            lineas.append(f"{self._firma(m)}{yo} — {self._texto_presencia(m, ahora)}")
+            animo = P.animo(m.ap)
+            if m.id == j.id:
+                cabeza, presencia = f"{self._firma(m)} (tú)", self._texto_presencia(m, ahora)
+            else:
+                uc = self.db.ultima_conexion(m.id)
+                cabeza = self._firma(m)
+                presencia = self._texto_presencia(m, ahora, uc.actividad if uc else None)
+            lineas.append(f"{cabeza}{' · ' + animo if animo else ''}")
+            lineas.append(f"      {presencia} · 🕒 {hora_de_juego(self._segundos_juego(m, ahora))}")
         lineas.append("")
         if otros:
             lineas.append(
@@ -614,13 +1026,15 @@ class Juego:
             )
         else:
             lineas.append("🎮 Por ahora juegas sin compañía. Cuando quieras, invita a alguien con 💌.")
-        lineas += ["", "🚧 <i>Próximamente: necesidades, casa, trabajo y citas.</i>"]
+        lineas += ["", "🚧 <i>Próximamente: casa y dinero, compras, acciones del día, cocina y trabajo.</i>"]
         botones = [
-            [("💌 Invitar", "invitar"), ("🪪 Personajes", "pjs")],
-            [("🔄 Actualizar", "act"), ("⚙️ Ajustes", "ajustes")],
-            [("🚪 Salir", "salir")],
+            [("🎭 Mi ánimo", "animos"), ("🪪 Personajes", "pjs")],
+            [("💌 Invitar", "invitar"), ("⚙️ Ajustes", "ajustes")],
+            [("🔄 Actualizar", "act"), ("🚪 Salir", "salir")],
         ]
-        return Pantalla("\n".join(lineas), botones, es_sala=True)
+        if pausado:
+            botones.insert(0, [CONTINUAR])
+        return Pantalla("\n".join(lineas), botones, es_sala=True, clave="sala")
 
     def _sin_companeros(self) -> Pantalla:
         return Pantalla(
@@ -630,7 +1044,7 @@ class Juego:
         )
 
     def _chat(self, j: Jugador, texto: str) -> Resultado:
-        res = self._tocar(j, avisar_conexion=False)
+        res = self._tocar(j, avisar_conexion=False, jugada=False)
         otros = self._companeros(j)
         if not otros:
             res.pantalla = self._sin_companeros()
@@ -642,6 +1056,7 @@ class Juego:
         cuerpo = esc(texto[:largo])
         for o in otros:
             res.avisos.append(Aviso(o.id, f"💬 {self._firma(j)}: {cuerpo}", chat=True))
+        self._anotar(j.id, res, CHATEANDO)
         return res
 
     # ------------------------------------------------------------------
@@ -659,14 +1074,39 @@ class Juego:
         lineas = ["🪪 <b>Personajes de la sala</b>", ""]
         for m in self.db.miembros_sala(j.sala_id):
             yo = " (tú)" if m.id == j.id else ""
-            lineas += [f"{self._firma(m)}{yo}", f"<i>{esc(A.descripcion(m.personaje, m.ap))}</i>", ""]
+            lineas += [f"{self._firma(m)}{yo}", f"<i>{esc(P.descripcion(m.personaje, m.ap))}</i>", ""]
         res.pantalla = Pantalla(
             "\n".join(lineas).rstrip(),
             [
-                [("🪞 Cambiar mi apariencia", "apedit"), ("✏️ Cambiar nombre", "renombrar")],
+                [("🪞 Cambiar mi personaje", "apedit"), ("✏️ Cambiar nombre", "renombrar")],
                 [SALA],
             ],
+            clave="pjs",
         )
+
+    def _b_animos(self, j: Jugador, arg: str, res: Resultado) -> None:
+        ap = j.ap
+        genero, actual = ap.get("genero"), ap.get("animo")
+        opciones = [
+            (("✅ " if o.clave == actual else "") + o.boton(genero), f"animo:{o.clave}")
+            for o in P.ANIMO.opciones
+        ]
+        res.pantalla = Pantalla(
+            f"🎭 <b>¿Cómo se siente {esc(j.personaje)} ahora?</b>\n"
+            "Cada estado de ánimo tiene su color y tu pareja lo verá en la sala.",
+            en_filas(opciones) + [[SALA]],
+            clave="animo",
+        )
+
+    def _b_animo(self, j: Jugador, clave: str, res: Resultado) -> None:
+        if P.ANIMO.opcion(clave) is not None:
+            ap = j.ap
+            ap["animo"] = clave
+            j.apariencia = json.dumps(ap, ensure_ascii=False)
+            self.db.guardar_jugador(j)
+            res.alerta = f"Ánimo: {P.animo(ap)}"
+            res.ediciones += self._refrescar_sala(j.sala_id, excepto=j.id)
+        res.pantalla = self._pantalla_sala(j)
 
     def _b_ajustes(self, j: Jugador, arg: str, res: Resultado) -> None:
         avisos = "Sí" if j.avisos_conexion else "No"
@@ -674,12 +1114,15 @@ class Juego:
             "⚙️ <b>Ajustes</b>\n\n"
             f"👤 Personaje: {self._firma(j)}\n"
             f"🔔 Avisarme cuando alguien entra a mi sala: <b>{avisos}</b>\n"
-            f"🆔 Tu ID de Telegram: <code>{j.id}</code>",
+            f"🆔 Tu ID de Telegram: <code>{j.id}</code>\n"
+            f"🏷️ Versión del juego: {N.VERSION}",
             [
                 [("🔕 Desactivar avisos" if j.avisos_conexion else "🔔 Activar avisos", "avisos")],
-                [("🪞 Cambiar apariencia", "apedit"), ("✏️ Cambiar nombre", "renombrar")],
+                [("🪞 Cambiar personaje", "apedit"), ("✏️ Cambiar nombre", "renombrar")],
+                [("🧾 Mi última conexión", "conexion")],
                 [SALA],
             ],
+            clave="ajustes",
         )
 
     def _b_avisos(self, j: Jugador, arg: str, res: Resultado) -> None:
@@ -687,13 +1130,20 @@ class Juego:
         self.db.guardar_jugador(j)
         self._b_ajustes(j, arg, res)
 
+    def _pantalla_renombrar(self, j: Jugador) -> Pantalla:
+        return Pantalla(
+            f"✏️ Tu personaje se llama <b>{esc(j.personaje)}</b>.\nEscribe el nuevo nombre:",
+            [[("❌ Cancelar", "sala")]],
+            clave="renombrar",
+        )
+
     def _b_renombrar(self, j: Jugador, arg: str, res: Resultado) -> None:
         j.estado = "renombrando"
         self.db.guardar_jugador(j)
-        res.pantalla = Pantalla(
-            f"✏️ Tu personaje se llama <b>{esc(j.personaje)}</b>.\nEscribe el nuevo nombre:",
-            [[("❌ Cancelar", "sala")]],
-        )
+        res.pantalla = self._pantalla_renombrar(j)
+
+    def _b_conexion(self, j: Jugador, arg: str, res: Resultado) -> None:
+        res.pantalla = self._pantalla_conexion(j)
 
     # --- invitaciones ---
 
@@ -701,117 +1151,53 @@ class Juego:
         return len(self.db.miembros_sala(j.sala_id)) < self.cfg.max_sala
 
     def _b_invitar(self, j: Jugador, arg: str, res: Resultado) -> None:
-        botones = []
-        if self._hay_lugar(j):
-            botones.append([("💞 A mi pareja (entra a mi sala)", "inv:pareja")])
-        botones.append([("👋 A otra persona (con su propia sala)", "inv:amigo")])
-        botones.append([("📋 Mis invitaciones", "invs"), SALA])
+        bot = f"https://t.me/{self.bot_usuario}"
+        mensaje = (
+            f"¡Te invito a jugar {self.cfg.nombre_juego} conmigo! 💞 "
+            "Abre el bot, toca Iniciar y pásame tu código personal."
+        )
+        compartir = f"https://t.me/share/url?url={quote(bot, safe='')}&text={quote(mensaje)}"
         res.pantalla = Pantalla(
             "💌 <b>Invitar a un jugador</b>\n\n"
-            "El juego es solo por invitación. Cada enlace sirve <b>una sola vez</b> "
-            "y funciona en cualquier país donde haya Telegram.\n\n"
-            "¿A quién quieres invitar?",
-            botones,
+            f"1️⃣ Pídele a la otra persona que abra @{esc(self.bot_usuario)} y toque <b>Iniciar</b>.\n"
+            "2️⃣ El bot le mostrará su <b>código personal</b>.\n"
+            "3️⃣ Cuando te lo pase, escríbelo aquí así:\n"
+            "<code>invitar_CÓDIGO</code>   (por ejemplo: <code>invitar_K7M2QX</code>)\n\n"
+            "🔐 Cada código pertenece a una sola persona: nadie más puede entrar con él.",
+            [
+                [("📤 Pasarle el bot", compartir)],
+                [("📋 Invitaciones enviadas", "invs"), SALA],
+            ],
+            clave="invitar",
         )
-
-    def _b_generar(self, j: Jugador, tipo: str, res: Resultado) -> None:
-        ahora = self.reloj()
-        if tipo not in ("pareja", "amigo"):
-            self._b_invitar(j, "", res)
-            return
-        if tipo == "pareja":
-            if not self._hay_lugar(j):
-                res.alerta = "Tu sala ya está completa."
-                self._b_invitar(j, "", res)
-                return
-            pendientes = self.db.invitaciones_pareja_vigentes(j.sala_id, ahora)
-            if len(self.db.miembros_sala(j.sala_id)) + len(pendientes) >= self.cfg.max_sala:
-                res.pantalla = self._pantalla_invitacion(
-                    pendientes[0], "ℹ️ Ya tenías esta invitación de pareja sin usar."
-                )
-                return
-        activas = [i for i in self.db.invitaciones_de(j.id, 50) if i.vigente(ahora)]
-        if len(activas) >= self.cfg.max_invitaciones_activas:
-            res.alerta = f"Ya tienes {len(activas)} invitaciones sin usar. Anula alguna en 📋 Mis invitaciones."
-            self._b_invitar(j, "", res)
-            return
-        inv = Invitacion(
-            codigo=self._codigo_nuevo(),
-            creador=j.id,
-            tipo=tipo,
-            sala_id=j.sala_id if tipo == "pareja" else None,
-            creada=ahora,
-            expira=ahora + self.cfg.invitacion_dias * DIA,
-        )
-        self.db.guardar_invitacion(inv)
-        res.pantalla = self._pantalla_invitacion(inv)
-
-    def _codigo_nuevo(self) -> str:
-        while True:
-            codigo = "".join(secrets.choice(ALFABETO) for _ in range(LARGO_CODIGO))
-            if self.db.invitacion(codigo) is None:
-                return codigo
-
-    def enlace(self, codigo: str) -> str:
-        return f"https://t.me/{self.bot_usuario}?start={codigo}"
-
-    def _pantalla_invitacion(self, inv: Invitacion, nota: str | None = None) -> Pantalla:
-        enlace = self.enlace(inv.codigo)
-        pareja = inv.tipo == "pareja"
-        mensaje = f"¡Te invito a jugar {self.cfg.nombre_juego} conmigo! 💞"
-        compartir = f"https://t.me/share/url?url={quote(enlace, safe='')}&text={quote(mensaje)}"
-        lineas = [nota, ""] if nota else []
-        lineas += [
-            f"{'💞' if pareja else '👋'} <b>Invitación lista</b>",
-            "",
-            f"Envíale este enlace a {'tu pareja' if pareja else 'esa persona'} "
-            "por WhatsApp, SMS, correo o como prefieras:",
-            "",
-            enlace,
-            "",
-            f"Si el enlace no se abre, que busque <b>@{esc(self.bot_usuario)}</b> en Telegram, "
-            f"toque <b>Iniciar</b> y escriba este código:",
-            f"<code>{inv.codigo}</code>",
-            "",
-            f"🔐 Sirve una sola vez · ⏳ vence en {duracion(inv.expira - self.reloj() + MINUTO)}",
-        ]
-        if pareja:
-            lineas.append("💞 Al entrar, su personaje aparecerá en tu sala.")
-        return Pantalla(
-            "\n".join(lineas),
-            [[("📤 Compartir por Telegram", compartir)], [("📋 Mis invitaciones", "invs"), SALA]],
-        )
-
-    def _b_ver_invitacion(self, j: Jugador, codigo: str, res: Resultado) -> None:
-        inv = self.db.invitacion(codigo)
-        if inv is None or inv.creador != j.id or not inv.vigente(self.reloj()):
-            res.alerta = "Esa invitación ya no está disponible."
-            self._b_mis_invitaciones(j, "", res)
-            return
-        res.pantalla = self._pantalla_invitacion(inv)
 
     def _b_mis_invitaciones(self, j: Jugador, arg: str, res: Resultado) -> None:
         ahora = self.reloj()
-        invs = self.db.invitaciones_de(j.id, 10)
-        lineas = ["📋 <b>Mis invitaciones</b>", ""]
+        lineas = ["📋 <b>Invitaciones enviadas</b>", ""]
         botones: Botones = []
+        invs = [i for i in self.db.invitaciones_de(j.id, 10) if i.para_id is not None]
         if not invs:
-            lineas.append("Todavía no has creado invitaciones.")
+            lineas.append("Todavía no has invitado a nadie.")
         for i in invs:
-            tipo = "💞 pareja" if i.tipo == "pareja" else "👋 otra persona"
+            v = self.db.visitante(i.para_id)
+            para = v.nombre_tg if v and v.nombre_tg else "alguien"
+            tipo = "💞 pareja" if i.tipo == "pareja" else "👋 sala propia"
             if i.usada_por:
                 quien = self.db.jugador(i.usada_por)
-                nombre = (quien.personaje or quien.nombre_tg) if quien else ""
-                lineas.append(f"✅ <code>{i.codigo}</code> · {tipo} · usada por {esc(nombre or 'alguien')}")
+                nombre = (quien.personaje or quien.nombre_tg) if quien else para
+                lineas.append(f"✅ {esc(nombre)} · {tipo} · aceptada")
             elif i.anulada:
-                lineas.append(f"🚫 <code>{i.codigo}</code> · {tipo} · anulada")
+                lineas.append(f"🚫 {esc(para)} · {tipo} · anulada o rechazada")
             elif i.expira <= ahora:
-                lineas.append(f"⌛ <code>{i.codigo}</code> · {tipo} · vencida")
+                lineas.append(f"⌛ {esc(para)} · {tipo} · vencida")
             else:
-                lineas.append(f"🟢 <code>{i.codigo}</code> · {tipo} · vence en {duracion(i.expira - ahora + MINUTO)}")
-                botones.append([(f"👁️ Ver {i.codigo}", f"ver:{i.codigo}"), (f"❌ Anular {i.codigo}", f"anular:{i.codigo}")])
-        botones.append([("💌 Nueva invitación", "invitar"), SALA])
-        res.pantalla = Pantalla("\n".join(lineas), botones)
+                lineas.append(
+                    f"🟢 {esc(para)} · {tipo} · esperando respuesta "
+                    f"(vence en {duracion(i.expira - ahora + MINUTO)})"
+                )
+                botones.append([(f"❌ Anular invitación a {para}"[:60], f"anular:{i.codigo}")])
+        botones.append([("💌 Invitar a alguien", "invitar"), SALA])
+        res.pantalla = Pantalla("\n".join(lineas), botones, clave="invs")
 
     def _b_anular(self, j: Jugador, codigo: str, res: Resultado) -> None:
         inv = self.db.invitacion(codigo)

@@ -1,4 +1,7 @@
-"""Creador de personajes: opciones de apariencia, avatar en emoji y descripción en texto."""
+"""Creador de personajes: aspecto, personalidad, aspiración y estado de ánimo.
+
+También genera el avatar en emoji y la descripción en texto de cada personaje.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +13,21 @@ from dataclasses import dataclass
 class Opcion:
     clave: str
     emoji: str
-    nombre: str
+    nombre: str  # forma masculina o invariable
+    fem: str | None = None  # forma femenina, si cambia
+    neutro: str | None = None  # forma para personajes no binarios, si cambia
+    color: str = ""  # color de los estados de ánimo
+    frase: str = ""  # frase de las aspiraciones
+
+    def texto(self, genero: str | None = None) -> str:
+        if genero == "mujer" and self.fem:
+            return self.fem
+        if genero == "nobinario" and self.neutro:
+            return self.neutro
+        return self.nombre
+
+    def boton(self, genero: str | None = None) -> str:
+        return f"{self.color + ' ' if self.color else ''}{self.emoji} {self.texto(genero)}"
 
 
 @dataclass(frozen=True)
@@ -20,15 +37,21 @@ class Campo:
     titulo: str
     pregunta: str
     opciones: tuple[Opcion, ...]
+    seccion: str = "Aspecto"
     multiple: bool = False
+    minimo: int = 0
+    maximo: int = 0  # 0 = sin límite
 
-    def opcion(self, clave: str) -> Opcion | None:
+    def opcion(self, clave: str | None) -> Opcion | None:
         return next((o for o in self.opciones if o.clave == clave), None)
 
 
-def _ops(*filas: tuple[str, str, str]) -> tuple[Opcion, ...]:
+def _ops(*filas: tuple) -> tuple[Opcion, ...]:
     return tuple(Opcion(*f) for f in filas)
 
+
+ASPECTO = "Aspecto"
+PERSONALIDAD = "Personalidad"
 
 CAMPOS: tuple[Campo, ...] = (
     Campo("genero", "🚻", "Género", "¿Cuál es el género de tu personaje?", _ops(
@@ -94,7 +117,7 @@ CAMPOS: tuple[Campo, ...] = (
         ("azules", "🔵", "Azules"),
         ("grises", "🩶", "Grises"),
     )),
-    Campo("detalles", "✨", "Detalles", "Toca los detalles que quieras (puedes elegir varios o ninguno):", _ops(
+    Campo("detalles", "✨", "Detalles", "Toca los detalles que quieras (varios o ninguno):", _ops(
         ("lentes", "👓", "Lentes"),
         ("pecas", "✨", "Pecas"),
         ("barba", "🧔", "Barba"),
@@ -114,14 +137,56 @@ CAMPOS: tuple[Campo, ...] = (
         ("clasico", "🧥", "Clásico"),
         ("playero", "🩴", "Playero"),
     )),
+    Campo("rasgos", "🧠", "Rasgos", "Elige hasta 3 rasgos de personalidad:", _ops(
+        ("romantico", "💘", "Romántico", "Romántica", "Alma romántica"),
+        ("divertido", "😂", "Divertido", "Divertida", "Alma divertida"),
+        ("alegre", "😄", "Alegre"),
+        ("ordenado", "🧹", "Ordenado", "Ordenada", "Amante del orden"),
+        ("desordenado", "🌪️", "Desordenado", "Desordenada", "Espíritu caótico"),
+        ("activo", "⚡", "Activo", "Activa", "Pura energía"),
+        ("perezoso", "🦥", "Perezoso", "Perezosa", "Amante del sofá"),
+        ("gloton", "🍔", "Glotón", "Glotona", "Buen diente"),
+        ("cocinillas", "🍳", "Cocinillas"),
+        ("creativo", "🎨", "Creativo", "Creativa", "Mente creativa"),
+        ("cerebrito", "🤓", "Cerebrito"),
+        ("sociable", "🗣️", "Sociable"),
+        ("timido", "🙈", "Tímido", "Tímida", "Alma tímida"),
+        ("detallista", "🎁", "Detallista"),
+        ("celoso", "😒", "Celoso", "Celosa", "Corazón celoso"),
+        ("grunon", "😤", "Gruñón", "Gruñona", "Mal genio"),
+    ), seccion=PERSONALIDAD, multiple=True, minimo=1, maximo=3),
+    Campo("aspiracion", "🌟", "Aspiración", "¿Cuál es su gran sueño en la vida?", (
+        Opcion("amor", "💞", "Amor eterno", frase="Sueña con un amor para toda la vida."),
+        Opcion("familia", "🏡", "Gran familia", frase="Sueña con formar una familia grande."),
+        Opcion("fortuna", "💰", "Fortuna", frase="Sueña con tener mucho dinero."),
+        Opcion("hogar", "🛋️", "Hogar de ensueño", frase="Sueña con tener la casa perfecta."),
+        Opcion("chef", "🍽️", "Maestría culinaria", frase="Sueña con cocinar como en un gran restaurante."),
+        Opcion("arte", "🎭", "Arte y fama", frase="Sueña con que el mundo conozca su arte."),
+        Opcion("saber", "📚", "Conocimiento", frase="Sueña con saber de todo."),
+        Opcion("social", "🎉", "Vida social", frase="Sueña con tener amistades por todas partes."),
+        Opcion("deporte", "🏆", "Cuerpo de atleta", frase="Sueña con estar en plena forma."),
+    ), seccion=PERSONALIDAD),
+    Campo("animo", "🎭", "Ánimo", "¿Cómo se siente ahora mismo?", _ops(
+        ("feliz", "😊", "Feliz", None, None, "🟡"),
+        ("enamorado", "😍", "Enamorado", "Enamorada", "Con el corazón contento", "🩷"),
+        ("tranquilo", "😌", "Tranquilo", "Tranquila", "En calma", "🟢"),
+        ("emocionado", "🤩", "Emocionado", "Emocionada", "Con emoción", "🟠"),
+        ("jugueton", "😜", "Juguetón", "Juguetona", "Con ganas de jugar", "🩵"),
+        ("cansado", "😴", "Cansado", "Cansada", "Con sueño", "🟤"),
+        ("aburrido", "😐", "Aburrido", "Aburrida", "Con aburrimiento", "⚪"),
+        ("triste", "😢", "Triste", None, None, "🔵"),
+        ("enojado", "😠", "Enojado", "Enojada", "Con enojo", "🔴"),
+        ("estresado", "😰", "Estresado", "Estresada", "Con estrés", "🟣"),
+    ), seccion=PERSONALIDAD),
 )
 
 POR_CLAVE: dict[str, Campo] = {c.clave: c for c in CAMPOS}
 SIN_PELO = "sin"
+ANIMO = POR_CLAVE["animo"]
 
 
 def campos_visibles(ap: dict) -> list[Campo]:
-    """Campos que aplican a esta apariencia (sin pelo no hay color de pelo)."""
+    """Campos que aplican a este personaje (sin pelo no hay color de pelo)."""
     return [c for c in CAMPOS if not (c.clave == "pelo" and ap.get("peinado") == SIN_PELO)]
 
 
@@ -144,17 +209,21 @@ def elegir(ap: dict, campo: str, valor: str) -> bool:
     return True
 
 
-def alternar_detalle(seleccion: list[str], valor: str) -> list[str]:
-    if POR_CLAVE["detalles"].opcion(valor) is None:
-        return seleccion
+def alternar(campo: Campo, seleccion: list[str], valor: str) -> tuple[list[str], str | None]:
+    """Marca o desmarca una opción de un campo múltiple. Devuelve la selección y un aviso si no se pudo."""
+    if campo.opcion(valor) is None:
+        return seleccion, None
     if valor in seleccion:
-        return [d for d in seleccion if d != valor]
-    return seleccion + [valor]
+        return [s for s in seleccion if s != valor], None
+    if campo.maximo and len(seleccion) >= campo.maximo:
+        return seleccion, f"Puedes elegir como máximo {campo.maximo}. Quita uno primero."
+    return seleccion + [valor], None
 
 
 def al_azar(campo: Campo, rng: random.Random) -> str | list[str]:
     if campo.multiple:
-        return [o.clave for o in rng.sample(campo.opciones, rng.randint(0, 2))]
+        cuantos = campo.maximo if campo.minimo else rng.randint(0, 2)
+        return [o.clave for o in rng.sample(campo.opciones, cuantos)]
     return rng.choice(campo.opciones).clave
 
 
@@ -171,11 +240,18 @@ def etiqueta(ap: dict, campo: str) -> str:
     """Texto legible del valor elegido, p. ej. '🟡 Rubio' o 'Lentes, Pecas'."""
     c = POR_CLAVE[campo]
     valor = ap.get(campo)
+    genero = ap.get("genero")
     if c.multiple:
-        nombres = [o.nombre for o in c.opciones if o.clave in (valor or [])]
+        nombres = [o.texto(genero) for o in c.opciones if o.clave in (valor or [])]
         return ", ".join(nombres) if nombres else "Ninguno"
     o = c.opcion(valor) if isinstance(valor, str) else None
-    return f"{o.emoji} {o.nombre}" if o else "—"
+    return o.boton(genero) if o else "—"
+
+
+def animo(ap: dict) -> str:
+    """Estado de ánimo con su color, p. ej. '🩷 😍 Enamorada'."""
+    o = ANIMO.opcion(ap.get("animo"))
+    return o.boton(ap.get("genero")) if o else ""
 
 
 # --- avatar en emoji --------------------------------------------------------
@@ -290,4 +366,16 @@ def descripcion(nombre: str, ap: dict) -> str:
         frases.append(f"Además, {_unir(detalles)}.")
     if ap.get("estilo") in _ESTILO:
         frases.append(f"Viste con estilo {_ESTILO[ap['estilo']]}.")
+    rasgos = [o.texto(g).lower() for o in POR_CLAVE["rasgos"].opciones if o.clave in (ap.get("rasgos") or [])]
+    if rasgos:
+        if g == "nobinario":
+            frases.append(f"Su personalidad: {_unir(rasgos)}.")
+        else:
+            frases.append(f"Es {_unir(rasgos)}.")
+    aspiracion = POR_CLAVE["aspiracion"].opcion(ap.get("aspiracion"))
+    if aspiracion:
+        frases.append(aspiracion.frase)
+    estado = ANIMO.opcion(ap.get("animo"))
+    if estado:
+        frases.append(f"Ahora mismo se siente {estado.texto(g).lower()} {estado.color}.")
     return " ".join(frases)

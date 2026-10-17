@@ -15,6 +15,7 @@ def main() -> None:
     logging.basicConfig(
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
         level=logging.INFO,
+        stream=sys.stdout,  # Railway marca como error todo lo que sale por stderr
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)
     cfg = Config.desde_entorno()
@@ -22,8 +23,8 @@ def main() -> None:
         sys.exit("Falta BOT_TOKEN. Copia .env.example a .env y pon el token de @BotFather.")
     if not cfg.admins:
         logging.warning(
-            "ADMIN_IDS está vacío: nadie podrá entrar sin invitación. "
-            "Escríbele /start al bot para ver tu ID y ponlo en ADMIN_IDS."
+            "ADMIN_IDS está vacío: si todavía no hay jugadores, la primera persona que "
+            "abra el bot entrará como administradora."
         )
     juego = Juego(DB(cfg.db_ruta), cfg)
     app = BotSimPareja(juego, cfg).construir()

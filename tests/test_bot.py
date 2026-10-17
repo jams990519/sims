@@ -81,6 +81,13 @@ def test_recorrido_por_telegram():
     asyncio.run(_recorrido())
 
 
+def botones(datos):
+    markup = datos.get("reply_markup") or {}
+    if isinstance(markup, str):
+        markup = json.loads(markup)
+    return [b.get("callback_data") for fila in markup.get("inline_keyboard", []) for b in fila]
+
+
 async def _recorrido():
     tg = TelegramFalso()
     cfg = Config(token="123:ABC", admins=frozenset({ADMIN}))
@@ -97,35 +104,48 @@ async def _recorrido():
     # El admin crea su personaje con todo al azar
     await enviar(mensaje(ADMIN, "/start", next(n)))
     await enviar(mensaje(ADMIN, "Luis", next(n)))
-    ultimo = tg.enviados("sendMessage", ADMIN)[-1]
-    await enviar(boton(ADMIN, "apr", ultimo.get("message_id", 101), next(n)))
+    await enviar(boton(ADMIN, "apr", 101, next(n)))
     await enviar(boton(ADMIN, "apok", 101, next(n)))
     assert "Personaje creado" in tg.enviados("sendMessage", ADMIN)[-1]["text"]
 
-    # Abre la sala (queda registrada para actualizarse en vivo) y genera una invitación
+    # Abre la sala: queda registrada para actualizarse en vivo
     await enviar(mensaje(ADMIN, "/sala", next(n)))
     sala_admin = juego.db.jugador(ADMIN).msg_sala
     assert sala_admin
-    await enviar(boton(ADMIN, "inv:pareja", 500, next(n)))
-    invitacion = tg.llamadas[-1][1]["text"]
-    assert "https://t.me/sims000bot?start=" in invitacion
-    codigo = invitacion.split("?start=")[1].split()[0]
-    # editar el mensaje 500 (que no era la sala) no rompe la sala en vivo
-    assert juego.db.jugador(ADMIN).msg_sala == sala_admin
 
-    # Ana entra por el enlace
-    await enviar(mensaje(ANA, f"/start {codigo}", next(n)))
-    assert any("abrió tu invitación" in d["text"] for d in tg.enviados("sendMessage", ADMIN))
+    # Ana abre el bot y recibe su código personal
+    await enviar(mensaje(ANA, "/start", next(n)))
+    candado = tg.enviados("sendMessage", ANA)[-1]["text"]
+    codigo = candado.split("invitar_")[1].split("<")[0]
+
+    # Luis escribe /invitar_CÓDIGO y elige invitarla como pareja
+    await enviar(mensaje(ADMIN, f"/invitar_{codigo}", next(n)))
+    assert f"invc:{codigo}:pareja" in botones(tg.enviados("sendMessage", ADMIN)[-1])
+    await enviar(boton(ADMIN, f"invc:{codigo}:pareja", 500, next(n)))
+    invitacion = tg.enviados("sendMessage", ANA)[-1]
+    assert "te invitó" in invitacion["text"]
+    acepto = next(d for d in botones(invitacion) if d and d.startswith("acepto:"))
+
+    # Ana acepta, crea su personaje y entra a la sala de Luis
+    await enviar(boton(ANA, acepto, 600, next(n)))
     await enviar(mensaje(ANA, "Ana", next(n)))
     await enviar(boton(ANA, "apr", 600, next(n)))
     await enviar(boton(ANA, "apok", 600, next(n)))
     assert any("entró a tu sala" in d["text"] for d in tg.enviados("sendMessage", ADMIN))
-    # la sala abierta del admin se actualizó sola mostrando a Ana en línea
+    # la sala abierta de Luis se actualizó sola mostrando a Ana en línea
     ediciones = [d for d in tg.enviados("editMessageText", ADMIN) if d["message_id"] == sala_admin]
-    assert "Ana</b> — 🟢 en línea" in ediciones[-1]["text"]
+    assert "Ana</b> · " in ediciones[-1]["text"] and "🟢 en línea" in ediciones[-1]["text"]
 
     # Chat interno
     await enviar(mensaje(ANA, "te extraño 💞", next(n)))
     assert tg.enviados("sendMessage", ADMIN)[-1]["text"].endswith("<b>Ana</b>: te extraño 💞")
-
     await app.shutdown()
+
+    # Al arrancar una versión nueva se anuncian las novedades a los dos (una sola vez)
+    juego.db.guardar_meta("version_anunciada", "0.0")
+    await bot._al_iniciar(app)
+    for uid in (ADMIN, ANA):
+        assert "se actualizó a la versión" in tg.enviados("sendMessage", uid)[-1]["text"]
+    antes = len(tg.llamadas)
+    await bot._al_iniciar(app)
+    assert not [m for m, _ in tg.llamadas[antes:] if m == "sendMessage"]
