@@ -23,7 +23,8 @@ def iniciales(nombres: list[str]) -> list[str]:
 
 
 def marcas(quienes: list[str]) -> str:
-    return "".join(f"[{q}]" for q in quienes)
+    """'[L][A]'; la mascota ya viene entre paréntesis: '(K)'."""
+    return "".join(q if q.startswith("(") else f"[{q}]" for q in quienes)
 
 
 def _sangria(texto: str, ancho: int) -> str:

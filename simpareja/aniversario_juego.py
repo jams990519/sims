@@ -40,7 +40,8 @@ REGALOS = {
     "peluche": ("🧸 Un peluche", 20),
     "perfume": ("✨ Un perfume", 50),
 }
-CITAS = {"restaurante": "🍝 Cena en el restaurante", "cine": "🎬 Cita en el cine", "parque": "🌳 Paseo por el parque"}
+CITAS = {"restaurante": "🍝 Cena en el restaurante", "cine": "🎬 Cita en el cine", "parque": "🌳 Paseo por el parque",
+         "pasear": "🐕 Paseo con el perro"}
 
 
 def sumar_meses(d: date, meses: int) -> date:

@@ -3,9 +3,17 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.21"
+VERSION = "0.22"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.22", [
+        "🐾 <b>Mascota</b> (🏠 Casa → Mascota): adopten un 🐶 perro o un 🐱 gato por $150, de acuerdo los dos: "
+        "eligen el aspecto y el nombre. La comida cuesta $40 al mes (va con las facturas).",
+        "🍖😊🛁 Tiene sus barras: hambre, felicidad y limpieza. Denle de comer, jueguen con ella, báñenla y "
+        "paseen al perro (cuenta como salida al parque). Hacerlo juntos sube la relación.",
+        "😢 Si la descuidan se pone triste, rompe cosas o hace ruido de noche y no los deja dormir.",
+        "🗺️ Aparece en el plano, y si se van de viaje alguien la cuida ($20 al día). Con ella se logra el hito «Mascota».",
+    ]),
     ("0.21", [
         "🪑 <b>Objetos de la casa</b> (🏠 Casa → Objetos): con la casa vienen la cama, la estufa, la nevera, la "
         "ducha y un móvil básico. Lo demás hay que comprarlo.",
