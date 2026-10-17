@@ -44,7 +44,15 @@ docker run -d --name simpareja --restart unless-stopped \
   --env-file .env -v simpareja-datos:/app/datos simpareja
 ```
 
-### 3b. Sin Docker (Python 3.10 o más nuevo)
+### 3b. En Railway
+1. **New Project → Deploy from GitHub repo → `jams990519/sims`**. Railway detecta el `Dockerfile` solo.
+2. En el servicio, pestaña **Variables**: añade `BOT_TOKEN` y `ADMIN_IDS` (y si quieres, las demás de `.env.example`).
+3. Añade un **Volume** al servicio con *mount path* `/app/datos`. Sin él, las partidas se borran en cada despliegue.
+4. Deja **una sola réplica**: si corren dos copias del bot a la vez, Telegram da error `Conflict`.
+
+No hace falta generar un dominio público: el bot no recibe visitas web.
+
+### 3c. Sin Docker (Python 3.10 o más nuevo)
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
