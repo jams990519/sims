@@ -3,9 +3,18 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.19"
+VERSION = "0.20"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.20", [
+        "💍 <b>Compromiso</b> (🏆 Hitos → Compromiso): con el medidor de los dos por encima del 80 % y el primer "
+        "viaje hecho, compra un anillo en secreto ($500 a $2.000) y pide matrimonio. El otro responde sí o no; "
+        "si es no, el anillo se guarda para otro momento.",
+        "💒 <b>Boda</b>: comprometidos, planean lugar, invitados, comida y fecha ($2.000 a $10.000). Ese día, con "
+        "los dos conectados, cada uno dice «sí, acepto». Si no se casan ese día, se pospone una semana.",
+        "💞 Casados: se ve en la sala, pueden hacer una 🌙 luna de miel (un viaje) y, si los dos quieren, "
+        "💰 unir el dinero: las carteras pasan a la cuenta compartida y los sueldos van ahí.",
+    ]),
     ("0.19", [
         "✈️ <b>Viajes</b> (💕 Pareja → Viajes): elijan destino y días, de $800 a $2.000: 🏖️ playa (2 días), "
         "🏔️ montaña (3), 🏛️ ciudad histórica (3) o 🗼 París (4). Uno lo propone y el otro acepta; al aceptar se paga.",
