@@ -86,10 +86,9 @@ class Resultado:
 
 
 ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # sin 0/O ni 1/I para que no se confundan
-LARGO_CODIGO_PERSONAL = 6
 LARGO_CODIGO_INVITACION = 10
 NOMBRE_RE = re.compile(r"[^\W\d_][\w '.\-]{1,19}")
-INVITAR_RE = re.compile(r"/?invitar[_\s]+([A-Za-z0-9]{4,12})(?:@\w+)?", re.IGNORECASE)
+INVITAR_RE = re.compile(r"/?invitar[_\s]+([A-Za-z0-9]{4,16})(?:@\w+)?", re.IGNORECASE)
 MINUTO = 60
 DIA = 86400
 AVISO_CONEXION_CADA = 30 * MINUTO
@@ -491,6 +490,8 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "act": self._b_actualizar,
             "invitar": self._b_invitar,
             "invc": self._b_confirmar_invitacion,
+            "aceptoj": self._b_aceptar_mudarse,
+            "rechazoj": self._b_rechazar_mudarse,
             "invs": self._b_mis_invitaciones,
             "anular": self._b_anular,
             "pjs": self._b_personajes,
@@ -610,15 +611,24 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
                 return codigo
 
     def _registrar_visitante(self, uid: int, nombre_tg: str) -> Visitante:
+        """El código personal de cada quien es su ID de jugador (el de Telegram)."""
         v = self.db.visitante(uid)
         if v is None:
-            codigo = self._codigo_libre(LARGO_CODIGO_PERSONAL, self.db.visitante_por_codigo)
-            v = Visitante(id=uid, codigo=codigo, nombre_tg=nombre_tg, creado=self.reloj())
+            v = Visitante(id=uid, codigo=str(uid), nombre_tg=nombre_tg, creado=self.reloj())
             self.db.guardar_visitante(v)
-        elif nombre_tg and v.nombre_tg != nombre_tg:
-            v.nombre_tg = nombre_tg
+        elif v.codigo != str(uid) or (nombre_tg and v.nombre_tg != nombre_tg):
+            v.codigo = str(uid)  # los códigos al azar de antes pasan a ser el ID
+            v.nombre_tg = nombre_tg or v.nombre_tg
             self.db.guardar_visitante(v)
         return v
+
+    def _resolver_codigo(self, codigo: str) -> tuple[Visitante | None, Jugador | None]:
+        """A quién pertenece un código: su ID de jugador (o un código antiguo de visitante)."""
+        if codigo.isdigit():
+            uid = int(codigo)
+            return self.db.visitante(uid), self.db.jugador(uid)
+        v = self.db.visitante_por_codigo(codigo)
+        return v, (self.db.jugador(v.id) if v else None)
 
     def _visitante(self, uid: int, nombre_tg: str) -> Resultado:
         if uid in self.cfg.admins:
@@ -637,7 +647,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         lineas += [
             f"🔒 <b>{esc(self.cfg.nombre_juego)} es solo por invitación.</b>",
             "",
-            f"🔑 Tu código personal: <code>{v.codigo}</code>",
+            f"🔑 Tu código personal (tu ID de jugador): <code>{v.codigo}</code>",
             "",
             "Pásale este código a quien te va a invitar (tu pareja o alguien que ya juegue). "
             "Esa persona tiene que escribir en el bot:",
@@ -703,18 +713,25 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         if len(self._fallos_recientes(j.id, ahora)) >= MAX_FALLOS_CODIGO:
             res.pantalla = Pantalla("⏳ Demasiados códigos equivocados. Espera unos minutos y vuelve a probar.", volver)
             return
-        v = self.db.visitante_por_codigo(codigo)
+        v, otro = self._resolver_codigo(codigo)
+        if otro is not None and otro.id == j.id:
+            res.pantalla = Pantalla(
+                "🪪 Ese es <b>tu</b> código. Para invitar a alguien, escribe <code>invitar_</code> y "
+                "<b>su</b> código (su ID de jugador).",
+                volver,
+            )
+            return
+        if otro is not None:
+            self._invitar_jugador(j, otro, volver, res)
+            return
         if v is None:
             self._fallos[j.id].append(ahora)
             res.pantalla = Pantalla(
                 f"❌ No encontré el código <code>{esc(codigo)}</code>.\n\n"
-                f"Revisa que esté bien escrito: son {LARGO_CODIGO_PERSONAL} letras y números, y la otra "
-                f"persona lo ve al abrir @{esc(self.bot_usuario)} y tocar <b>Iniciar</b>.",
+                "Revisa que esté bien escrito: es su ID de jugador (solo números). La otra persona lo ve al "
+                f"abrir @{esc(self.bot_usuario)} y tocar <b>Iniciar</b>, o en 💌 Invitar si ya juega.",
                 volver,
             )
-            return
-        if self.db.jugador(v.id) is not None:
-            res.pantalla = Pantalla("ℹ️ Esa persona ya está jugando.", volver)
             return
         botones: Botones = []
         if self._hay_lugar(j):
@@ -727,11 +744,34 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             botones,
         )
 
+    def _invitar_jugador(self, j: Jugador, otro: Jugador, volver: Botones, res: Resultado) -> None:
+        """El código es de alguien que ya juega: si juega sin pareja, se le invita a mudarse a tu sala."""
+        if not otro.activo:
+            res.pantalla = Pantalla("ℹ️ Esa persona todavía está creando su personaje. Prueba en un rato.", volver)
+            return
+        if otro.sala_id == j.sala_id:
+            res.pantalla = Pantalla(f"💞 {self._firma(otro)} ya está en tu sala.", volver)
+            return
+        if self._pareja_en_sala(otro) is not None:
+            res.pantalla = Pantalla(f"ℹ️ {self._firma(otro)} ya juega en pareja en otra sala.", volver)
+            return
+        if not self._hay_lugar(j):
+            res.pantalla = Pantalla("ℹ️ Tu sala ya está completa.", volver)
+            return
+        res.pantalla = Pantalla(
+            f"🪪 El código <code>{otro.id}</code> es de {self._firma(otro)}, que ya juega sin pareja.\n\n"
+            "¿Le invitas a mudarse a tu sala como tu pareja? Sus ahorros y sus cosas se vienen con su Sim.",
+            [[("💞 Sí, como mi pareja", f"invc:{otro.id}:pareja")], [("❌ Cancelar", "sala")]],
+        )
+
     def _b_confirmar_invitacion(self, j: Jugador, arg: str, res: Resultado) -> None:
         ahora = self.reloj()
         codigo, _, tipo = arg.partition(":")
-        v = self.db.visitante_por_codigo(codigo)
-        if v is None or self.db.jugador(v.id) is not None or tipo not in ("pareja", "amigo"):
+        v, otro = self._resolver_codigo(codigo)
+        if otro is not None and otro.id != j.id:
+            self._confirmar_invitacion_jugador(j, otro, tipo, res)
+            return
+        if v is None or otro is not None or tipo not in ("pareja", "amigo"):
             res.alerta = "Esa persona ya no se puede invitar."
             self._b_invitar(j, "", res)
             return
@@ -767,6 +807,89 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "🎮 Mientras tanto, puedes seguir jugando.",
             [[("🎮 Jugar mientras tanto", "sim")], [("📋 Invitaciones enviadas", "invs"), SALA]],
         )
+
+    def _confirmar_invitacion_jugador(self, j: Jugador, otro: Jugador, tipo: str, res: Resultado) -> None:
+        ahora = self.reloj()
+        if tipo != "pareja" or not otro.activo or self._pareja_en_sala(otro) is not None or not self._hay_lugar(j):
+            res.alerta = "Esa persona ya no se puede invitar."
+            self._b_invitar(j, "", res)
+            return
+        for vieja in self.db.invitaciones_para(otro.id, ahora):
+            vieja.anulada = 1
+            self.db.guardar_invitacion(vieja)
+        inv = Invitacion(
+            codigo=self._codigo_libre(LARGO_CODIGO_INVITACION, self.db.invitacion),
+            creador=j.id, tipo="pareja", sala_id=j.sala_id, creada=ahora,
+            expira=ahora + self.cfg.invitacion_dias * DIA, para_id=otro.id,
+        )
+        self.db.guardar_invitacion(inv)
+        res.avisos.append(Aviso(
+            otro.id,
+            f"💌 <b>¡Tienes una invitación!</b>\n\n{self._firma(j)} te invita a mudarte a su sala como su pareja. "
+            "Tu Sim, tus ahorros de la cuenta compartida y tus cosas se mudan contigo.",
+            [[("✅ Aceptar y mudarme", f"aceptoj:{inv.codigo}")], [("❌ No, gracias", f"rechazoj:{inv.codigo}")]],
+        ))
+        res.pantalla = Pantalla(
+            f"✅ <b>Invitación enviada a {self._firma(otro)}.</b>\n\nLe llegó un aviso para aceptarla. "
+            f"⏳ Vence en {duracion(inv.expira - ahora + MINUTO)}.",
+            [[("📋 Invitaciones enviadas", "invs"), SALA]],
+        )
+
+    def _b_aceptar_mudarse(self, j: Jugador, codigo: str, res: Resultado) -> None:
+        """Alguien que jugaba sin pareja acepta mudarse a la sala de quien le invitó."""
+        ahora = self.reloj()
+        inv = self.db.invitacion(codigo)
+        creador = self.db.jugador(inv.creador) if inv else None
+        if (
+            inv is None or inv.para_id != j.id or not inv.vigente(ahora) or creador is None or not creador.activo
+            or creador.sala_id is None or self._pareja_en_sala(j) is not None or not self._hay_lugar(creador)
+        ):
+            res.alerta = "Esa invitación ya no está disponible."
+            res.pantalla = self._pantalla_sala(j)
+            return
+        inv.usada_por = j.id
+        inv.usada_ts = ahora
+        self.db.guardar_invitacion(inv)
+        if self._accion(j):
+            self._vivir(j, ahora)
+            j.accion = None
+        vieja = j.sala_id
+        self._mudar_hogar(vieja, creador.sala_id, j)
+        j.sala_id = creador.sala_id
+        j.invitado_por = creador.id
+        j.lugar = V.HABITACION_INICIAL
+        self.db.guardar_jugador(j)
+        res.avisos.append(Aviso(creador.id, f"💞 {self._firma(j)} aceptó tu invitación y se mudó a tu sala.", [[SALA]]))
+        res.ediciones += self._refrescar_sala(creador.sala_id, excepto=j.id)
+        res.pantalla = self._pantalla_sala(j, f"💞 ¡Te mudaste a la sala de {self._firma(creador)}!")
+
+    def _mudar_hogar(self, vieja: int | None, nueva: int, j: Jugador) -> None:
+        """Lo de la casa anterior que se lleva: los ahorros, los objetos y la mascota."""
+        h0 = self.db.hogar(vieja) if vieja is not None else None
+        if h0 is None or not h0.casa:
+            return
+        h = self._hogar(nueva)
+        ex0, ex = self._extras_hogar(h0), self._extras_hogar(h)
+        if h0.cuenta > 0:
+            h.cuenta += h0.cuenta
+            self._anotar_movimiento(nueva, j.id, "compartida", h0.cuenta, f"🧳 Ahorros de {j.personaje}")
+            h0.cuenta = 0
+        ex["objetos"] = sorted(set(ex.get("objetos", [])) | set(ex0.pop("objetos", [])))
+        if ex0.get("mascota") and not ex.get("mascota"):
+            ex["mascota"] = ex0.pop("mascota")
+        h0.cocina = ""
+        h0.extras = json.dumps(ex0)
+        self.db.guardar_hogar(h0)
+        self._guardar_extras_hogar(h, ex)
+
+    def _b_rechazar_mudarse(self, j: Jugador, codigo: str, res: Resultado) -> None:
+        inv = self.db.invitacion(codigo)
+        if inv is not None and inv.para_id == j.id and inv.vigente(self.reloj()):
+            inv.anulada = 1
+            self.db.guardar_invitacion(inv)
+            res.avisos.append(Aviso(inv.creador, f"😕 {self._firma(j)} no aceptó tu invitación."))
+            res.alerta = "👌 Invitación rechazada"
+        res.pantalla = self._pantalla_sala(j)
 
     # ------------------------------------------------------------------
     # Creación del personaje
@@ -1390,7 +1513,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             f"👤 Personaje: {self._firma(j)}\n"
             f"🔔 Avisarme cuando alguien entra a mi sala: <b>{avisos}</b>\n"
             f"🕒 Tu hora local: {self._hora(j, self.reloj())}\n"
-            f"🆔 Tu ID de Telegram: <code>{j.id}</code>\n"
+            f"🪪 Tu código de jugador (tu ID): <code>{j.id}</code>\n"
             f"🏷️ Versión del juego: {N.VERSION}",
             [
                 [("🔕 Desactivar avisos" if j.avisos_conexion else "🔔 Activar avisos", "avisos")],
@@ -1454,11 +1577,15 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         compartir = f"https://t.me/share/url?url={quote(bot, safe='')}&text={quote(mensaje)}"
         res.pantalla = Pantalla(
             "💌 <b>Invitar a un jugador</b>\n\n"
-            f"1️⃣ Pídele a la otra persona que abra @{esc(self.bot_usuario)} y toque <b>Iniciar</b>.\n"
-            "2️⃣ El bot le mostrará su <b>código personal</b>.\n"
-            "3️⃣ Cuando te lo pase, escríbelo aquí así:\n"
-            "<code>invitar_CÓDIGO</code>   (por ejemplo: <code>invitar_K7M2QX</code>)\n\n"
-            "🔐 Cada código pertenece a una sola persona: nadie más puede entrar con él.\n\n"
+            f"🪪 <b>Tu código</b> ({self._firma(j)}): <code>{j.id}</code>\n"
+            "<i>Es tu ID de jugador. Tócalo para copiarlo y pásaselo a quien quiera invitarte.</i>\n\n"
+            "<b>Para invitar a alguien:</b>\n"
+            f"1️⃣ Pídele que abra @{esc(self.bot_usuario)} y toque <b>Iniciar</b> (si ya juega, que mire "
+            "aquí, en 💌 Invitar).\n"
+            "2️⃣ El bot le mostrará <b>su código</b>: su ID de jugador.\n"
+            "3️⃣ Cuando te lo pase, escríbelo así:\n"
+            "<code>invitar_CÓDIGO</code>   (por ejemplo: <code>invitar_123456789</code>)\n\n"
+            "🔐 Le llega un aviso y solo entra si acepta.\n\n"
             "🎮 No hace falta esperar: puedes jugar ya y tu pareja se une cuando entre.",
             [
                 [("📤 Pasarle el bot", compartir)],

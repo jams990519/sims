@@ -91,7 +91,8 @@ def test_visitante_ve_su_codigo_personal(juego):
     admin_listo(juego)
     res = juego.inicio(ANA, "Ana", None)
     assert "solo por invitación" in res.pantalla.texto
-    codigo = res.pantalla.texto.split("Tu código personal: <code>")[1][:6]
+    assert f"Tu código personal (tu ID de jugador): <code>{ANA}</code>" in res.pantalla.texto
+    codigo = str(ANA)
     assert f"invitar_{codigo}" in res.pantalla.texto
     assert juego.db.jugador(ANA) is None
     # siempre el mismo código para la misma persona
@@ -132,8 +133,47 @@ def test_invitar_con_codigo_a_la_pareja(juego):
 def test_codigo_equivocado_y_quien_ya_juega(pareja):
     res = pareja.texto(ADMIN, "Admin", "invitar_ZZZZZZ")
     assert "No encontré el código" in res.pantalla.texto
-    codigo = pareja.db.visitante(ANA).codigo
-    assert "ya está jugando" in pareja.texto(ADMIN, "Admin", f"invitar_{codigo}").pantalla.texto
+    assert "ya está en tu sala" in pareja.texto(ADMIN, "Admin", f"invitar_{ANA}").pantalla.texto
+    assert "Ese es <b>tu</b> código" in pareja.texto(ADMIN, "Admin", f"invitar_{ADMIN}").pantalla.texto
+
+
+def test_invitar_muestra_mi_codigo(pareja):
+    texto = pareja.boton(ADMIN, "", "invitar").pantalla.texto
+    assert "🪪 <b>Tu código</b> (" in texto and f"<code>{ADMIN}</code>" in texto and "Luis" in texto
+    assert f"Tu código de jugador (tu ID): <code>{ADMIN}</code>" in pareja.boton(ADMIN, "", "ajustes").pantalla.texto
+
+
+def test_los_codigos_antiguos_pasan_a_ser_el_id(juego):
+    from simpareja.db import Visitante
+    admin_listo(juego)
+    juego.db.guardar_visitante(Visitante(id=ANA, codigo="K7M2QX", nombre_tg="Ana", creado=0))
+    res = juego.texto(ADMIN, "Admin", "invitar_K7M2QX")  # el código viejo sigue sirviendo
+    assert "es de <b>Ana</b>" in res.pantalla.texto
+    juego.inicio(ANA, "Ana")
+    assert juego.db.visitante(ANA).codigo == str(ANA)
+
+
+def test_invitar_a_quien_ya_juega_sin_pareja(juego):
+    admin_listo(juego)
+    aceptar(juego, LUIS, invitar(juego, ADMIN, LUIS, "amigo", "Luis"), "Luis")
+    crear_personaje(juego, LUIS, "Pepe")  # Pepe juega en su propia sala
+    sala_luis = juego.db.jugador(LUIS).sala_id
+    h = juego._hogar(sala_luis)
+    h.cuenta = 500
+    juego.db.guardar_hogar(h)
+    res = juego.texto(ADMIN, "Admin", f"invitar_{LUIS}")
+    assert "ya juega sin pareja" in res.pantalla.texto and f"invc:{LUIS}:pareja" in datos(res.pantalla)
+    res = juego.boton(ADMIN, "Admin", f"invc:{LUIS}:pareja")
+    aviso = next(a for a in res.avisos if a.para == LUIS)
+    acepto = next(d for fila in aviso.botones for _, d in fila if d.startswith("aceptoj:"))
+    antes = juego._hogar(juego.db.jugador(ADMIN).sala_id).cuenta
+    res = juego.boton(LUIS, "Luis", acepto)
+    assert "¡Te mudaste a la sala de" in res.pantalla.texto
+    assert any(a.para == ADMIN and "se mudó a tu sala" in a.texto for a in res.avisos)
+    assert juego.db.jugador(LUIS).sala_id == juego.db.jugador(ADMIN).sala_id
+    assert juego._hogar(juego.db.jugador(ADMIN).sala_id).cuenta == antes + 500
+    assert juego._hogar(sala_luis).cuenta == 0
+    assert "ya está en tu sala" in juego.texto(ADMIN, "Admin", f"invitar_{LUIS}").pantalla.texto
 
 
 def test_la_invitacion_solo_sirve_a_su_duena(juego):

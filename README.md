@@ -3,11 +3,11 @@
 Un juego de texto tipo *Los Sims* para jugar **en pareja** por Telegram ([@sims000bot](https://t.me/sims000bot)).
 Se entra **solo por invitación** y funciona en **cualquier país donde abra Telegram**, Cuba incluida.
 
-## Qué hay hasta ahora (versión 0.25)
+## Qué hay hasta ahora (versión 0.26)
 
 | | |
 |---|---|
-| 🔐 **Entrada solo por invitación** | Quien abre el bot sin estar invitado ve su **código personal**. Se lo pasa a alguien que ya juega, que escribe `invitar_CÓDIGO` y elige si entra como pareja (a su sala) o con sala propia. A la persona invitada le llega un aviso para **aceptar o rechazar**. Cada código solo sirve para su dueño. |
+| 🔐 **Entrada solo por invitación** | El **código de cada persona es su ID de jugador** (el de Telegram): quien todavía no juega lo ve al abrir el bot, y quien ya juega lo ve con su nombre en 💌 Invitar. Para invitar se escribe `invitar_CÓDIGO` y se elige si entra como pareja (a tu sala) o con sala propia; si la persona ya juega sin pareja, se le invita a mudarse a tu sala con sus ahorros y sus cosas. A la persona invitada le llega un aviso para **aceptar o rechazar**. |
 | 🧑‍🎨 **Creador de personaje** | **Aspecto**: género, edad, piel, forma del cuerpo, estatura, peinado, color de pelo, ojos, detalles y estilo. **Personalidad**: hasta 3 rasgos, una aspiración de vida y un estado de ánimo con su color. Botón 🎲 al azar en cada paso, ficha editable, textos en masculino, femenino o neutro y avatar en emoji (👩🏾‍🦱, 🧔🏽‍♂️, 👱🏼‍♀️…). |
 | 🎮 **Menú** | 🏠 Casa · ⚡ Acciones · 📍 Lugares · 💼 Trabajo · 💕 Pareja · 👤 Estado · 💬 Chat, con ⬅️ Atrás en cada submenú. Cada acción termina en una ficha con efecto, tiempo y precio para confirmar (solo o juntos). El Sim está en una habitación y va solo a donde toca. Lo que aún no existe aparece como 🚧. |
 | 🎮 **Jugar o invitar** | Al terminar el personaje eliges **Jugar** (también sin compañía, sin esperar a nadie) o **Invitar**. |
