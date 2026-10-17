@@ -3,7 +3,7 @@
 Un juego de texto tipo *Los Sims* para jugar **en pareja** por Telegram ([@sims000bot](https://t.me/sims000bot)).
 Se entra **solo por invitación** y funciona en **cualquier país donde abra Telegram**, Cuba incluida.
 
-## Qué hay hasta ahora (versión 0.9)
+## Qué hay hasta ahora (versión 0.10)
 
 | | |
 |---|---|
@@ -13,6 +13,7 @@ Se entra **solo por invitación** y funciona en **cualquier país donde abra Tel
 | 🎮 **Jugar o invitar** | Al terminar el personaje eliges **Jugar** (también sin compañía, sin esperar a nadie) o **Invitar**. |
 | 🧍 **Necesidades** | Hambre (−6/h), energía (máx. 100, sube a 130 con constancia), higiene (−4/h), diversión (−5/h) y social (−3/h), de 0 a 100, que cambian con el reloj del Sim. Con alguna en 0 se pone de mal humor; sin energía se duerme donde esté. |
 | 🎬 **Acciones** | Comer (desayuno +30, almuerzo +45, cena +40 según la hora), cocinar, dormir (+12/h), siesta, ducha, bañarse juntos, dientes, tele, redes, parque, hablar, abrazar, besar, masaje, cita, limpiar una zona y lavar la ropa (la ropa sucia se acumula). Casi todas se pueden hacer **solo o juntos**: juntos terminan antes. |
+| 🗺️ **Plano de la casa** | `/plano` dibuja la casa en texto monoespaciado (cuarto arriba a la izquierda, clóset y baño a la derecha, sala-cocina-comedor abajo; con cuarto extra si se mudan) y pone a cada Sim con su inicial donde está, con lo que hace y el tiempo que le falta. Se actualiza solo mientras está abierto. |
 | 🏠 **Sala** | Muestra a cada quien con su avatar, su ánimo, si está 🟢 en línea (y qué hace), ❄️ en pausa o ⚫ fuera de línea, y la hora de su Sim. **Se actualiza sola.** |
 | 🏡 **Casa y dinero** | Empiezan con **$3.000** entre los dos y **rentan** la casita (baño, clóset, cuarto y sala-cocina-comedor) por **$900 al mes** con **$900 de depósito**: les quedan $2.100. En 💰 Dinero está la **meta de ahorro «nuestra casa»** con lo que falta. **Mudanza** (aceptan los dos): con $3.900 ahorrados, a un apartamento grande de $1.300 al mes con cuarto extra (se devuelve el depósito y el camión cuesta $150). **Comprar** «nuestra casa» con $15.000 de entrada y $1.200 de hipoteca; remodelar solo en casa propia. Cada quien tiene su 👛 cartera y hay una 🏦 cuenta compartida. Facturas mensuales: renta o hipoteca, luz $90 y agua $40 (suben con el uso), internet $50 y gas $30; comida $3/$5/$4 por persona; imprevistos aleatorios; si no pagan, recargo del 10 % y corte del servicio. |
 | 💼 **Trabajos** | 7 trabajos de la tabla del diseño, con 3 niveles y sueldo por hora ($10 a $26). Cada quien pone su **horario real** (días, hora de entrada y de 4 a 8 horas, como mucho 8 al día) y el sueldo es horas × pago por hora, en la cartera al terminar (menos $4 de transporte); gasta 8 de energía por hora. **Automático**: a su hora el Sim se va solo a trabajar, aunque el jugador no esté. **Tiempo juntos protegido**: si los dos están conectados nunca se les obliga; se les pregunta si van ahora o «cuando me desconecte» (el Sim trabaja sin el jugador y cobra igual). Si ese día no se repone el turno, no se cobra. Durante el turno el chat sigue abierto y hay acciones rápidas cada media hora (ver redes, mandar un abrazo). Ascensos a los 5 y 10 días trabajados sin necesidades en rojo; con mal humor no se trabaja; renunciar devuelve al nivel 1. |
@@ -22,7 +23,7 @@ Se entra **solo por invitación** y funciona en **cualquier país donde abra Tel
 | 💬 **Chat interno** | Todo lo que escribas en el bot (texto, fotos, stickers, notas de voz) le llega a tu pareja con tu nombre y avatar. Chatear no descongela al Sim. |
 | 📢 **Novedades** | Cada vez que se despliega una versión nueva, el bot avisa a todos los jugadores de lo que cambió (`/novedades`). |
 
-**Actualización 2 (en curso, manda sobre lo anterior):** 1. ✅ Menús y submenús · 2. ✅ Horario de trabajo real y automático (máx. 8 h) · 3. ✅ Casa en renta · 4. Plano en texto · 5. ✅ Necesidad social · 6. Ánimo con foto · 7. Preguntas de pareja · 8. Notas en la nevera · 9. Eventos sorpresa · 10. Aniversario y álbum · 11. Retos semanales · 12. Hitos · 13. Objetos y tiendas · 14. Mascota
+**Actualización 2 (en curso, manda sobre lo anterior):** 1. ✅ Menús y submenús · 2. ✅ Horario de trabajo real y automático (máx. 8 h) · 3. ✅ Casa en renta · 4. ✅ Plano en texto · 5. ✅ Necesidad social · 6. Ánimo con foto · 7. Preguntas de pareja · 8. Notas en la nevera · 9. Eventos sorpresa · 10. Aniversario y álbum · 11. Retos semanales · 12. Hitos · 13. Objetos y tiendas · 14. Mascota
 
 **Primer diseño (una parte cada vez, cada una se sube sola):**
 1. ✅ Crear el personaje · 2. ✅ Sala y chat interno · 3. ✅ Reloj individual y pausa · 4. ✅ Necesidades y acciones básicas
@@ -91,14 +92,15 @@ simpareja/
 ├── juego.py        # lógica: invitaciones, creador, sala, presencia, reloj y chat (sin Telegram)
 ├── vida.py         # necesidades, acciones y calendario (lógica pura)
 ├── vida_juego.py   # pantallas de Mi Sim, acciones en pareja y avisos
-├── dinero.py       # facturas, precios, imprevistos (lógica pura)
-├── dinero_juego.py # pantallas de dinero, facturas y casa; cobros de cada mes
+├── dinero.py       # casas, renta, facturas, precios e imprevistos (lógica pura)
+├── dinero_juego.py # pantallas de dinero, facturas, casa y mudanza; cobros de cada mes
 ├── trabajo.py      # trabajos, horarios y ascensos (lógica pura)
-├── trabajo_juego.py # pantallas de trabajo, turnos y sueldos
+├── trabajo_juego.py # horario real, turnos automáticos y flexibles, sueldos
 ├── cocina.py       # ingredientes, recetas y tiempos (lógica pura)
 ├── cocina_juego.py # súper, nevera, minijuego de cocina y táper
 ├── novedades.py    # notas de cada versión (se anuncian solas al desplegar)
-├── menus.py        # menú principal y submenús
+├── menus.py        # menú principal, submenús y plano de la casa
+├── plano.py        # dibujo del plano en texto (lógica pura)
 ├── bot.py          # adaptador de Telegram (python-telegram-bot)
 ├── db.py           # SQLite
 ├── config.py       # variables de entorno

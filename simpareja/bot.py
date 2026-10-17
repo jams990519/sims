@@ -40,7 +40,8 @@ COMANDOS = [
     BotCommand("cocina", "Cocinar paso a paso"),
     BotCommand("nevera", "Nevera, despensa y comida hecha"),
     BotCommand("dinero", "Cartera, cuenta compartida y facturas"),
-    BotCommand("casa", "Tu casa y sus servicios"),
+    BotCommand("casa", "Tu casa, la renta y la mudanza"),
+    BotCommand("plano", "El plano de la casa: dónde está cada uno"),
     BotCommand("sala", "Ver tu sala y quién está en línea"),
     BotCommand("invitar", "Invitar a un jugador"),
     BotCommand("personajes", "Ver los personajes de la sala"),
@@ -51,7 +52,7 @@ COMANDOS = [
     BotCommand("salir", "Salir y dejar tu Sim en pausa"),
     BotCommand("ayuda", "Cómo funciona"),
 ]
-COMANDOS_MENU = ["sim", "trabajo", "super", "cocina", "nevera", "dinero", "casa", "sala", "menu", "invitar", "personajes", "animo", "ajustes", "conexion", "salir"]
+COMANDOS_MENU = ["plano", "sim", "trabajo", "super", "cocina", "nevera", "dinero", "casa", "sala", "menu", "invitar", "personajes", "animo", "ajustes", "conexion", "salir"]
 
 # Tipos de mensaje que admiten pie de foto: se reenvían con el nombre en el pie.
 _CON_PIE = ("photo", "video", "animation", "audio", "document", "voice")
@@ -197,7 +198,7 @@ class BotSimPareja:
         if msg_id is None:
             m = await context.bot.send_message(uid, p.texto, reply_markup=teclado(p.botones))
             msg_id = m.message_id
-        self.juego.registrar_pantalla(uid, msg_id, p.es_sala)
+        self.juego.registrar_pantalla(uid, msg_id, p.es_sala, p.clave)
 
     async def _enviar_aviso(self, bot: Bot, aviso: Aviso, original: Message | None) -> bool:
         try:

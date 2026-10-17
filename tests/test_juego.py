@@ -440,7 +440,7 @@ def test_novedades_se_anuncian_una_vez_por_version(pareja):
     assert f"versión {N.VERSION}" in res.avisos[0].texto
     assert not pareja.anunciar_novedades().avisos
     pareja.db.guardar_meta("version_anunciada", "0.1")
-    assert "Versión 0.1" not in pareja.anunciar_novedades().avisos[0].texto
+    assert "<b>Versión 0.1</b>" not in pareja.anunciar_novedades().avisos[0].texto
 
 
 def test_migra_una_base_de_datos_de_la_version_anterior(tmp_path):

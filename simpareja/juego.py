@@ -104,6 +104,7 @@ LUGARES = {
     "mover": ("💰 Dinero", "moviendo dinero"),
     "facturas": ("📄 Facturas", "revisando las facturas"),
     "casa": ("🏡 Casa", "mirando la casa"),
+    "plano": ("🗺️ Plano de la casa", "mirando el plano de la casa"),
     "mudanza": ("🚚 Renta y mudanza", "pensando en mudarse"),
     "trabajo": ("💼 Trabajo", "mirando su trabajo"),
     "super": ("🛒 Súper", "en el súper"),
@@ -303,7 +304,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
             if j is None:
                 return self._visitante(uid, nombre_tg)
             return Resultado(pantalla=self._pantalla_conexion(j), nuevo=True)
-        data = {"sala": "sala", "menu": "menu", "sim": "sim", "dinero": "dinero", "casa": "casa",
+        data = {"sala": "sala", "menu": "menu", "sim": "sim", "dinero": "dinero", "casa": "casa", "plano": "plano",
                 "trabajo": "trabajo", "super": "super", "nevera": "nevera", "cocina": "cocina",
                 "invitar": "invitar", "ajustes": "ajustes",
                 "personajes": "pjs", "animo": "animos", "salir": "salir"}.get(nombre, "sala")
@@ -328,7 +329,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
             "💬 En la sala, todo lo que escribas (texto, fotos, stickers, notas de voz) le llega a la otra persona.\n"
             f"🕒 El juego usa tu hora local real. Si pasas {self.cfg.pausa_min} min sin hacer nada, tu Sim se "
             "congela ❄️ (no gasta necesidades); al volver tocas ▶️ Continuar y sigues donde lo dejaste.\n\n"
-            "Comandos: /start · /menu · /sim · /trabajo · /super · /cocina · /nevera · /dinero · /casa · /sala · /invitar · /personajes · /animo · /ajustes · /conexion · /novedades · /salir",
+            "Comandos: /start · /menu · /plano · /sim · /trabajo · /super · /cocina · /nevera · /dinero · /casa · /sala · /invitar · /personajes · /animo · /ajustes · /conexion · /novedades · /salir",
             [[SALA]],
         )
 
@@ -349,13 +350,16 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
         )
         return Resultado(avisos=[Aviso(j.id, texto, [[SALA]]) for j in self.db.todos_los_jugadores()])
 
-    def registrar_pantalla(self, uid: int, msg_id: int, es_sala: bool) -> None:
-        """El bot avisa qué mensaje muestra la sala, para poder actualizarlo en vivo."""
+    def registrar_pantalla(self, uid: int, msg_id: int, es_sala: bool, clave: str | None = None) -> None:
+        """El bot avisa qué mensaje muestra la sala (o el plano), para poder actualizarlo en vivo."""
         j = self.db.jugador(uid)
         if j is None:
             return
         if es_sala:
             j.msg_sala = msg_id
+            extras = self._extras(j)
+            extras["vivo"] = "plano" if clave == "plano" else "sala"
+            j.extras = json.dumps(extras)
         elif j.msg_sala == msg_id:
             j.msg_sala = None
         else:
@@ -454,6 +458,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
             "mudok": self._b_mudanza_si,
             "mudno": self._b_mudanza_no,
             "remodelar": self._b_remodelar,
+            "plano": self._b_plano,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -999,7 +1004,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
             "cocina": self._b_coccion, "menu": self._b_menu, "mcasa": self._b_menu_casa,
             "macc": self._b_menu_acciones, "mlug": self._b_menu_lugares, "mpar": self._b_menu_pareja,
             "mest": self._b_menu_estado, "perfil": self._b_perfil, "carrera": self._b_carrera,
-            "mudanza": self._b_mudanza,
+            "mudanza": self._b_mudanza, "plano": self._b_plano,
         }.get(accion, self._b_menu)
         tmp = Resultado()
         manejador(j, arg, tmp)
@@ -1131,10 +1136,14 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
 
     def _refrescar_sala(self, sala_id: int | None, excepto: int | None = None) -> list[Edicion]:
         return [
-            Edicion(m.id, m.msg_sala, self._pantalla_sala(m))
+            Edicion(m.id, m.msg_sala, self._pantalla_viva(m))
             for m in self.db.miembros_sala(sala_id)
             if m.id != excepto and m.msg_sala and m.estado == "activo"
         ]
+
+    def _pantalla_viva(self, j: Jugador) -> Pantalla:
+        """La pantalla que se actualiza sola: la sala o el plano de la casa."""
+        return self._pantalla_plano(j) if self._extras(j).get("vivo") == "plano" else self._pantalla_sala(j)
 
     def _pantalla_sala(self, j: Jugador, aviso: str | None = None) -> Pantalla:
         ahora = self.reloj()
@@ -1144,8 +1153,8 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
         lineas = [aviso, ""] if aviso else []
         if pausado:
             lineas += [
-                f"❄️ <b>Tu Sim está en pausa.</b> Pasaron {self.cfg.pausa_min} min sin jugar y su reloj "
-                "se detuvo. Toca ▶️ Continuar para seguir.",
+                f"❄️ <b>Tu Sim está en pausa.</b> Pasaron {self.cfg.pausa_min} min sin jugar y dejó de "
+                "gastar necesidades. Toca ▶️ Continuar para seguir.",
                 "",
             ]
         lineas += [f"🏠 <b>Sala de {esc(unir([m.personaje for m in miembros]))}</b>", ""]
@@ -1168,7 +1177,8 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
             )
         else:
             lineas.append("🎮 Por ahora juegas sin compañía. Cuando quieras, invita a alguien con 💌.")
-        lineas += ["", "🚧 <i>Próximamente: medidor de relación, influencer, estudios y lugares.</i>"]
+        lineas += ["", "🚧 <i>Próximamente: ánimo con foto, preguntas de pareja, notas en la nevera, "
+                   "medidor de relación y mascota.</i>"]
         botones = [
             [("🎮 Menú", "menu")],
             [("🎭 Mi ánimo", "animos"), ("🪪 Personajes", "pjs")],
