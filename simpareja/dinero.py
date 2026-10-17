@@ -58,6 +58,7 @@ class Factura:
 VIVIENDA = (
     Factura("renta", "🔑", "Renta", 0, ""),
     Factura("hipoteca", "🏦", "Hipoteca", 0, ""),
+    Factura("mascota", "🐾", "Comida de la mascota", 40, ""),
 )
 FACTURAS = (
     Factura("luz", "💡", "Luz", 90, "no hay tele, redes ni lavadora", "la luz"),
@@ -109,14 +110,18 @@ def dinero(cantidad: float) -> str:
     return f"{signo}${abs(round(cantidad)):,}".replace(",", ".")
 
 
-def factura_del_mes(consumo: dict, casa: Casa) -> list[tuple[Factura, int]]:
-    """Cada factura con lo que toca pagar este mes: la renta (o hipoteca) y los servicios, base más lo consumido."""
+def factura_del_mes(consumo: dict, casa: Casa, mascota: bool = False) -> list[tuple[Factura, int]]:
+    """Cada factura con lo que toca pagar este mes: la renta (o hipoteca), los servicios (base más lo
+    consumido) y, si tienen mascota, su comida."""
     vivienda = POR_CLAVE_FACTURA[casa.pago]
-    return [(vivienda, casa.mensual)] + [(f, round(f.base + consumo.get(f.clave, 0))) for f in FACTURAS]
+    facturas = [(vivienda, casa.mensual)] + [(f, round(f.base + consumo.get(f.clave, 0))) for f in FACTURAS]
+    if mascota:
+        facturas.append((POR_CLAVE_FACTURA["mascota"], POR_CLAVE_FACTURA["mascota"].base))
+    return facturas
 
 
-def total_mes(consumo: dict, casa: Casa) -> int:
-    return sum(monto for _, monto in factura_del_mes(consumo, casa))
+def total_mes(consumo: dict, casa: Casa, mascota: bool = False) -> int:
+    return sum(monto for _, monto in factura_del_mes(consumo, casa, mascota))
 
 
 def costo_mudanza(actual: Casa, nueva: Casa) -> int:
@@ -146,14 +151,14 @@ def falta_servicio(accion: str, cortados: set[str]) -> str | None:
     return None
 
 
-def cobrar_mes(cuenta: int, consumo: dict, casa: Casa) -> tuple[int, list[tuple[str, int]], list[dict]]:
+def cobrar_mes(cuenta: int, consumo: dict, casa: Casa, mascota: bool = False) -> tuple[int, list[tuple[str, int]], list[dict]]:
     """Cobra las facturas del mes desde la cuenta compartida, en orden.
 
     Devuelve la cuenta restante, lo pagado [(concepto, monto)] y lo que no se pudo pagar,
     ya con el recargo del 10 % [{"clave", "monto"}].
     """
     pagado, impagos = [], []
-    for f, monto in factura_del_mes(consumo, casa):
+    for f, monto in factura_del_mes(consumo, casa, mascota):
         if cuenta >= monto:
             cuenta -= monto
             pagado.append((f.clave, monto))

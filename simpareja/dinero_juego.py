@@ -95,7 +95,7 @@ class DineroMixin:
     def _bloqueo_accion(self, j: Jugador, a: V.Accion) -> str | None:
         h = self._hogar(j.sala_id)
         return (D.falta_servicio(a.clave, D.servicios_cortados(json.loads(h.pendientes))) or self._bloqueo_evento(j, a)
-                or self._falta_objeto(j, a))
+                or self._falta_objeto(j, a) or self._falta_mascota(j, a))
 
     def _extras(self, j: Jugador) -> dict:
         return json.loads(j.extras or "{}")
@@ -194,7 +194,7 @@ class DineroMixin:
         return noticias
 
     def _cobrar_mes(self, h: Hogar) -> str:
-        h.cuenta, pagado, impagos = D.cobrar_mes(h.cuenta, json.loads(h.consumo), self._casa(h))
+        h.cuenta, pagado, impagos = D.cobrar_mes(h.cuenta, json.loads(h.consumo), self._casa(h), bool(self._mascota(h)))
         for clave, monto in pagado:
             f = D.POR_CLAVE_FACTURA[clave]
             self._anotar_movimiento(h.sala_id, None, "compartida", -monto, f"{f.emoji} {f.nombre} del mes")
@@ -252,7 +252,7 @@ class DineroMixin:
             "",
             f"👛 Tu cartera: <b>{D.dinero(j.cartera)}</b>",
             f"🏦 Cuenta compartida: <b>{D.dinero(h.cuenta)}</b>",
-            f"📄 Facturas del mes: {D.dinero(D.total_mes(consumo, self._casa(h)))} · se cobran en "
+            f"📄 Facturas del mes: {D.dinero(D.total_mes(consumo, self._casa(h), bool(self._mascota(h))))} · se cobran en "
             f"{max(0, h.proximo_cobro - dia)} días",
             "",
         ] + self._metas_ahorro(h)
@@ -328,11 +328,11 @@ class DineroMixin:
         lineas = [aviso, ""] if aviso else []
         lineas += [f"📄 <b>Facturas del mes</b> · se cobran en {max(0, h.proximo_cobro - dia)} días", ""]
         casa = self._casa(h)
-        for f, monto in D.factura_del_mes(consumo, casa):
+        for f, monto in D.factura_del_mes(consumo, casa, bool(self._mascota(h))):
             extra = f" (base {D.dinero(f.base)} + uso {D.dinero(monto - f.base)})" if f.clave in D.SERVICIOS and monto != f.base else ""
             lineas.append(f"{f.emoji} {f.nombre}: {D.dinero(monto)}{extra}")
         lineas += [
-            f"<b>Total: {D.dinero(D.total_mes(consumo, casa))}</b>",
+            f"<b>Total: {D.dinero(D.total_mes(consumo, casa, bool(self._mascota(h))))}</b>",
             "",
             "🍽️ La comida se paga en cada comida: $3 el desayuno, $5 el almuerzo y $4 la cena por persona.",
             "ℹ️ Se cobran solas de la cuenta compartida. Si no alcanza, hay un recargo del 10 % y se corta el servicio hasta que paguen.",

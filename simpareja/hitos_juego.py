@@ -36,7 +36,7 @@ HITOS = (
     Hito("mudanza", "🚚", "Mudanza", "Mudarse a una casa más grande (unos $3.900 ahorrados; aceptan los dos).", 10,
          "Cuarto extra: cambian la renta y el plano."),
     Hito("mascota", "🐾", "Mascota", "Adoptar un perro o un gato ($150, de acuerdo los dos).", 10,
-         "+$40 al mes de comida.", listo=False),
+         "+$40 al mes de comida."),
     Hito("viaje", "✈️", "Primer viaje", "Un viaje juntos ($800 a $2.000) con días libres.", 20,
          "Diversión y energía al máximo."),
     Hito("compromiso", "💍", "Compromiso", "Relación de los dos por encima del 80 %, viaje hecho y un anillo.", 20,

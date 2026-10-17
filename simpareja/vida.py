@@ -178,6 +178,7 @@ CATEGORIAS = (
     ("diversion", "🎉", "Diversión"),
     ("pareja", "💞", "Pareja"),
     ("limpieza", "🧹", "Limpieza"),
+    ("mascota", "🐾", "Mascota"),
 )
 LUGARES = (
     ("super", "🛒", "Súper"),
@@ -234,6 +235,17 @@ _ACCIONES = (
            nombre_juntos="Limpiar juntos"),
     Accion("lavar", "🧺", "Lavar la ropa", "lavando la ropa", "limpieza", 60, {"energia": -5},
            habitacion="bano", nombre_juntos="Lavar la ropa juntos"),
+    # 🐾 Mascota (hace falta tenerla; pasear al perro cuenta como salida al parque)
+    Accion("dar_comida", "🍖", "Darle de comer a la mascota", "dándole de comer a la mascota", "mascota", 5,
+           habitacion="salon", nombre_juntos="Darle de comer juntos"),
+    Accion("jugar_mascota", "🎾", "Jugar con la mascota", "jugando con la mascota", "mascota", 20, {"diversion": 10},
+           habitacion="salon", zona="salon", ensucia=3, nombre_juntos="Jugar juntos con la mascota",
+           efectos_juntos={"social": 10}),
+    Accion("banar_mascota", "🛁", "Bañar a la mascota", "bañando a la mascota", "mascota", 15, {"higiene": -5},
+           habitacion="bano", zona="bano", ensucia=5, nombre_juntos="Bañarla juntos"),
+    Accion("pasear", "🐕", "Pasear al perro", "paseando al perro", "mascota", 45,
+           {"diversion": 10, "energia": -5, "social": 5}, habitacion=FUERA, ropa=1, ejercicio=True,
+           nombre_juntos="Pasear al perro juntos", efectos_juntos={"social": 20}),
     # 📍 Lugares (fuera de casa; en pareja, una salida cuenta como cita)
     Accion("super", "🛒", "Hacer el súper", "en el súper", "super", 45, {"energia": -5},
            habitacion=FUERA, nombre_juntos="Ir al súper juntos"),

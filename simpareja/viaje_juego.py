@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from . import dinero as D
 from . import vida as V
+from .mascota_juego import CUIDADOR_DIA
 from .db import Hogar, Jugador
 
 DESTINOS = {
@@ -117,8 +118,12 @@ class ViajeMixin:
             res.alerta = "Esa propuesta de viaje ya no está."
             self._b_viaje(j, "", res)
             return
-        emoji, nombre, _, costo = DESTINOS[v["destino"]]
-        if not self._pagar(j, costo, f"{emoji} Viaje a {nombre}"):
+        emoji, nombre, dias, costo = DESTINOS[v["destino"]]
+        concepto = f"{emoji} Viaje a {nombre}"
+        if self._mascota(h):  # alguien cuida a la mascota mientras no están
+            costo += CUIDADOR_DIA * dias
+            concepto += " (con cuidador de la mascota)"
+        if not self._pagar(j, costo, concepto):
             res.alerta = f"No alcanza: el viaje cuesta {D.dinero(costo)}."
             self._b_viaje(j, "", res)
             return

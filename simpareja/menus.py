@@ -17,7 +17,6 @@ from .db import EN_JUEGO, Jugador
 
 # Lo que todavía no existe: se ve en el menú, pero avisa que llega pronto.
 PRONTO = {
-    "mascota": "🐾 La mascota",
     "estudiar": "📚 Los estudios",
     "influencer": "📱 El minijuego de influencer",
 }
@@ -87,7 +86,7 @@ class MenuMixin:
         botones = [
             [("🗺️ Ver plano", "plano"), ("🚶 Moverse", "moverse")],
             [("🧊 Nevera y despensa", "nevera"), ("🪑 Objetos", "objetos")],
-            [("📝 Notas en la nevera" + (f" ({len(nuevas)})" if nuevas else ""), "notas"), ("🐾 Mascota 🚧", "pronto:mascota")],
+            [("📝 Notas en la nevera" + (f" ({len(nuevas)})" if nuevas else ""), "notas"), ("🐾 Mascota", "mascota")],
             [("🔑 Renta y mudanza", "casa")],
             [("⬅️ Atrás", "menu")],
         ]
@@ -179,6 +178,11 @@ class MenuMixin:
                 dentro.setdefault(m.lugar, []).append(letra)
             else:
                 fuera.append(letra)
+        mascota = self._mascota(self._hogar(j.sala_id))
+        if mascota:
+            marca = f"({mascota['nombre'].strip()[:1].upper() or '?'})"
+            paseando = any(m.lugar == f"{V.FUERA}:pasear" for m in miembros)
+            (fuera if paseando else dentro.setdefault("salon", [])).append(marca)
         lineas = [aviso, ""] if aviso else []
         pausado = self._congelado(j, ahora)
         if pausado:
@@ -191,6 +195,8 @@ class MenuMixin:
         for m, letra in zip(miembros, letras):
             quien = f"{html.escape(m.personaje)}{' (tú)' if m.id == j.id else ''}"
             lineas.append(f"<code>[{html.escape(letra)}]</code> {quien}: {self._estado_en_plano(m, ahora)}")
+        if mascota:
+            lineas.append(f"<code>{html.escape(marca)}</code> {self._texto_mascota(mascota)}")
         botones = [
             [("🚶 Moverse", "moverse:plano"), ("⚡ Acciones", "macc")],
             [("🔄 Actualizar", "plano"), ("⬅️ Atrás", "mcasa")],

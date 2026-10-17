@@ -131,9 +131,9 @@ def test_cuota_del_gimnasio_una_vez_al_mes(solo, reloj):
 
 
 def test_lo_que_aun_no_existe_avisa_que_llega_pronto(solo):
-    res = solo.boton(ADMIN, "", "pronto:mascota")
-    assert "🚧" in res.alerta and "mascota" in res.alerta
-    assert "pronto:mascota" in datos(solo.boton(ADMIN, "", "mcasa").pantalla)
+    res = solo.boton(ADMIN, "", "pronto:influencer")
+    assert "🚧" in res.alerta and "influencer" in res.alerta
+    assert "pronto:influencer" in datos(solo.boton(ADMIN, "", "trabajo").pantalla)
 
 
 def test_perfil_de_la_pareja(pareja):

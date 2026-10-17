@@ -24,8 +24,9 @@ RETOS = {
     "tele": ("📺 Ver la tele juntos 3 veces", 3),
 }
 # Qué acción hecha juntos cuenta para cada reto.
-POR_ACCION = {"abrazar": "abrazos", "limpiar": "limpiar", "comer": "comer", "parque": "parque", "tele": "tele"}
-SALIDAS = ("restaurante", "cine", "parque")
+POR_ACCION = {"abrazar": "abrazos", "limpiar": "limpiar", "comer": "comer", "parque": "parque", "tele": "tele",
+              "pasear": "parque"}  # pasear al perro cuenta como salida al parque
+SALIDAS = ("restaurante", "cine", "parque", "pasear")
 DINERO = (100, 200)
 RELACION = 5
 HISTORIAL = 20
