@@ -3,9 +3,17 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.17"
+VERSION = "0.18"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.18", [
+        "🏆 <b>Hitos de pareja</b> (💕 Pareja → Hitos): primera cita, primer mes, mudanza, mascota, primer viaje, "
+        "compromiso, boda y casa propia. Son opcionales: cada pareja va a su ritmo.",
+        "🎉 Cuando logran uno, se celebra con los dos conectados: pantalla especial, recuerdo en el álbum y sube "
+        "el medidor de los dos (+10 la primera cita y la mudanza, +15 el primer mes, +20 la casa propia).",
+        "🌹 La primera cita se completa sola al salir juntos; el primer mes, a los 30 días en la misma sala.",
+        "🚧 Mascota, primer viaje, compromiso y boda llegan en las próximas actualizaciones.",
+    ]),
     ("0.17", [
         "🎯 <b>Retos de la semana</b> (💕 Pareja → Retos): cada lunes llega un reto para hacer juntos, como "
         "cocinar juntos 3 veces, tener una cita el fin de semana, darse 5 abrazos o responder 2 preguntas.",

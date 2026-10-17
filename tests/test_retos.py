@@ -86,7 +86,9 @@ def test_cita_el_fin_de_semana_con_premio_en_relacion(pareja, reloj):
     juntos(pareja, reloj, "cine", 3 * 60)
     pareja.tick()
     assert reto(pareja)["hecho"]
-    assert pareja._relacion(pareja.db.jugador(ADMIN)) == 55 and pareja._relacion(pareja.db.jugador(ANA)) == 55
+    for uid in (ADMIN, ANA):  # (la primera cita también es un hito: suma aparte)
+        historial = pareja._extras(pareja.db.jugador(uid))["relacion_hist"]
+        assert any(c["d"] == 5 and "reto" in c["m"] for c in historial)
 
 
 def test_preguntas_respondidas_por_los_dos(pareja):

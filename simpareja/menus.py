@@ -22,7 +22,6 @@ PRONTO = {
     "muebles": "🛋️ La tienda de muebles",
     "electronica": "📺 La tienda de electrónica",
     "influencer": "📱 El minijuego de influencer",
-    "hitos": "🏆 Los hitos de pareja",
 }
 
 
@@ -252,7 +251,7 @@ class MenuMixin:
             [("💞 Acciones en pareja", "acc:pareja")],
             [("💗 Medidor de relación", "medidor"), ("❓ Preguntas" + (" (1)" if falta else ""), "preg")],
             [("🎂 Aniversario" + (" 🎉" if hoy_aniv else ""), "aniv"), ("🎯 Retos", "retos")],
-            [("🏆 Hitos 🚧", "pronto:hitos"), ("📸 Álbum", "album")],
+            [("🏆 Hitos", "hitos"), ("📸 Álbum", "album")],
             [("💌 Invitar", "invitar"), ("⬅️ Atrás", "menu")],
         ]
         res.pantalla = Pantalla(texto, botones, clave="mpar")

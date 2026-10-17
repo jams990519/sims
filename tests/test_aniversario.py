@@ -88,10 +88,11 @@ def test_celebrar_con_brindis_y_regalos(pareja, reloj):
     assert "anivr:flores" in datos(res.pantalla)
     antes = hogar(pareja).cuenta
     pareja.boton(ADMIN, "", "anivr:flores")  # sin dinero en la cartera, sale de la compartida
+    relacion = [pareja._relacion(pareja.db.jugador(uid)) for uid in (ADMIN, ANA)]  # ya incluye el hito del primer mes
     res = pareja.boton(ANA, "", "anivr:carta")
     assert "¡Feliz aniversario de 1 mes!" in res.pantalla.texto
     assert any(a.para == ADMIN and "Feliz aniversario" in a.texto for a in res.avisos)
-    assert pareja._relacion(pareja.db.jugador(ADMIN)) == 60 and pareja._relacion(pareja.db.jugador(ANA)) == 60
+    assert [pareja._relacion(pareja.db.jugador(uid)) for uid in (ADMIN, ANA)] == [r + 10 for r in relacion]
     assert hogar(pareja).cuenta == antes - 15
     album = pareja.boton(ADMIN, "", "album").pantalla.texto
     assert "Aniversarios" in album and "🎂 1 mes juntos: 🍝 restaurante, brindis y 🌹 flores y 💌 una carta" in album
@@ -116,7 +117,8 @@ def test_si_no_se_celebra_se_pierde_la_recompensa(pareja, reloj):
     pareja.tick()
     aniv = pareja._extras_hogar(hogar(pareja))["aniv"]
     assert aniv["n"] == 2 and aniv["fecha"] == date(2024, 3, 1).toordinal()
-    assert pareja._relacion(pareja.db.jugador(ADMIN)) == 50
+    historial = pareja._extras(pareja.db.jugador(ADMIN)).get("relacion_hist", [])
+    assert not [c for c in historial if "Aniversario" in c["m"]]
 
 
 def test_las_citas_quedan_en_el_album(pareja, reloj):
