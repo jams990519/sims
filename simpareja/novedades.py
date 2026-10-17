@@ -3,9 +3,17 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.24"
+VERSION = "0.25"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.25", [
+        "📚 <b>Estudios</b> (💼 Trabajo → Estudios o ⚡ Acciones → Estudiar): una sesión al día.",
+        "💻 Cursos cortos online ($50 a $150, una hora al día unos días): aceleran los ascensos.",
+        "📜 Certificados técnicos ($400 a $800, dos horas al día unas semanas): entras a ese trabajo "
+        "directamente en el nivel 2.",
+        "🎓 Carrera ($300 al mes durante varios meses): abre los mejores puestos (nivel 3).",
+        "💞 Estudiar juntos es más rápido y sube la relación.",
+    ]),
     ("0.24", [
         "📱 <b>Influencer</b> (💼 Trabajo → Influencer), compatible con tu trabajo: elige el tema del video, "
         "🎥 grábalo (toma tiempo y energía), ✂️ edítalo y publícalo para ganar seguidores y dinero ($5 a $20 por "

@@ -29,6 +29,7 @@ from .boda_juego import BodaMixin
 from .aniversario_juego import AniversarioMixin
 from .cocina_juego import CocinaMixin
 from .dinero_juego import DineroMixin
+from .estudios_juego import EstudiosMixin
 from .eventos_juego import EventosMixin
 from .hitos_juego import HitosMixin
 from .influencer_juego import InfluencerMixin
@@ -148,6 +149,7 @@ LUGARES = {
     "mascota": ("🐾 Mascota", "con la mascota"),
     "mascnombre": ("🐾 Mascota", "eligiendo el nombre de la mascota"),
     "influ": ("📱 Influencer", "preparando un video"),
+    "estudios": ("📚 Estudios", "mirando sus estudios"),
     "ajustes": ("⚙️ Ajustes", "en los ajustes"),
     "renombrar": ("✏️ Cambiar nombre", "cambiando su nombre"),
 }
@@ -204,7 +206,7 @@ def en_filas(botones: list[tuple[str, str]], por_fila: int = 2) -> Botones:
 
 class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoMixin, RelacionMixin, PreguntasMixin,
             NotasMixin, EventosMixin, AniversarioMixin, RetosMixin, HitosMixin, ViajeMixin, BodaMixin, TiendasMixin,
-            MascotaMixin, InfluencerMixin):
+            MascotaMixin, InfluencerMixin, EstudiosMixin):
     def __init__(self, db: DB, cfg: Config, reloj=time.time, rng: random.Random | None = None):
         self.db = db
         self.cfg = cfg
@@ -458,6 +460,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         self._tick_trabajo(res)
         self._tick_mascota(res)
         self._tick_influencer(res)
+        self._tick_estudios(res)
         self._tick_eventos(res)
         self._tick_aniversario(res)
         self._tick_retos(res)
@@ -584,6 +587,10 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "mascok": self._b_adopcion_si,
             "mascno": self._b_adopcion_no,
             "influ": self._b_influencer,
+            "estudios": self._b_estudios,
+            "estin": self._b_inscribirse,
+            "estno": self._b_dejar_estudio,
+            "estpagar": self._b_pagar_carrera,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -1140,6 +1147,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "retos": self._b_retos, "hitos": self._b_hitos, "viaje": self._b_viaje,
             "comp": self._b_compromiso, "boda": self._b_boda, "objetos": self._b_objetos, "tienda": self._b_tienda,
             "mascota": self._b_mascota, "mascnombre": self._b_mascota, "influ": self._b_influencer,
+            "estudios": self._b_estudios,
         }.get(accion, self._b_menu)
         tmp = Resultado()
         manejador(j, arg, tmp)
