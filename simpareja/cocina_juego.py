@@ -63,6 +63,35 @@ class CocinaMixin:
     def _carrito(self, j: Jugador) -> dict:
         return json.loads(j.carrito or "{}")
 
+    def _cocinadas(self, h: Hogar) -> int:
+        return self._extras_hogar(h).get("cocinadas", 0)
+
+    def _nivel_super(self, h: Hogar) -> int:
+        """El súper crece: con más recetas cocinadas trae productos y recetas nuevas."""
+        return C.nivel_super(self._cocinadas(h))
+
+    def _texto_crece(self, h: Hogar, que: str) -> list[str]:
+        meta = C.siguiente_nivel(self._cocinadas(h))
+        return [f"🔓 <i>Cocinen más y el súper traerá {que} ({self._cocinadas(h)}/{meta} recetas).</i>"] if meta else []
+
+    def _contar_receta(self, h: Hogar, res) -> None:
+        """Una receta más cocinada; si el súper sube de nivel, se avisa a los dos."""
+        from .juego import Aviso
+
+        antes = self._nivel_super(h)
+        ex = self._extras_hogar(h)
+        ex["cocinadas"] = ex.get("cocinadas", 0) + 1
+        self._guardar_extras_hogar(h, ex)
+        nivel = self._nivel_super(h)
+        if nivel == antes:
+            return
+        productos = ", ".join(f"{i.emoji} {i.nombre.lower()}" for i in C.INGREDIENTES.values() if i.nivel == nivel)
+        recetas = ", ".join(f"{r.emoji} {r.nombre.lower()}" for r in C.RECETAS.values() if r.nivel == nivel)
+        texto = f"🛒🔓 <b>¡El súper creció!</b> Productos nuevos: {productos}.\n📖 Recetas nuevas: {recetas}."
+        for m in self.db.miembros_sala(h.sala_id):
+            if m.estado == "activo":
+                res.avisos.append(Aviso(m.id, texto, [[("🛒 Súper", "a:super"), ("🍳 Recetas", "a:cocinar")]]))
+
     def _b_super(self, j: Jugador, arg: str, res, aviso: str | None = None) -> None:
         from .juego import Pantalla
 
@@ -70,6 +99,7 @@ class CocinaMixin:
         oferta = self._oferta_super(j)
         carrito = self._carrito(j)
         h = self._hogar(j.sala_id)
+        nivel = self._nivel_super(h)
         lineas = [aviso, ""] if aviso else []
         lineas.append("🛒 <b>Súper</b>")
         if oferta:
@@ -91,7 +121,9 @@ class CocinaMixin:
         lineas.append(f"🏦 Compartida {D.dinero(h.cuenta)} · 👛 Tu cartera {D.dinero(j.cartera)}")
         productos = [
             (f"{i.emoji} {i.nombre} ${C.precio(c, dia, oferta):.2f}", f"sup:+:{c}") for c, i in C.INGREDIENTES.items()
+            if i.nivel <= nivel
         ]
+        lineas += self._texto_crece(h, "productos nuevos")
         botones = [productos[k:k + 2] for k in range(0, len(productos), 2)]
         if carrito:
             botones.append([(f"✅ Pagar ${C.total_carrito(carrito, dia, oferta):.2f}", "sup:pagar"), ("🗑️ Vaciar", "sup:vaciar")])
@@ -101,7 +133,8 @@ class CocinaMixin:
     def _b_super_accion(self, j: Jugador, arg: str, res) -> None:
         accion, _, ingrediente = arg.partition(":")
         carrito = self._carrito(j)
-        if accion == "+" and ingrediente in C.INGREDIENTES:
+        nivel = self._nivel_super(self._hogar(j.sala_id))
+        if accion == "+" and ingrediente in C.INGREDIENTES and C.INGREDIENTES[ingrediente].nivel <= nivel:
             carrito[ingrediente] = carrito.get(ingrediente, 0) + 1
             res.alerta = f"🧺 +1 {C.INGREDIENTES[ingrediente].nombre.lower()}"
         elif accion == "vaciar":
@@ -150,14 +183,16 @@ class CocinaMixin:
             "pasas de tiempo, ¡se quema! 🔥 (✅ tienes los ingredientes · ❌ falta algo)",
         ]
         botones = []
+        nivel = self._nivel_super(h)
         for comida, titulo in C.COMIDAS:
             lineas += ["", f"<b>{titulo}</b>"]
             for r in C.RECETAS.values():
-                if r.comida != comida:
+                if r.comida != comida or r.nivel > nivel:
                     continue
                 marca = "❌" if C.faltan(despensa, r, 1) else "✅"
                 lineas.append(f"{marca} {r.emoji} {r.nombre} · {r.minutos} min")
                 botones.append([(f"{marca} {r.emoji} {r.nombre}", f"rec:{r.clave}")])
+        lineas += [""] + self._texto_crece(h, "recetas nuevas") if C.siguiente_nivel(self._cocinadas(h)) else []
         botones.append([("🛒 Súper", "a:super"), ("🧊 Nevera", "nevera")])
         botones.append([("⬅️ Atrás", "acc:comer")])
         res.pantalla = Pantalla("\n".join(lineas), botones, clave="cocina")
@@ -222,6 +257,8 @@ class CocinaMixin:
         if r is None or porciones not in (1, 2):
             return "Receta no válida."
         h = self._hogar(cocineros[0].sala_id)
+        if r.nivel > self._nivel_super(h):
+            return "Esa receta todavía no está en su recetario: cocinen más para que el súper crezca."
         coccion = self._coccion(h)
         if coccion:
             quien = self.db.jugador(coccion["cocineros"][0])
@@ -328,6 +365,7 @@ class CocinaMixin:
         self._evento_cocinado(h, coccion)
         if coccion["juntos"]:
             self._avanzar_reto(h, "cocinar")
+        self._contar_receta(h, res)
         noticia = f"🍽️ <b>¡{r.nombre} listo!</b> {coccion['porciones']} porción(es) en la nevera."
         res.avisos += [Aviso(c, noticia, [[("🍽️ Comer", f"a:comer:{r.clave}")]]) for c in coccion["cocineros"] if c != j.id]
         res.pantalla = Pantalla(

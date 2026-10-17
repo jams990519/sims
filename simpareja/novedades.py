@@ -3,9 +3,14 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.22"
+VERSION = "0.23"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.23", [
+        "🛒🔓 <b>El súper crece</b>: con 5 recetas cocinadas llegan carne, papas, leche y harina, y las recetas "
+        "🥞 panqueques y 🥩 bistec con papas. Con 15, pescado y frutas: 🐟 pescado con verduras y 🥤 batido de frutas.",
+        "📖 El súper y el recetario les dicen cuánto falta para lo próximo.",
+    ]),
     ("0.22", [
         "🐾 <b>Mascota</b> (🏠 Casa → Mascota): adopten un 🐶 perro o un 🐱 gato por $150, de acuerdo los dos: "
         "eligen el aspecto y el nombre. La comida cuesta $40 al mes (va con las facturas).",

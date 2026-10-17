@@ -246,7 +246,7 @@ class EventosMixin:
         elif evento.clave == "antojo":
             de = rng.choice(miembros)
             otro = next(m for m in miembros if m.id != de.id)
-            receta = rng.choice(list(C.RECETAS.values()))
+            receta = rng.choice([r for r in C.RECETAS.values() if r.nivel <= self._nivel_super(h)])
             ex["antojo"] = {"de": de.id, "receta": receta.clave, "hasta": ahora + E.ANTOJO_HORAS * V.HORA,
                             "cumplido": False}
             texto = (f"🤤 <b>Antojo</b>: a {self._firma(de)} se le antoja {receta.emoji} {receta.nombre.lower()}. "

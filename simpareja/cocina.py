@@ -22,6 +22,7 @@ class Ingrediente:
     unidades: int  # cuántas unidades trae el paquete
     precio: float
     lugar: str  # 'nevera' | 'despensa'
+    nivel: int = 1  # el súper lo trae a partir de este nivel
 
 
 INGREDIENTES: dict[str, Ingrediente] = {i.clave: i for i in (
@@ -36,6 +37,13 @@ INGREDIENTES: dict[str, Ingrediente] = {i.clave: i for i in (
     Ingrediente("verduras", "🥕", "Verduras", "bolsa de 2 raciones", 2, 3.0, "nevera"),
     Ingrediente("jamon", "🥓", "Jamón", "paquete de 4 lonchas", 4, 3.0, "nevera"),
     Ingrediente("queso", "🧀", "Queso", "paquete de 4 lonchas", 4, 3.0, "nevera"),
+    # El súper crece: llegan con más recetas cocinadas.
+    Ingrediente("carne", "🥩", "Carne", "bandeja de 2 bistecs", 2, 6.0, "nevera", nivel=2),
+    Ingrediente("papas", "🥔", "Papas", "bolsa de 4 raciones", 4, 2.5, "despensa", nivel=2),
+    Ingrediente("leche", "🥛", "Leche", "litro (4 vasos)", 4, 1.5, "nevera", nivel=2),
+    Ingrediente("harina", "🌾", "Harina", "paquete de 6 usos", 6, 2.0, "despensa", nivel=2),
+    Ingrediente("pescado", "🐟", "Pescado", "filetes para 2", 2, 7.0, "nevera", nivel=3),
+    Ingrediente("frutas", "🍓", "Frutas", "bolsa para 4 batidos", 4, 4.0, "nevera", nivel=3),
 )}
 
 
@@ -47,6 +55,7 @@ class Receta:
     comida: str  # 'desayuno' | 'almuerzo' | 'cena'
     ingredientes: dict  # unidades por porción
     pasos: tuple[tuple[str, int], ...]  # (qué hacer, minutos)
+    nivel: int = 1  # aparece en el recetario a partir de este nivel del súper
 
     @property
     def minutos(self) -> int:
@@ -84,7 +93,40 @@ RECETAS: dict[str, Receta] = {r.clave: r for r in (
         ("🥪 Armar el sándwich", 2),
         ("🔥 Dorarlo en la sartén", 4),
     )),
+    Receta("panqueques", "🥞", "Panqueques", "desayuno", {"harina": 1, "leche": 1, "huevos": 1}, (
+        ("🥣 Mezclar la masa", 3),
+        ("🍳 Cocinar los panqueques", 8),
+        ("🍯 Servir con miel", 1),
+    ), nivel=2),
+    Receta("bistec", "🥩", "Bistec con papas", "cena", {"carne": 1, "papas": 1}, (
+        ("🥔 Pelar y cortar las papas", 5),
+        ("🍟 Freír las papas", 8),
+        ("🥩 Asar el bistec", 6),
+        ("🍽️ Servir", 1),
+    ), nivel=2),
+    Receta("batido", "🥤", "Batido de frutas", "desayuno", {"frutas": 1, "leche": 1}, (
+        ("🍓 Cortar las frutas", 3),
+        ("🌀 Licuar", 2),
+    ), nivel=3),
+    Receta("pescado", "🐟", "Pescado con verduras", "almuerzo", {"pescado": 1, "verduras": 1}, (
+        ("🔪 Limpiar el pescado", 5),
+        ("🥕 Saltear las verduras", 6),
+        ("🐟 Cocinar el pescado", 8),
+        ("🍋 Servir con limón", 1),
+    ), nivel=3),
 )}
+# Recetas cocinadas que hacen falta para que el súper suba de nivel.
+NIVELES_SUPER = {2: 5, 3: 15}
+
+
+def nivel_super(cocinadas: int) -> int:
+    return max([1] + [n for n, hacen_falta in NIVELES_SUPER.items() if cocinadas >= hacen_falta])
+
+
+def siguiente_nivel(cocinadas: int) -> int | None:
+    """Cuántas recetas cocinadas hacen falta para el próximo nivel (None si ya está al máximo)."""
+    faltan = [hacen_falta for hacen_falta in NIVELES_SUPER.values() if cocinadas < hacen_falta]
+    return min(faltan) if faltan else None
 
 COMIDAS = (("desayuno", "🌅 Desayunos"), ("almuerzo", "☀️ Almuerzos"), ("cena", "🌙 Cenas"))
 

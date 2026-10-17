@@ -217,3 +217,34 @@ def test_trabajar_sin_comida_da_mas_hambre(solo, reloj):
     reloj.avanzar(8 * 60 + 1)
     solo.tick()
     assert nec(solo, ADMIN)["hambre"] == pytest.approx(100 - 6 * 8 * 1.5, abs=0.5)
+
+
+# --- el súper crece con las recetas cocinadas ----------------------------------------------
+
+def test_niveles_del_super():
+    assert [C.nivel_super(n) for n in (0, 4, 5, 14, 15, 40)] == [1, 1, 2, 2, 3, 3]
+    assert [C.siguiente_nivel(n) for n in (0, 5, 15)] == [5, 15, None]
+    assert all(i.nivel in (1, 2, 3) for i in C.INGREDIENTES.values())
+    for r in C.RECETAS.values():  # cada receta se puede hacer con lo que hay en su nivel
+        assert all(C.INGREDIENTES[i].nivel <= r.nivel for i in r.ingredientes)
+
+
+def test_el_super_crece_al_cocinar(solo, reloj):
+    assert "Carne" not in str(solo.boton(ADMIN, "", "a:super").pantalla.botones)
+    assert "(0/5 recetas)" in solo.boton(ADMIN, "", "a:super").pantalla.texto
+    assert "Panqueques" not in solo.boton(ADMIN, "", "a:cocinar").pantalla.texto
+    llenar_despensa(solo, pan=20, jamon=10, queso=10, harina=6, leche=4, huevos=12)
+    assert "todavía no está en su recetario" in solo.boton(ADMIN, "", "coc:panqueques:1").alerta
+    avisos = []
+    for _ in range(5):
+        solo.boton(ADMIN, "", "coc:sandwich:1")
+        res = cocinar_todo(solo, reloj, ADMIN, "sandwich")
+        avisos += [a for a in res.avisos if "El súper creció" in a.texto]
+        reloj.avanzar(1)
+    assert len(avisos) == 1 and "🥩 carne" in avisos[0].texto and "🥞 panqueques" in avisos[0].texto
+    assert "Carne $6.00" in str(solo.boton(ADMIN, "", "a:super").pantalla.botones)
+    assert "Panqueques" in solo.boton(ADMIN, "", "a:cocinar").pantalla.texto
+    assert "(5/15 recetas)" in solo.boton(ADMIN, "", "a:super").pantalla.texto
+    assert "Pescado" not in str(solo.boton(ADMIN, "", "a:super").pantalla.botones)
+    res = solo.boton(ADMIN, "", "coc:panqueques:1")
+    assert res.alerta is None and "Mezclar la masa" in res.pantalla.texto
