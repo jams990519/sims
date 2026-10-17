@@ -42,7 +42,7 @@ def empleo(juego):
 
 
 def turno(juego, reloj, horas=8):
-    res = juego.boton(ADMIN, "", f"trabajar:{horas}")
+    res = juego.boton(ADMIN, "", f"trabajar:{horas}:sin")
     reloj.avanzar(horas * 60 + 1)
     return res, juego.tick()
 
@@ -74,6 +74,8 @@ def test_un_turno_de_8_horas(juego, reloj):
     res = juego.boton(ADMIN, "", "trabajo")
     assert "trabajar:8" in str(res.pantalla.botones) and "8 h · $88" in str(res.pantalla.botones)
     res = juego.boton(ADMIN, "", "trabajar:8")
+    assert "+$88 al terminar" in res.pantalla.texto and "¿Confirmar?" in res.pantalla.texto
+    res = juego.boton(ADMIN, "", "trabajar:8:sin")
     assert "Sales a las 16:00" in res.pantalla.texto
     assert "💼 trabajando hasta las 16:00" in juego.boton(ADMIN, "", "sala").pantalla.texto
     reloj.avanzar(8 * 60 + 1)
@@ -90,10 +92,10 @@ def test_un_turno_por_dia_y_dias_libres(juego, reloj):
     juego.boton(ADMIN, "", "tomar:recepcion")
     turno(juego, reloj)
     assert "Hoy (Lunes) ya trabajaste" in juego.boton(ADMIN, "", "trabajo").pantalla.texto
-    assert juego.boton(ADMIN, "", "trabajar:8").alerta == "Hoy ya trabajaste."
+    assert juego.boton(ADMIN, "", "trabajar:8:sin").alerta == "Hoy ya trabajaste."
     ir_al_dia(juego, reloj, ADMIN, 6)
     assert "Hoy (Sábado) es tu día libre" in juego.boton(ADMIN, "", "trabajo").pantalla.texto
-    assert juego.boton(ADMIN, "", "trabajar:8").alerta == "Hoy es tu día libre."
+    assert juego.boton(ADMIN, "", "trabajar:8:sin").alerta == "Hoy es tu día libre."
 
 
 def test_rotativo_libra_dos_dias_seguidos_entre_semana():
@@ -107,7 +109,7 @@ def test_rotativo_libra_dos_dias_seguidos_entre_semana():
 def test_con_mal_humor_no_se_trabaja(juego):
     juego.boton(ADMIN, "", "tomar:taller")
     poner(juego, ADMIN, social=0)
-    assert "mal humor" in juego.boton(ADMIN, "", "trabajar:8").alerta
+    assert "mal humor" in juego.boton(ADMIN, "", "trabajar:8:sin").alerta
 
 
 def test_ascenso_tras_5_dias_sin_rojos(juego, reloj):
@@ -137,7 +139,7 @@ def test_con_necesidades_en_rojo_el_dia_no_cuenta(juego, reloj):
 def test_parar_a_mitad_cobra_las_horas_hechas(juego, reloj):
     juego.boton(ADMIN, "", "tomar:recepcion")
     poner(juego, ADMIN, **LLENO)
-    juego.boton(ADMIN, "", "trabajar:8")
+    juego.boton(ADMIN, "", "trabajar:8:sin")
     reloj.avanzar(3 * 60)
     res = juego.boton(ADMIN, "", "parar")
     assert "Cobró $33" in res.pantalla.texto and "turno incompleto" in res.pantalla.texto
@@ -148,7 +150,7 @@ def test_sin_energia_se_duerme_en_el_trabajo(juego, reloj):
     juego.boton(ADMIN, "", "tomar:recepcion")
     poner(juego, ADMIN, **LLENO)
     poner(juego, ADMIN, energia=20)
-    juego.boton(ADMIN, "", "trabajar:8")
+    juego.boton(ADMIN, "", "trabajar:8:sin")
     avisos = []
     for _ in range(3 * 60):  # el bot revisa cada minuto
         reloj.avanzar(1)

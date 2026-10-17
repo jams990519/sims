@@ -33,6 +33,7 @@ log = logging.getLogger(__name__)
 
 COMANDOS = [
     BotCommand("start", "Entrar o seguir jugando"),
+    BotCommand("menu", "Menú principal"),
     BotCommand("sim", "Tu Sim: necesidades y acciones"),
     BotCommand("trabajo", "Tu trabajo: horas, sueldo y ascensos"),
     BotCommand("super", "Comprar ingredientes"),

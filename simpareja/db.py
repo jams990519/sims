@@ -48,7 +48,9 @@ CREATE TABLE IF NOT EXISTS jugadores (
     cartera           INTEGER NOT NULL DEFAULT 0,
     trabajo           TEXT NOT NULL DEFAULT '{}',  -- empleo: puesto, nivel, días trabajados, días libres
     carrito           TEXT NOT NULL DEFAULT '{}',  -- paquetes elegidos en el súper
-    taper             TEXT NOT NULL DEFAULT ''     -- receta guardada para llevar al trabajo
+    taper             TEXT NOT NULL DEFAULT '',    -- receta guardada para llevar al trabajo
+    lugar             TEXT NOT NULL DEFAULT 'salon', -- habitación donde está el Sim (o 'fuera:<lugar>')
+    extras            TEXT NOT NULL DEFAULT '{}'   -- datos sueltos (p. ej. hasta cuándo paga el gimnasio)
 );
 CREATE INDEX IF NOT EXISTS jugadores_sala ON jugadores(sala_id);
 
@@ -149,6 +151,8 @@ COLUMNAS_NUEVAS = [
     ("jugadores", "trabajo", "TEXT NOT NULL DEFAULT '{}'"),
     ("jugadores", "carrito", "TEXT NOT NULL DEFAULT '{}'"),
     ("jugadores", "taper", "TEXT NOT NULL DEFAULT ''"),
+    ("jugadores", "lugar", "TEXT NOT NULL DEFAULT 'salon'"),
+    ("jugadores", "extras", "TEXT NOT NULL DEFAULT '{}'"),
     ("hogares", "despensa", "TEXT NOT NULL DEFAULT '{}'"),
     ("hogares", "nevera", "TEXT NOT NULL DEFAULT '{}'"),
     ("hogares", "cocina", "TEXT NOT NULL DEFAULT ''"),
@@ -192,6 +196,8 @@ class Jugador:
     trabajo: str = "{}"
     carrito: str = "{}"
     taper: str = ""
+    lugar: str = "salon"
+    extras: str = "{}"
 
     @property
     def activo(self) -> bool:

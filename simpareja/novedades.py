@@ -3,9 +3,21 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.6"
+VERSION = "0.7"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.7", [
+        "🎮 <b>Menú nuevo</b> (/menu): 🏠 Casa · ⚡ Acciones · 📍 Lugares · 💼 Trabajo · 💕 Pareja · 👤 Estado · 💬 Chat. "
+        "Todos los submenús tienen ⬅️ Atrás.",
+        "📋 Antes de cada acción ves una ficha con su efecto, su tiempo y su precio, y confirmas Sí o No "
+        "(o «Sí, con tu pareja», que termina antes).",
+        "🚶 Tu Sim está en una habitación (cuarto, baño, clóset o sala-cocina-comedor) y va solo a donde toque.",
+        "📍 Lugares: súper, restaurante ($20, o $40 para dos), cine ($13, o $25 para dos), parque y gimnasio "
+        "($30 al mes). Restaurante y cine salen más caros el fin de semana; salir juntos cuenta como cita.",
+        "🛵 Pedir a domicilio (cuesta el doble y tarda 30 min) y «Comer lo que hay» (nevera o táper).",
+        "💬 Más social: redes +5/h, tele +3/h, tele o redes juntos +15/h y hablar por teléfono +20.",
+        "💼 Ir a trabajar pide confirmación (con o sin táper) y al terminar ves lo que gastaste. Nuevo: 📈 Mi carrera.",
+    ]),
     ("0.6", [
         "🛒 <b>Súper</b> (/super): compren ingredientes que van a la 🧊 nevera y despensa compartidas. "
         "Los sábados y domingos hay ofertas.",

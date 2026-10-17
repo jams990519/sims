@@ -25,6 +25,7 @@ from .config import Config
 from .db import DB, Invitacion, Jugador, UltimaConexion, Visitante
 from .cocina_juego import CocinaMixin
 from .dinero_juego import DineroMixin
+from .menus import MenuMixin
 from .trabajo_juego import TrabajoMixin
 from .vida_juego import VidaMixin
 
@@ -87,7 +88,15 @@ LUGARES = {
     "nombre": ("✍️ Nombre del personaje", "eligiendo el nombre de su personaje"),
     "creador": ("🧑‍🎨 Creador de personaje", "creando su personaje"),
     "bienvenida": ("✨ Personaje recién creado", "decidiendo si jugar o invitar"),
-    "sala": ("🏠 Sala", "en la sala"),
+    "sala": ("💬 Chat de la sala", "en la sala"),
+    "menu": ("🎮 Menú", "en el menú"),
+    "mcasa": ("🏠 Casa", "en el menú de la casa"),
+    "macc": ("⚡ Acciones", "eligiendo qué hacer"),
+    "mlug": ("📍 Lugares", "pensando a dónde salir"),
+    "mpar": ("💕 Pareja", "en el menú de pareja"),
+    "mest": ("👤 Estado", "mirando su estado"),
+    "perfil": ("👀 Perfil de su pareja", "mirando el perfil de su pareja"),
+    "carrera": ("📈 Mi carrera", "mirando su carrera"),
     "sim": ("🧍 Mi Sim", "mirando a su Sim"),
     "acc": ("🎬 Acciones", "eligiendo qué hacer"),
     "dinero": ("💰 Dinero", "revisando el dinero"),
@@ -161,7 +170,7 @@ def en_filas(botones: list[tuple[str, str]], por_fila: int = 2) -> Botones:
     return [botones[i:i + por_fila] for i in range(0, len(botones), por_fila)]
 
 
-class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin):
+class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
     def __init__(self, db: DB, cfg: Config, reloj=time.time, rng: random.Random | None = None):
         self.db = db
         self.cfg = cfg
@@ -271,7 +280,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin):
             if j is None:
                 return self._visitante(uid, nombre_tg)
             return Resultado(pantalla=self._pantalla_conexion(j), nuevo=True)
-        data = {"sala": "sala", "menu": "sala", "sim": "sim", "dinero": "dinero", "casa": "casa",
+        data = {"sala": "sala", "menu": "menu", "sim": "sim", "dinero": "dinero", "casa": "casa",
                 "trabajo": "trabajo", "super": "super", "nevera": "nevera", "cocina": "cocina",
                 "invitar": "invitar", "ajustes": "ajustes",
                 "personajes": "pjs", "animo": "animos", "salir": "salir"}.get(nombre, "sala")
@@ -286,8 +295,8 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin):
             "a quien ya juega y esa persona escribe <code>invitar_TUCÓDIGO</code>.\n"
             "🧑‍🎨 Creas tu personaje: aspecto, rasgos, aspiración y estado de ánimo.\n"
             "🎮 Puedes jugar sin compañía o 💌 invitar a tu pareja a tu sala.\n"
-            "🧍 En <b>Mi Sim</b> cuidas sus necesidades (hambre, energía, higiene, diversión y social) "
-            "con acciones: solo o juntos, que terminan antes.\n"
+            "🎮 En el <b>Menú</b> están 🏠 Casa, ⚡ Acciones, 📍 Lugares, 💼 Trabajo, 💕 Pareja, 👤 Estado y 💬 Chat. "
+            "Cada acción muestra su efecto y su tiempo antes de confirmar; juntos terminan antes.\n"
             "💰 Empiezan con $3.000, compran la Casita y pagan hipoteca, facturas y comida. "
             "Cada quien tiene su cartera y hay una cuenta compartida.\n"
             "💼 Cada quien elige su trabajo: decides las horas, cobras al terminar y con constancia llegan los ascensos.\n"
@@ -295,7 +304,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin):
             "💬 En la sala, todo lo que escribas (texto, fotos, stickers, notas de voz) le llega a la otra persona.\n"
             f"🕒 Tu Sim tiene su propio reloj, como un día real. Si pasas {self.cfg.pausa_min} min sin jugar se "
             "congela ❄️; al volver tocas ▶️ Continuar y sigues donde lo dejaste.\n\n"
-            "Comandos: /start · /sim · /trabajo · /super · /cocina · /nevera · /dinero · /casa · /sala · /invitar · /personajes · /animo · /ajustes · /conexion · /novedades · /salir",
+            "Comandos: /start · /menu · /sim · /trabajo · /super · /cocina · /nevera · /dinero · /casa · /sala · /invitar · /personajes · /animo · /ajustes · /conexion · /novedades · /salir",
             [[SALA]],
         )
 
@@ -402,6 +411,17 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin):
             "coc": self._b_cocinar_solo,
             "cocina": self._b_coccion,
             "taper": self._b_taper,
+            "menu": self._b_menu,
+            "mcasa": self._b_menu_casa,
+            "macc": self._b_menu_acciones,
+            "mlug": self._b_menu_lugares,
+            "mpar": self._b_menu_pareja,
+            "mest": self._b_menu_estado,
+            "moverse": self._b_moverse,
+            "ir": self._b_ir,
+            "perfil": self._b_perfil,
+            "pronto": self._b_pronto,
+            "carrera": self._b_carrera,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -827,7 +847,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin):
             "💌 <b>Invitar</b>: invita a tu pareja o a quien quieras.",
         ]
         return Pantalla(
-            "\n".join(lineas), [[("🎮 Jugar", "sim"), ("💌 Invitar", "invitar")]], clave="bienvenida"
+            "\n".join(lineas), [[("🎮 Jugar", "menu"), ("💌 Invitar", "invitar")]], clave="bienvenida"
         )
 
     # ------------------------------------------------------------------
@@ -944,8 +964,10 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin):
             "sim": self._b_sim, "acc": self._b_categoria, "dinero": self._b_dinero,
             "mover": self._b_mover, "facturas": self._b_facturas, "casa": self._b_casa,
             "trabajo": self._b_trabajo, "super": self._b_super, "nevera": self._b_nevera,
-            "cocina": self._b_coccion,
-        }.get(accion, self._b_sala)
+            "cocina": self._b_coccion, "menu": self._b_menu, "mcasa": self._b_menu_casa,
+            "macc": self._b_menu_acciones, "mlug": self._b_menu_lugares, "mpar": self._b_menu_pareja,
+            "mest": self._b_menu_estado, "perfil": self._b_perfil, "carrera": self._b_carrera,
+        }.get(accion, self._b_menu)
         tmp = Resultado()
         manejador(j, arg, tmp)
         return tmp.pantalla, nota
@@ -1115,7 +1137,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin):
             lineas.append("🎮 Por ahora juegas sin compañía. Cuando quieras, invita a alguien con 💌.")
         lineas += ["", "🚧 <i>Próximamente: medidor de relación, influencer, estudios y lugares.</i>"]
         botones = [
-            [("🎮 Mi Sim", "sim")],
+            [("🎮 Menú", "menu")],
             [("🎭 Mi ánimo", "animos"), ("🪪 Personajes", "pjs")],
             [("💌 Invitar", "invitar"), ("⚙️ Ajustes", "ajustes")],
             [("🔄 Actualizar", "act"), ("🚪 Salir", "salir")],
@@ -1167,7 +1189,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin):
             "\n".join(lineas).rstrip(),
             [
                 [("🪞 Cambiar mi personaje", "apedit"), ("✏️ Cambiar nombre", "renombrar")],
-                [SALA],
+                [("⬅️ Atrás", "mest")],
             ],
             clave="pjs",
         )
@@ -1182,7 +1204,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin):
         res.pantalla = Pantalla(
             f"🎭 <b>¿Cómo se siente {esc(j.personaje)} ahora?</b>\n"
             "Cada estado de ánimo tiene su color y tu pareja lo verá en la sala.",
-            en_filas(opciones) + [[SALA]],
+            en_filas(opciones) + [[("⬅️ Atrás", "mest")]],
             clave="animo",
         )
 
@@ -1208,7 +1230,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin):
                 [("🔕 Desactivar avisos" if j.avisos_conexion else "🔔 Activar avisos", "avisos")],
                 [("🪞 Cambiar personaje", "apedit"), ("✏️ Cambiar nombre", "renombrar")],
                 [("🧾 Mi última conexión", "conexion")],
-                [SALA],
+                [("⬅️ Atrás", "mest")],
             ],
             clave="ajustes",
         )

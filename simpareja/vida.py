@@ -113,12 +113,23 @@ def comida_del_momento(segundos: float) -> tuple[str, str, int]:
 
 # --- casa: zonas para limpiar --------------------------------------------------
 
+# Las habitaciones de la casa; también son las zonas que se limpian.
 ZONAS = {
     "salon": ("🛋️", "Sala-cocina-comedor"),
     "cuarto": ("🛏️", "Cuarto"),
     "bano": ("🚿", "Baño"),
     "closet": ("👗", "Clóset"),
 }
+
+
+HABITACION_INICIAL = "salon"
+
+
+def nombre_habitacion(clave: str) -> str:
+    if clave in ZONAS:
+        emoji, nombre = ZONAS[clave]
+        return f"{emoji} {nombre.lower() if clave != 'salon' else nombre}"
+    return "📍 fuera de casa"
 
 
 def estado_zona(suciedad: float) -> str:
@@ -134,6 +145,7 @@ def estado_zona(suciedad: float) -> str:
 SOLO, OPCIONAL, OBLIGATORIO = "solo", "opcional", "obligatorio"
 FACTOR_JUNTOS = 0.7  # juntos terminan antes
 BONO_SOCIAL_JUNTOS = 5
+FUERA = "fuera"  # la acción se hace fuera de casa
 
 
 @dataclass(frozen=True)
@@ -148,6 +160,8 @@ class Accion:
     juntos: str = OPCIONAL
     nombre_juntos: str = ""
     nombre_solo: str = ""
+    efectos_juntos: dict = field(default_factory=dict)  # reemplazan a `efectos` si la hacen juntos
+    habitacion: str = ""  # dónde se hace: una habitación, FUERA o "" (en cualquier sitio)
     comida: bool = False  # quita el hambre según la comida del momento
     zona: str = ""  # zona de la casa que ensucia
     ensucia: int = 0
@@ -164,59 +178,96 @@ class Accion:
         return self.nombre
 
 
+# Submenús de ⚡ Acciones y de 📍 Lugares.
 CATEGORIAS = (
     ("comer", "🍽️", "Comer"),
-    ("descansar", "😴", "Descansar"),
     ("higiene", "🚿", "Higiene"),
+    ("descanso", "😴", "Descanso"),
     ("diversion", "🎉", "Diversión"),
-    ("social", "💬", "Social"),
-    ("casa", "🧹", "Casa"),
+    ("pareja", "💞", "Pareja"),
+    ("limpieza", "🧹", "Limpieza"),
+)
+LUGARES = (
+    ("super", "🛒", "Súper"),
+    ("restaurante", "🍝", "Restaurante"),
+    ("cine", "🎬", "Cine"),
+    ("parque", "🌳", "Parque"),
+    ("gimnasio", "🏋️", "Gimnasio"),
 )
 
 _ACCIONES = (
-    Accion("comer", "🍽️", "Comer", "comiendo", "comer", 30, comida=True, zona="salon", ensucia=5,
-           nombre_juntos="Comer juntos", necesita="hambre"),
+    # 🍽️ Comer
+    Accion("comer", "🍽️", "Comer lo que hay", "comiendo", "comer", 30, comida=True, habitacion="salon",
+           zona="salon", ensucia=5, nombre_juntos="Comer juntos", necesita="hambre"),
     # Cocinar es un minijuego por pasos; la duración real la marca la receta.
-    Accion("cocinar", "🍳", "Cocinar", "cocinando", "comer", 30, {"energia": -5},
+    Accion("cocinar", "🍳", "Preparar comida", "cocinando", "comer", 30, {"energia": -5}, habitacion="salon",
            zona="salon", ensucia=15, nombre_juntos="Cocinar juntos"),
-    Accion("taper", "🥡", "Preparar un táper", "preparando un táper", "comer", 5, juntos=SOLO),
-    Accion("picar", "🍎", "Picar algo", "picando algo", "comer", 10, {"hambre": 10}, juntos=SOLO,
+    Accion("domicilio", "🛵", "Pedir a domicilio", "esperando el pedido y comiendo", "comer", 30, comida=True,
+           habitacion="salon", zona="salon", ensucia=3, nombre_juntos="Pedir a domicilio para dos",
            necesita="hambre"),
-    Accion("dormir", "😴", "Dormir", "durmiendo", "descansar", 8 * 60, zona="cuarto", ensucia=3,
-           duerme=True, nombre_juntos="Dormir juntos", necesita="energia"),
-    Accion("siesta", "💤", "Echar una siesta", "echando una siesta", "descansar", 60, {"energia": 15},
-           zona="salon", duerme=True, nombre_juntos="Siesta juntos", necesita="energia"),
+    Accion("taper", "🥡", "Preparar un táper", "preparando un táper", "comer", 5, juntos=SOLO, habitacion="salon"),
+    Accion("picar", "🍎", "Picar algo", "picando algo", "comer", 10, {"hambre": 10}, juntos=SOLO,
+           habitacion="salon", necesita="hambre"),
+    # 🚿 Higiene
     Accion("ducha", "🚿", "Ducharse", "duchándose", "higiene", 15, {"higiene": 60}, juntos=SOLO,
-           zona="bano", ensucia=8, ropa=2, necesita="higiene"),
+           habitacion="bano", zona="bano", ensucia=8, ropa=2, necesita="higiene"),
     Accion("banarse", "🛁", "Bañarse juntos", "bañándose", "higiene", 30, {"higiene": 80, "social": 10},
-           juntos=OBLIGATORIO, zona="bano", ensucia=10, ropa=2, necesita="higiene"),
+           juntos=OBLIGATORIO, habitacion="bano", zona="bano", ensucia=10, ropa=2, necesita="higiene"),
     Accion("dientes", "🪥", "Lavarse los dientes", "lavándose los dientes", "higiene", 5, {"higiene": 10},
-           zona="bano", ensucia=2, nombre_juntos="Lavarse los dientes juntos"),
-    Accion("tele", "📺", "Ver la tele", "viendo la tele", "diversion", 60, {"diversion": 15},
-           zona="salon", ensucia=2, nombre_juntos="Ver la tele juntos"),
-    Accion("redes", "📱", "Ver redes o videos", "viendo videos", "diversion", 60, {"diversion": 10},
-           nombre_juntos="Ver videos juntos"),
-    Accion("parque", "🌳", "Ir al parque", "en el parque", "diversion", 60,
-           {"diversion": 20, "energia": -10, "social": 5}, ropa=1, ejercicio=True,
-           nombre_juntos="Ir al parque juntos"),
-    Accion("hablar", "💬", "Hablar", "hablando", "social", 15, {"social": 10},
-           nombre_solo="Llamar a alguien por teléfono", nombre_juntos="Hablar juntos"),
-    Accion("abrazar", "🤗", "Abrazar", "abrazándose", "social", 5, {"social": 15}, juntos=OBLIGATORIO),
-    Accion("besar", "💋", "Besar", "besándose", "social", 5, {"social": 10, "diversion": 5}, juntos=OBLIGATORIO),
-    Accion("masaje", "💆", "Darse un masaje", "dándose un masaje", "social", 20,
+           habitacion="bano", zona="bano", ensucia=2, nombre_juntos="Lavarse los dientes juntos"),
+    # 😴 Descanso
+    Accion("dormir", "😴", "Dormir", "durmiendo", "descanso", 8 * 60, habitacion="cuarto", zona="cuarto",
+           ensucia=3, duerme=True, nombre_juntos="Dormir juntos", necesita="energia"),
+    Accion("siesta", "💤", "Echar una siesta", "echando una siesta", "descanso", 60, {"energia": 15},
+           habitacion="cuarto", duerme=True, nombre_juntos="Siesta juntos", necesita="energia"),
+    # 🎉 Diversión (en pareja, compartir rinde más: +15 de social por hora)
+    Accion("tele", "📺", "Ver la tele", "viendo la tele", "diversion", 60, {"diversion": 15, "social": 3},
+           habitacion="salon", zona="salon", ensucia=2, nombre_juntos="Ver la tele juntos",
+           efectos_juntos={"social": 15}),
+    Accion("redes", "📱", "Ver redes o videos", "viendo redes", "diversion", 60, {"diversion": 10, "social": 5},
+           nombre_juntos="Ver videos juntos", efectos_juntos={"social": 15}),
+    Accion("telefono", "📞", "Hablar por teléfono", "hablando por teléfono", "diversion", 20, {"social": 20},
+           juntos=SOLO, nombre_solo="Llamar a un amigo o a la familia"),
+    # 💞 Pareja
+    Accion("hablar", "💬", "Hablar", "hablando", "pareja", 15, {"social": 10}, juntos=OBLIGATORIO),
+    Accion("abrazar", "🤗", "Abrazar", "abrazándose", "pareja", 5, {"social": 15}, juntos=OBLIGATORIO),
+    Accion("besar", "💋", "Besar", "besándose", "pareja", 5, {"social": 10, "diversion": 5}, juntos=OBLIGATORIO),
+    Accion("masaje", "💆", "Darse un masaje", "dándose un masaje", "pareja", 20,
            {"social": 10, "energia": 5, "diversion": 5}, juntos=OBLIGATORIO),
-    Accion("cita", "🌹", "Tener una cita", "en una cita", "social", 120,
-           {"social": 50, "diversion": 25, "energia": -5}, juntos=OBLIGATORIO),
-    Accion("limpiar", "🧹", "Limpiar", "limpiando", "casa", 30, {"energia": -10},
+    # 🧹 Limpieza
+    Accion("limpiar", "🧹", "Limpiar una zona", "limpiando", "limpieza", 30, {"energia": -10},
            nombre_juntos="Limpiar juntos"),
-    Accion("lavar", "🧺", "Lavar la ropa", "lavando la ropa", "casa", 60, {"energia": -5},
-           nombre_juntos="Lavar la ropa juntos"),
-    Accion("super", "🛒", "Hacer el súper", "en el súper", "casa", 45, {"energia": -5},
-           nombre_juntos="Ir al súper juntos"),
-    # Se empieza desde la pantalla de trabajo, no desde las categorías.
-    Accion("trabajar", "💼", "Trabajar", "trabajando", "trabajo", 8 * 60, juntos=SOLO, ropa=1),
+    Accion("lavar", "🧺", "Lavar la ropa", "lavando la ropa", "limpieza", 60, {"energia": -5},
+           habitacion="bano", nombre_juntos="Lavar la ropa juntos"),
+    # 📍 Lugares (fuera de casa; en pareja, una salida cuenta como cita)
+    Accion("super", "🛒", "Hacer el súper", "en el súper", "super", 45, {"energia": -5},
+           habitacion=FUERA, nombre_juntos="Ir al súper juntos"),
+    Accion("restaurante", "🍝", "Ir al restaurante", "en el restaurante", "restaurante", 90,
+           {"diversion": 20, "social": 5}, comida=True, habitacion=FUERA, nombre_juntos="Cita en el restaurante",
+           efectos_juntos={"social": 50}),
+    Accion("cine", "🎬", "Ir al cine", "en el cine", "cine", 120, {"diversion": 40, "social": 5},
+           habitacion=FUERA, nombre_juntos="Cita en el cine", efectos_juntos={"social": 50}),
+    Accion("parque", "🌳", "Pasear por el parque", "en el parque", "parque", 60,
+           {"diversion": 20, "energia": -10, "social": 5}, habitacion=FUERA, ropa=1, ejercicio=True,
+           nombre_juntos="Paseo juntos por el parque", efectos_juntos={"social": 30}),
+    Accion("gimnasio", "🏋️", "Entrenar en el gimnasio", "en el gimnasio", "gimnasio", 60,
+           {"energia": -25, "diversion": 5, "higiene": -15}, habitacion=FUERA, ropa=2, ejercicio=True,
+           nombre_juntos="Entrenar juntos"),
+    # Se empieza desde la pantalla de trabajo, no desde los menús de acciones.
+    Accion("trabajar", "💼", "Trabajar", "trabajando", "trabajo", 8 * 60, juntos=SOLO, habitacion=FUERA, ropa=1),
 )
 ACCIONES: dict[str, Accion] = {a.clave: a for a in _ACCIONES}
+
+
+def texto_efectos(efectos: dict) -> str:
+    """'+10 🎉 diversión, +5 💬 social'."""
+    partes = []
+    for n in NECESIDADES:
+        cambio = round(efectos.get(n.clave, 0))
+        if cambio:
+            partes.append(f"{'+' if cambio > 0 else '−'}{abs(cambio)} {n.emoji} {n.nombre.lower()}")
+    return ", ".join(partes) or "sin cambios en las necesidades"
+
 
 ENERGIA_POR_HORA_DORMIDO = 12
 ENERGIA_TRABAJO_POR_HORA = 8
@@ -248,7 +299,9 @@ def preparar(
         efectos["hambre"] = efectos.get("hambre", 0) + comida_del_momento(segundos)[2]
     if juntos:
         minutos = max(1, round(minutos * FACTOR_JUNTOS))
-        if a.categoria != "social":
+        if a.efectos_juntos:
+            efectos.update(a.efectos_juntos)
+        elif a.categoria != "pareja":
             efectos["social"] = efectos.get("social", 0) + BONO_SOCIAL_JUNTOS
     return {
         "k": a.clave, "x": extra, "ini": segundos, "fin": segundos + minutos * MINUTO,

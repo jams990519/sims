@@ -52,7 +52,7 @@ class CocinaMixin:
             lineas.append(f"🥡 Tu táper: {C.RECETAS[j.taper].nombre}")
         res.pantalla = Pantalla(
             "\n".join(lineas).rstrip(),
-            [[("🛒 Ir al súper", "a:super"), ("🍳 Cocinar", "a:cocinar")], [("🧍 Mi Sim", "sim")]],
+            [[("🛒 Ir al súper", "a:super"), ("🍳 Preparar comida", "a:cocinar")], [("⬅️ Atrás", "mcasa")]],
             clave="nevera",
         )
 
@@ -92,7 +92,7 @@ class CocinaMixin:
         botones = [productos[k:k + 2] for k in range(0, len(productos), 2)]
         if carrito:
             botones.append([(f"✅ Pagar ${C.total_carrito(carrito, dia):.2f}", "sup:pagar"), ("🗑️ Vaciar", "sup:vaciar")])
-        botones.append([("🧊 Nevera", "nevera"), ("🧍 Mi Sim", "sim")])
+        botones.append([("🧊 Nevera", "nevera"), ("⬅️ Atrás", "mlug")])
         res.pantalla = Pantalla("\n".join(lineas), botones, clave="super")
 
     def _b_super_accion(self, j: Jugador, arg: str, res) -> None:
@@ -157,7 +157,7 @@ class CocinaMixin:
                 lineas.append(f"{marca} {r.emoji} {r.nombre} · {r.minutos} min")
                 botones.append([(f"{marca} {r.emoji} {r.nombre}", f"rec:{r.clave}")])
         botones.append([("🛒 Súper", "a:super"), ("🧊 Nevera", "nevera")])
-        botones.append([("⬅️ Comer", "acc:comer")])
+        botones.append([("⬅️ Atrás", "acc:comer")])
         res.pantalla = Pantalla("\n".join(lineas), botones, clave="cocina")
 
     def _b_receta(self, j: Jugador, clave: str, res) -> None:
@@ -185,7 +185,7 @@ class CocinaMixin:
         if falta:
             lineas += ["", f"❌ Falta: {C.texto_ingredientes(falta)}"]
             botones.append([("🛒 Ir al súper", "a:super")])
-        botones.append([("⬅️ Recetas", "a:cocinar")])
+        botones.append([("⬅️ Atrás", "a:cocinar")])
         res.pantalla = Pantalla("\n".join(lineas), botones, clave="cocina")
 
     def _b_cocinar_solo(self, j: Jugador, arg: str, res) -> None:
@@ -383,25 +383,30 @@ class CocinaMixin:
     # ------------------------------------------------------------------
 
     def _b_elegir_comida(self, j: Jugador, res) -> None:
+        """⚡ Acciones → Comer → Comer lo que hay: lo que queda en la nevera o en el táper."""
         from .juego import Pantalla
 
-        h = self._hogar(j.sala_id)
-        nevera = self._nevera(h)
-        s = self._segundos_juego(j, self.reloj())
-        clave_comida, nombre_comida, valor = V.comida_del_momento(s)
-        precio = D.precio_comida(clave_comida)
+        nevera = self._nevera(self._hogar(j.sala_id))
+        _, nombre_comida, valor = V.comida_del_momento(self._segundos_juego(j, self.reloj()))
         botones = [
             [(f"{C.RECETAS[r].emoji} {C.RECETAS[r].nombre} ({n})", f"a:comer:{r}")]
             for r, n in nevera.items() if r in C.RECETAS and n > 0
         ]
-        botones.append([(f"🥡 Comprar comida hecha · {D.dinero(precio)}", "a:comer:comprar")])
-        botones.append([("🍳 Cocinar", "a:cocinar"), ("⬅️ Comer", "acc:comer")])
-        res.pantalla = Pantalla(
-            f"🍽️ <b>{nombre_comida}</b> (+{valor} de hambre)\n"
-            "Elige algo de la nevera (gratis, ya lo cocinaron) o compra algo hecho.",
-            botones,
-            clave="acc:comer",
-        )
+        if j.taper in C.RECETAS:
+            botones.append([(f"🥡 Tu táper: {C.RECETAS[j.taper].nombre.lower()}", "a:comer:taper")])
+        if botones:
+            texto = (
+                f"🍽️ <b>Comer lo que hay</b> · {nombre_comida.lower()} (+{valor} de hambre)\n"
+                "Esto ya está pagado: elige qué comer."
+            )
+        else:
+            texto = (
+                "🍽️ <b>Comer lo que hay</b>\nNo queda nada hecho en la nevera. "
+                "Preparen comida o pidan a domicilio."
+            )
+        botones.append([("🍳 Preparar comida", "a:cocinar"), ("🛵 Pedir a domicilio", "a:domicilio")])
+        botones.append([("⬅️ Atrás", "acc:comer")])
+        res.pantalla = Pantalla(texto, botones, clave="acc:comer")
 
     def _b_elegir_taper(self, j: Jugador, res) -> None:
         from .juego import Pantalla
@@ -417,7 +422,7 @@ class CocinaMixin:
             botones = []
         elif not botones:
             texto = "🥡 No hay comida hecha en la nevera. Cocina primero y guarda una porción."
-        botones.append([("🍳 Cocinar", "a:cocinar"), ("⬅️ Comer", "acc:comer")])
+        botones.append([("🍳 Preparar comida", "a:cocinar"), ("⬅️ Atrás", "acc:comer")])
         res.pantalla = Pantalla(texto, botones, clave="acc:comer")
 
     def _b_taper(self, j: Jugador, receta: str, res) -> None:

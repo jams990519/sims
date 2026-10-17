@@ -41,6 +41,12 @@ SERVICIOS = ("luz", "agua", "internet", "gas")
 # Lo que cuesta cada comida por persona.
 PRECIO_COMIDA = {"desayuno": 3, "almuerzo": 5, "cena": 4}
 PRECIO_PICAR = 1
+DOMICILIO = 2  # pedir a domicilio cuesta el doble
+
+# Salidas: (solo, en pareja). Los fines de semana salen más caras.
+PRECIO_SALIDA = {"restaurante": (20, 40), "cine": (13, 25)}
+RECARGO_FIN_DE_SEMANA = 0.25
+GIMNASIO_MES = 30
 
 # Servicios que necesita cada acción.
 NECESITA_SERVICIO = {
