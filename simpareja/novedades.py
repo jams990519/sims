@@ -3,9 +3,20 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.23"
+VERSION = "0.24"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.24", [
+        "📱 <b>Influencer</b> (💼 Trabajo → Influencer), compatible con tu trabajo: elige el tema del video, "
+        "🎥 grábalo (toma tiempo y energía), ✂️ edítalo y publícalo para ganar seguidores y dinero ($5 a $20 por "
+        "video al principio), y 📚 aprende para subir de nivel.",
+        "🤝 Desde 1.000 seguidores llegan patrocinios de $100 a $300.",
+        "💞 Tu pareja puede ayudarte: escribir el guion (mejor calidad) o grabar contigo y salir en el video "
+        "(más seguidores). Cada ayuda sube la relación.",
+        "📅 Constancia: publica cada 2 días. Desde el tercer día sin publicar pierdes un 2 % de seguidores al día "
+        "(un 5 % después de una semana). Los fines de semana los videos llegan más lejos.",
+        "🎥 Cámara, aro de luz y micrófono mejoran la calidad. Y ojo: ¡un video puede hacerse viral! 🔥",
+    ]),
     ("0.23", [
         "🛒🔓 <b>El súper crece</b>: con 5 recetas cocinadas llegan carne, papas, leche y harina, y las recetas "
         "🥞 panqueques y 🥩 bistec con papas. Con 15, pescado y frutas: 🐟 pescado con verduras y 🥤 batido de frutas.",

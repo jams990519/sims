@@ -108,7 +108,7 @@ class VidaMixin:
         if a is None:
             return ""
         texto = f"✅ {self._firma(j)} terminó: {a.emoji} {a.titulo(bool(accion.get('con')))}."
-        texto += self._efecto_mascota(j, accion)
+        texto += self._efecto_mascota(j, accion) + self._paso_influencer(j, accion)
         self._recordar_cita(j, accion)
         self._reto_accion(j, accion)
         h = self._hogar(j.sala_id)
@@ -306,6 +306,8 @@ class VidaMixin:
         """A qué menú vuelve el botón Atrás desde la ficha de una acción."""
         if a.categoria in dict((c[0], c) for c in V.CATEGORIAS):
             return f"acc:{a.categoria}"
+        if a.categoria == "influencer":
+            return "influ"
         return "mlug"
 
     # ------------------------------------------------------------------
@@ -612,6 +614,7 @@ class VidaMixin:
         from .juego import Aviso
 
         for j in self.db.jugadores_en_sala():
+            j = self.db.jugador(j.id) or j  # al día: otro Sim pudo cambiarlo en este mismo minuto
             if j.estado != "activo":
                 continue
             eventos = self._vivir(j, ahora)

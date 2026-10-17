@@ -18,7 +18,6 @@ from .db import EN_JUEGO, Jugador
 # Lo que todavía no existe: se ve en el menú, pero avisa que llega pronto.
 PRONTO = {
     "estudiar": "📚 Los estudios",
-    "influencer": "📱 El minijuego de influencer",
 }
 
 

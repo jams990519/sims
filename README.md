@@ -3,7 +3,7 @@
 Un juego de texto tipo *Los Sims* para jugar **en pareja** por Telegram ([@sims000bot](https://t.me/sims000bot)).
 Se entra **solo por invitación** y funciona en **cualquier país donde abra Telegram**, Cuba incluida.
 
-## Qué hay hasta ahora (versión 0.23)
+## Qué hay hasta ahora (versión 0.24)
 
 | | |
 |---|---|
@@ -14,6 +14,7 @@ Se entra **solo por invitación** y funciona en **cualquier país donde abra Tel
 | 🧍 **Necesidades** | Hambre (−6/h), energía (máx. 100, sube a 130 con constancia), higiene (−4/h), diversión (−5/h) y social (−3/h), de 0 a 100, que cambian con el reloj del Sim. Con alguna en 0 se pone de mal humor; sin energía se duerme donde esté. |
 | 🎬 **Acciones** | Comer (desayuno +30, almuerzo +45, cena +40 según la hora), cocinar, dormir (+12/h), siesta, ducha, bañarse juntos, dientes, tele, redes, parque, hablar, abrazar, besar, masaje, cita, limpiar una zona y lavar la ropa (la ropa sucia se acumula). Casi todas se pueden hacer **solo o juntos**: juntos terminan antes. |
 | 💗 **Medidor de relación** | Cada quien tiene un medidor de 0 a 100 % (empieza en 50 %) de lo que siente por el otro. Lo sube o lo baja cuando quiere eligiendo el motivo (o escribiéndolo); la pareja recibe un aviso y queda un historial de los dos. |
+| 📱 **Influencer** | Minijuego compatible con un trabajo: tema → 🎥 grabar → ✂️ editar y publicar (seguidores y $5 a $20 por video) → 📚 aprender para subir de nivel. Patrocinios de $100 a $300 desde 1.000 seguidores. La pareja ayuda (guion: más calidad; grabar juntos: sale en el video, más seguidores) y eso sube la relación. Constancia: sin publicar desde el tercer día se pierde un 2 % de seguidores al día (5 % tras una semana). Fines de semana con más alcance; el equipo (cámara, aro, micrófono) mejora la calidad; el evento sorpresa «video viral». |
 | 🐾 **Mascota** | Perro o gato por $150 (de acuerdo los dos; eligen aspecto y nombre) y $40 al mes de comida. Barras de hambre, felicidad y limpieza; se le da de comer, se juega, se baña y al perro se lo pasea (cuenta como parque). Juntos sube la relación. Descuidada: se pone triste, rompe cosas o hace ruido de noche. Sale en el plano y en los viajes la cuida alguien ($20 al día). |
 | 🪑 **Objetos y tiendas** | Incluidos con la casa: cama, estufa, nevera, ducha y móvil básico. Se compran: televisión $300 (sin ella no hay tele), lavadora $350 (sin ella, lavandería $8), sofá $400, móvil mejor $200, cama grande $600 y equipo de influencer (cámara $250, aro de luz $60, micrófono $80). Las tiendas sacan más cosas con los hitos (plantas, cuadros, consola, bañera). En casa propia se remodela (pintar, baño nuevo). |
 | 🏆 **Hitos de pareja** | Primera cita, primer mes, mudanza, mascota, primer viaje, compromiso, boda y casa propia. Opcionales; al lograr uno se celebra con los dos conectados (pantalla especial, recuerdo en el álbum y subida del medidor de los dos). Ya funcionan todos: primera cita, primer mes, mudanza, casa propia, ✈️ primer viaje (destino y días de $800 a $2.000; esos días no trabajan y las necesidades no bajan), 💍 compromiso (medidor de los dos > 80 %, viaje hecho y anillo comprado en secreto; si es no, se conserva el anillo) y 💒 boda (lugar, invitados, comida y fecha; «sí, acepto» con los dos conectados; estado «casados», luna de miel y opción de unir el dinero). |
@@ -38,7 +39,7 @@ Se entra **solo por invitación** y funciona en **cualquier país donde abra Tel
 **Primer diseño (una parte cada vez, cada una se sube sola):**
 1. ✅ Crear el personaje · 2. ✅ Sala y chat interno · 3. ✅ Reloj individual y pausa · 4. ✅ Necesidades y acciones básicas
 5. ✅ Casa, dinero y gastos · 6. ✅ Trabajos y días de la semana · 7. ✅ Súper y minijuego de cocina · 8. ✅ Medidor de relación
-9. Influencer y ayuda de la pareja · 10. Estudios · 11. Lugares y mejoras de la casa
+9. ✅ Influencer y ayuda de la pareja · 10. Estudios · 11. Lugares y mejoras de la casa
 
 ### ¿Por qué funciona en cualquier país?
 - Quien juega **solo necesita Telegram**: no hay pagos, ni tarjetas, ni correo, ni apps aparte.
@@ -123,6 +124,7 @@ simpareja/
 ├── objetos.py      # objetos, tiendas y sus efectos (lógica pura)
 ├── tiendas_juego.py # objetos de la casa, tiendas y remodelación
 ├── mascota_juego.py # la mascota: adopción, barras, acciones y descuido
+├── influencer_juego.py # minijuego de influencer
 ├── novedades.py    # notas de cada versión (se anuncian solas al desplegar)
 ├── menus.py        # menú principal, submenús y plano de la casa
 ├── plano.py        # dibujo del plano en texto (lógica pura)

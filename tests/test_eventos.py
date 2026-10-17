@@ -38,7 +38,7 @@ def extras(juego):
 
 def forzar(juego, monkeypatch, clave):
     """El próximo tick lanza este evento."""
-    monkeypatch.setattr(E, "elegir", lambda rng, en_pareja, con_trabajo: E.POR_CLAVE[clave])
+    monkeypatch.setattr(E, "elegir", lambda rng, en_pareja, con_trabajo, con_videos=False: E.POR_CLAVE[clave])
     h = hogar(juego)
     ex = json.loads(h.extras)
     ex["eventos"] = {"proximo": juego.reloj() - 1}

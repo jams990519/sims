@@ -88,7 +88,7 @@ class TrabajoMixin:
                 [(f"{t.emoji} {t.niveles[0].nombre(genero)} · ${t.niveles[0].por_hora}/h", f"vtrab:{t.clave}")]
                 for t in T.TRABAJOS.values()
             ]
-            botones.append([("📚 Estudios 🚧", "pronto:estudiar"), ("📱 Influencer 🚧", "pronto:influencer")])
+            botones.append([("📚 Estudios 🚧", "pronto:estudiar"), ("📱 Influencer", "influ")])
             botones.append([("⬅️ Atrás", "menu")])
             res.pantalla = Pantalla("\n".join(lineas), botones, clave="trabajo")
             return
@@ -132,7 +132,7 @@ class TrabajoMixin:
             botones.append([("💼 Ir a trabajar ahora", "trabajar:ir"), ("⏰ Cuando me desconecte", "trabajar:luego")])
         botones.append([("🗓️ Mi horario", "hor"), ("📈 Mi carrera", "carrera")])
         botones.append([("🚪 Renunciar o cambiar", "renunciar")])
-        botones.append([("📚 Estudios 🚧", "pronto:estudiar"), ("📱 Influencer 🚧", "pronto:influencer")])
+        botones.append([("📚 Estudios 🚧", "pronto:estudiar"), ("📱 Influencer", "influ")])
         botones.append([("⬅️ Atrás", "menu")])
         res.pantalla = Pantalla("\n".join(lineas), botones, clave="trabajo")
 
