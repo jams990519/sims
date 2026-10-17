@@ -23,7 +23,6 @@ PRONTO = {
     "muebles": "🛋️ La tienda de muebles",
     "electronica": "📺 La tienda de electrónica",
     "influencer": "📱 El minijuego de influencer",
-    "preguntas": "❓ Las preguntas de pareja",
     "aniversario": "🎂 El aniversario",
     "retos": "🎯 Los retos semanales",
     "hitos": "🏆 Los hitos de pareja",
@@ -242,9 +241,11 @@ class MenuMixin:
             texto += f"\n💞 {self._firma(pareja)}: {self._texto_presencia(pareja, self.reloj())}"
         else:
             texto += "\nTodavía juegas sin pareja en la sala. Invítala con 💌 Invitar."
+        pregunta = self._pregunta(self._hogar(j.sala_id)) if pareja else None
+        falta = pregunta is not None and str(j.id) not in pregunta["respuestas"]
         botones = [
             [("💞 Acciones en pareja", "acc:pareja")],
-            [("💗 Medidor de relación", "medidor"), ("❓ Preguntas 🚧", "pronto:preguntas")],
+            [("💗 Medidor de relación", "medidor"), ("❓ Preguntas" + (" (1)" if falta else ""), "preg")],
             [("🎂 Aniversario 🚧", "pronto:aniversario"), ("🎯 Retos 🚧", "pronto:retos")],
             [("🏆 Hitos 🚧", "pronto:hitos"), ("📸 Álbum", "album")],
             [("💌 Invitar", "invitar"), ("⬅️ Atrás", "menu")],

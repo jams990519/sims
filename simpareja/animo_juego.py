@@ -110,12 +110,19 @@ class AnimoMixin:
         texto = f"🎭 {self._firma(j)} ahora se siente: <b>{P.animo(ap)}</b>"
         if frase:
             texto += f"\n💬 «{esc(frase)}»"
+        botones = [[("👀 Ver su perfil", "perfil")]]
+        pregunta = self._pregunta_por_animo(j)  # según el ánimo aparece una pregunta para los dos
+        if pregunta:
+            botones = [[("✍️ Responder", "pregr"), ("👀 Ver su perfil", "perfil")]]
         for o in self._companeros(j):
             if o.estado == "activo":
-                res.avisos.append(Aviso(o.id, texto, [[("👀 Ver su perfil", "perfil")]], foto=foto))
+                extra = f"\n\n{self._texto_pregunta(o, pregunta)}" if pregunta else ""
+                res.avisos.append(Aviso(o.id, texto + extra, botones, foto=foto))
         res.ediciones += self._refrescar_sala(j.sala_id, excepto=j.id)
         res.alerta = f"Ánimo: {P.animo(ap)}"
         aviso = "🎭 ¡Listo! Tu pareja recibió el aviso" + (" con tu foto 📸." if foto else ".")
+        if pregunta:
+            aviso += f"\n\n{self._texto_pregunta(j, pregunta)}\nRespóndanla los dos en 💕 Pareja → ❓ Preguntas."
         res.pantalla = self._pantalla_sala(j, aviso if self._companeros(j) else "🎭 ¡Listo!")
 
     # ------------------------------------------------------------------
@@ -168,8 +175,8 @@ class AnimoMixin:
         res.alerta = "📸 Te la envío abajo."
 
     def _b_album(self, j: Jugador, arg: str, res) -> None:
-        """💕 Pareja → 📸 Álbum: por ahora, las fotos de ánimo de los dos."""
-        from .juego import Pantalla
+        """💕 Pareja → 📸 Álbum: las fotos de ánimo de los dos y las respuestas que les gustaron."""
+        from .juego import Pantalla, esc
 
         miembros = [m for m in self.db.miembros_sala(j.sala_id) if m.estado in EN_JUEGO]
         lineas = ["📸 <b>Álbum de recuerdos</b>", ""]
@@ -188,6 +195,12 @@ class AnimoMixin:
             botones += [fila[k:k + 3] for k in range(0, min(len(fila), 9), 3)]
         if not hay:
             lineas.append("Todavía no hay fotos. Cambia tu 🎭 estado de ánimo y agrega una foto: se guardan aquí.")
-        lineas += ["", "🚧 <i>Pronto también: aniversarios, citas, respuestas que les gustaron e hitos.</i>"]
+        respuestas = [r for r in self._extras_hogar(self._hogar(j.sala_id)).get("recuerdos", []) if r["tipo"] == "respuesta"]
+        if respuestas:
+            lineas += ["", "💬 <b>Respuestas que les gustaron</b>"]
+            for r in reversed(respuestas[-5:]):
+                de = self.db.jugador(r["de"])
+                lineas.append(f"❓ {esc(r['pregunta'])}\n   {esc(de.personaje) if de else '…'}: «{esc(r['texto'])}»")
+        lineas += ["", "🚧 <i>Pronto también: aniversarios, citas e hitos.</i>"]
         botones.append([("🎭 Mi ánimo", "animos"), ("⬅️ Atrás", "mpar")])
         res.pantalla = Pantalla("\n".join(lineas), botones, clave="album")
