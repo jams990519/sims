@@ -9,6 +9,7 @@ import json
 
 from . import cocina as C
 from . import dinero as D
+from . import objetos as O
 from . import personaje as P
 from . import vida as V
 from .db import Hogar, Jugador, Propuesta
@@ -59,6 +60,9 @@ class VidaMixin:
             m["higiene"] = 1.5
         if json.loads(h.zonas).get("salon", 0) >= V.SUCIO:
             m["diversion"] = 1.25
+        decoracion = len(self._objetos(h) & set(O.DECORACION))  # plantas y cuadros: −10 % cada uno
+        if decoracion:
+            m["diversion"] = m.get("diversion", 1.0) * (1 - 0.1 * decoracion)
         return m
 
     def _vivir(self, j: Jugador, ahora: float) -> list[tuple[str, bool]]:
@@ -147,6 +151,7 @@ class VidaMixin:
         s = self._segundos_juego(j, ahora)
         datos = V.preparar(a, s, self._nec(j), j.energia_max, extra, juntos=con is not None,
                            hora=self._hora_local(j, ahora))
+        datos["ef"] = self._con_objetos(j, a.clave, datos["ef"])
         if minutos is not None:
             datos["fin"] = datos["ini"] + minutos * 60
         datos.update(rini=ahora, rfin=ahora + (datos["fin"] - datos["ini"]), con=con)
@@ -162,7 +167,8 @@ class VidaMixin:
         h = self._hogar(j.sala_id)
         if a.zona and a.ensucia:
             zonas = json.loads(h.zonas)
-            zonas[a.zona] = min(100, zonas.get(a.zona, 0) + a.ensucia)
+            ensucia = a.ensucia / 2 if "pintar" in self._objetos(h) else a.ensucia  # casa pintada y decorada
+            zonas[a.zona] = min(100, zonas.get(a.zona, 0) + ensucia)
             h.zonas = json.dumps(zonas)
         h.ropa_sucia += a.ropa
         self.db.guardar_hogar(h)
@@ -394,6 +400,7 @@ class VidaMixin:
             opciones.append(True)
         for juntos in opciones:
             datos = V.preparar(a, s, nec, j.energia_max, extra, juntos=juntos, hora=self._hora_local(j))
+            datos["ef"] = self._con_objetos(j, a.clave, datos["ef"])
             costo, _ = self._costo_accion(j, a, extra, juntos, pareja if juntos else None)
             quien = f"💞 Con {self._firma(pareja)}" if juntos else "👤 Solo"
             detalle = f"{V.texto_efectos(datos['ef'])} · ⏱️ {_dur(datos['fin'] - datos['ini'])}"

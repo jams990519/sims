@@ -31,8 +31,8 @@ def _sangria(texto: str, ancho: int) -> str:
     return " " + texto if texto and len(texto) < ancho else texto
 
 
-def dibujar(zonas: tuple[str, ...], dentro: dict[str, list[str]]) -> list[str]:
-    """Las líneas del plano. `dentro`: habitación → marcas de quienes están ahí."""
+def dibujar(zonas: tuple[str, ...], dentro: dict[str, list[str]], objetos: list[str] | tuple = ()) -> list[str]:
+    """Las líneas del plano. `dentro`: habitación → marcas de quienes están ahí; `objetos`: lo comprado."""
     derecha = 8  # cabe "[Lu][Lu]": los dos en el baño
     m = {z: marcas(dentro.get(z, [])) for z in zonas}
     m["closet"], m["bano"] = _sangria(m.get("closet", ""), derecha), _sangria(m.get("bano", ""), derecha)
@@ -72,7 +72,8 @@ def dibujar(zonas: tuple[str, ...], dentro: dict[str, list[str]]) -> list[str]:
             lineas.append(f"{borde}{_c(a, cuarto)}{union}{_c(c, derecha)}{fin}")
     division = "+" + "-" * cuarto + "+" + ("-" * extra + "+" if "extra" in zonas else "") + "-" * derecha + "+"
     lineas.append(division)
-    for texto in (" SALA · COCINA · COMEDOR", "", "  cocina  nevera   mesa", "", "  " + m["salon"]):
+    comprado = "  " + "  ".join(objetos) if objetos else ""
+    for texto in (" SALA · COCINA · COMEDOR", "", "  cocina  nevera   mesa", comprado, "  " + m["salon"]):
         lineas.append(f"|{_c(texto, ancho)}|")
     lineas.append("+" + "-" * ancho + "+")
     return lineas
