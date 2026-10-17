@@ -30,8 +30,10 @@ class Config:
     nombre_juego: str = "SimPareja"
     admins: frozenset[int] = field(default_factory=frozenset)
     db_ruta: str = "datos/simpareja.db"
-    # Minutos sin actividad hasta pasar de "en línea" a "ausente" y luego a "fuera de línea".
-    en_linea_min: int = 15
+    # Minutos sin jugar hasta que el Sim se congela (y su reloj se para).
+    pausa_min: int = 5
+    # Minutos sin actividad hasta pasar de "en línea" a "en pausa" y luego a "fuera de línea".
+    en_linea_min: int = 5
     ausente_min: int = 60
     # Personas por sala (2 = una pareja).
     max_sala: int = 2
@@ -50,6 +52,7 @@ class Config:
             nombre_juego=e("NOMBRE_JUEGO", cls.nombre_juego),
             admins=_ids(e("ADMIN_IDS", "")),
             db_ruta=e("DB_RUTA", cls.db_ruta),
+            pausa_min=int(e("PAUSA_MIN", cls.pausa_min)),
             en_linea_min=int(e("EN_LINEA_MIN", cls.en_linea_min)),
             ausente_min=int(e("AUSENTE_MIN", cls.ausente_min)),
             max_sala=int(e("MAX_SALA", cls.max_sala)),

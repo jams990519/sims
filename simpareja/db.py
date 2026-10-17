@@ -33,9 +33,21 @@ CREATE TABLE IF NOT EXISTS jugadores (
     msg_sala          INTEGER,                  -- mensaje con la sala abierta (se actualiza en vivo)
     aviso_conexion_ts REAL NOT NULL DEFAULT 0,
     avisos_conexion   INTEGER NOT NULL DEFAULT 1,
-    creado            REAL NOT NULL
+    creado            REAL NOT NULL,
+    -- Reloj propio del Sim: corre como un día real y se congela tras unos minutos sin jugar.
+    reloj_juego       REAL NOT NULL DEFAULT 0,  -- segundos de juego acumulados
+    reloj_desde       REAL,                     -- desde cuándo corre (NULL = congelado)
+    ultima_jugada     REAL NOT NULL DEFAULT 0   -- última acción de juego (el chat no cuenta)
 );
 CREATE INDEX IF NOT EXISTS jugadores_sala ON jugadores(sala_id);
+
+-- Personas que abrieron el bot pero todavía no juegan: cada una tiene su código personal.
+CREATE TABLE IF NOT EXISTS visitantes (
+    id        INTEGER PRIMARY KEY,              -- id de usuario de Telegram
+    codigo    TEXT NOT NULL UNIQUE,
+    nombre_tg TEXT NOT NULL DEFAULT '',
+    creado    REAL NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS invitaciones (
     codigo    TEXT PRIMARY KEY,
@@ -46,10 +58,38 @@ CREATE TABLE IF NOT EXISTS invitaciones (
     expira    REAL NOT NULL,
     usada_por INTEGER,
     usada_ts  REAL,
-    anulada   INTEGER NOT NULL DEFAULT 0
+    anulada   INTEGER NOT NULL DEFAULT 0,
+    para_id   INTEGER                           -- la única persona que puede usarla
 );
 CREATE INDEX IF NOT EXISTS invitaciones_creador ON invitaciones(creador);
+
+-- Solo la ÚLTIMA conexión de cada jugador (se sobrescribe): dónde estaba y qué hacía,
+-- para devolverle al mismo sitio cuando vuelva.
+CREATE TABLE IF NOT EXISTS ultima_conexion (
+    jugador_id       INTEGER PRIMARY KEY,
+    pantalla         TEXT NOT NULL DEFAULT 'sala',  -- clave para reconstruir la pantalla
+    lugar            TEXT NOT NULL DEFAULT '',
+    actividad        TEXT NOT NULL DEFAULT '',
+    estado           TEXT NOT NULL DEFAULT '',
+    sala_id          INTEGER,
+    conectado_desde  REAL NOT NULL DEFAULT 0,
+    ultima_actividad REAL NOT NULL DEFAULT 0,
+    desconectado     REAL
+);
+
+CREATE TABLE IF NOT EXISTS meta (
+    clave TEXT PRIMARY KEY,
+    valor TEXT NOT NULL
+);
 """
+
+# Columnas añadidas después de la primera versión: se agregan a bases de datos ya existentes.
+COLUMNAS_NUEVAS = [
+    ("invitaciones", "para_id", "INTEGER"),
+    ("jugadores", "reloj_juego", "REAL NOT NULL DEFAULT 0"),
+    ("jugadores", "reloj_desde", "REAL"),
+    ("jugadores", "ultima_jugada", "REAL NOT NULL DEFAULT 0"),
+]
 
 
 @dataclass
@@ -70,6 +110,9 @@ class Jugador:
     aviso_conexion_ts: float = 0.0
     avisos_conexion: int = 1
     creado: float = 0.0
+    reloj_juego: float = 0.0
+    reloj_desde: float | None = None
+    ultima_jugada: float = 0.0
 
     @property
     def activo(self) -> bool:
@@ -78,6 +121,14 @@ class Jugador:
     @property
     def ap(self) -> dict:
         return json.loads(self.apariencia or "{}")
+
+
+@dataclass
+class Visitante:
+    id: int
+    codigo: str
+    nombre_tg: str = ""
+    creado: float = 0.0
 
 
 @dataclass
@@ -91,9 +142,23 @@ class Invitacion:
     usada_por: int | None = None
     usada_ts: float | None = None
     anulada: int = 0
+    para_id: int | None = None
 
     def vigente(self, ahora: float) -> bool:
         return not self.anulada and self.usada_por is None and self.expira > ahora
+
+
+@dataclass
+class UltimaConexion:
+    jugador_id: int
+    pantalla: str = "sala"
+    lugar: str = ""
+    actividad: str = ""
+    estado: str = ""
+    sala_id: int | None = None
+    conectado_desde: float = 0.0
+    ultima_actividad: float = 0.0
+    desconectado: float | None = None
 
 
 def _sql_upsert(tabla: str, cls: type) -> str:
@@ -113,6 +178,14 @@ class DB:
         self.con.execute("PRAGMA journal_mode=WAL")
         with self.con:
             self.con.executescript(ESQUEMA)
+            self._migrar()
+
+    def _migrar(self) -> None:
+        for tabla, columna, tipo in COLUMNAS_NUEVAS:
+            existentes = {f["name"] for f in self.con.execute(f"PRAGMA table_info({tabla})")}
+            if columna not in existentes:
+                self.con.execute(f"ALTER TABLE {tabla} ADD COLUMN {columna} {tipo}")
+        self.con.execute("CREATE INDEX IF NOT EXISTS invitaciones_para ON invitaciones(para_id)")
 
     # --- jugadores -------------------------------------------------------
 
@@ -123,6 +196,12 @@ class DB:
     def guardar_jugador(self, j: Jugador) -> None:
         with self.con:
             self.con.execute(_sql_upsert("jugadores", Jugador), astuple(j))
+
+    def contar_jugadores(self) -> int:
+        return self.con.execute("SELECT COUNT(*) FROM jugadores").fetchone()[0]
+
+    def todos_los_jugadores(self) -> list[Jugador]:
+        return [Jugador(**f) for f in self.con.execute("SELECT * FROM jugadores").fetchall()]
 
     def miembros_sala(self, sala_id: int | None) -> list[Jugador]:
         if sala_id is None:
@@ -138,6 +217,20 @@ class DB:
             "SELECT * FROM jugadores WHERE sala_id IS NOT NULL AND estado IN (?, ?)", EN_JUEGO
         ).fetchall()
         return [Jugador(**f) for f in filas]
+
+    # --- visitantes ------------------------------------------------------
+
+    def visitante(self, uid: int) -> Visitante | None:
+        fila = self.con.execute("SELECT * FROM visitantes WHERE id = ?", (uid,)).fetchone()
+        return Visitante(**fila) if fila else None
+
+    def visitante_por_codigo(self, codigo: str) -> Visitante | None:
+        fila = self.con.execute("SELECT * FROM visitantes WHERE codigo = ?", (codigo,)).fetchone()
+        return Visitante(**fila) if fila else None
+
+    def guardar_visitante(self, v: Visitante) -> None:
+        with self.con:
+            self.con.execute(_sql_upsert("visitantes", Visitante), astuple(v))
 
     # --- salas -----------------------------------------------------------
 
@@ -167,10 +260,33 @@ class DB:
         ).fetchall()
         return [Invitacion(**f) for f in filas]
 
-    def invitaciones_pareja_vigentes(self, sala_id: int, ahora: float) -> list[Invitacion]:
+    def invitaciones_para(self, uid: int, ahora: float) -> list[Invitacion]:
+        """Invitaciones vigentes dirigidas a esta persona, la más reciente primero."""
         filas = self.con.execute(
-            "SELECT * FROM invitaciones WHERE sala_id = ? AND tipo = 'pareja' "
-            "AND anulada = 0 AND usada_por IS NULL AND expira > ?",
-            (sala_id, ahora),
+            "SELECT * FROM invitaciones WHERE para_id = ? AND anulada = 0 "
+            "AND usada_por IS NULL AND expira > ? ORDER BY creada DESC",
+            (uid, ahora),
         ).fetchall()
         return [Invitacion(**f) for f in filas]
+
+    # --- última conexión -------------------------------------------------
+
+    def ultima_conexion(self, uid: int) -> UltimaConexion | None:
+        fila = self.con.execute(
+            "SELECT * FROM ultima_conexion WHERE jugador_id = ?", (uid,)
+        ).fetchone()
+        return UltimaConexion(**fila) if fila else None
+
+    def guardar_ultima_conexion(self, uc: UltimaConexion) -> None:
+        with self.con:
+            self.con.execute(_sql_upsert("ultima_conexion", UltimaConexion), astuple(uc))
+
+    # --- meta ------------------------------------------------------------
+
+    def meta(self, clave: str) -> str | None:
+        fila = self.con.execute("SELECT valor FROM meta WHERE clave = ?", (clave,)).fetchone()
+        return fila[0] if fila else None
+
+    def guardar_meta(self, clave: str, valor: str) -> None:
+        with self.con:
+            self.con.execute("INSERT OR REPLACE INTO meta (clave, valor) VALUES (?, ?)", (clave, valor))
