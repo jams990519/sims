@@ -3,7 +3,7 @@
 Un juego de texto tipo *Los Sims* para jugar **en pareja** por Telegram ([@sims000bot](https://t.me/sims000bot)).
 Se entra **solo por invitación** y funciona en **cualquier país donde abra Telegram**, Cuba incluida.
 
-## Qué hay hasta ahora (versión 0.11)
+## Qué hay hasta ahora (versión 0.12)
 
 | | |
 |---|---|
@@ -13,6 +13,7 @@ Se entra **solo por invitación** y funciona en **cualquier país donde abra Tel
 | 🎮 **Jugar o invitar** | Al terminar el personaje eliges **Jugar** (también sin compañía, sin esperar a nadie) o **Invitar**. |
 | 🧍 **Necesidades** | Hambre (−6/h), energía (máx. 100, sube a 130 con constancia), higiene (−4/h), diversión (−5/h) y social (−3/h), de 0 a 100, que cambian con el reloj del Sim. Con alguna en 0 se pone de mal humor; sin energía se duerme donde esté. |
 | 🎬 **Acciones** | Comer (desayuno +30, almuerzo +45, cena +40 según la hora), cocinar, dormir (+12/h), siesta, ducha, bañarse juntos, dientes, tele, redes, parque, hablar, abrazar, besar, masaje, cita, limpiar una zona y lavar la ropa (la ropa sucia se acumula). Casi todas se pueden hacer **solo o juntos**: juntos terminan antes. |
+| 💗 **Medidor de relación** | Cada quien tiene un medidor de 0 a 100 % (empieza en 50 %) de lo que siente por el otro. Lo sube o lo baja cuando quiere eligiendo el motivo (o escribiéndolo); la pareja recibe un aviso y queda un historial de los dos. |
 | 🎭 **Ánimo con foto** | Al cambiar de ánimo se elige el color y, si se quiere, una foto y una frase corta. La pareja recibe un aviso con la foto; en el perfil ve el color, la frase, la hora y la foto, y las fotos anteriores quedan en el 📸 álbum. Las fotos usan el almacenamiento de Telegram (se guarda solo su `file_id`). |
 | 🗺️ **Plano de la casa** | `/plano` dibuja la casa en texto monoespaciado (cuarto arriba a la izquierda, clóset y baño a la derecha, sala-cocina-comedor abajo; con cuarto extra si se mudan) y pone a cada Sim con su inicial donde está, con lo que hace y el tiempo que le falta. Se actualiza solo mientras está abierto. |
 | 🏠 **Sala** | Muestra a cada quien con su avatar, su ánimo, si está 🟢 en línea (y qué hace), ❄️ en pausa o ⚫ fuera de línea, y la hora de su Sim. **Se actualiza sola.** |
@@ -28,7 +29,7 @@ Se entra **solo por invitación** y funciona en **cualquier país donde abra Tel
 
 **Primer diseño (una parte cada vez, cada una se sube sola):**
 1. ✅ Crear el personaje · 2. ✅ Sala y chat interno · 3. ✅ Reloj individual y pausa · 4. ✅ Necesidades y acciones básicas
-5. ✅ Casa, dinero y gastos · 6. ✅ Trabajos y días de la semana · 7. ✅ Súper y minijuego de cocina · 8. Medidor de relación
+5. ✅ Casa, dinero y gastos · 6. ✅ Trabajos y días de la semana · 7. ✅ Súper y minijuego de cocina · 8. ✅ Medidor de relación
 9. Influencer y ayuda de la pareja · 10. Estudios · 11. Lugares y mejoras de la casa
 
 ### ¿Por qué funciona en cualquier país?
@@ -100,6 +101,7 @@ simpareja/
 ├── cocina.py       # ingredientes, recetas y tiempos (lógica pura)
 ├── cocina_juego.py # súper, nevera, minijuego de cocina y táper
 ├── animo_juego.py  # estado de ánimo con foto y frase, perfil y álbum
+├── relacion_juego.py # medidor de relación y su historial
 ├── novedades.py    # notas de cada versión (se anuncian solas al desplegar)
 ├── menus.py        # menú principal, submenús y plano de la casa
 ├── plano.py        # dibujo del plano en texto (lógica pura)

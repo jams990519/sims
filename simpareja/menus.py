@@ -23,7 +23,6 @@ PRONTO = {
     "muebles": "🛋️ La tienda de muebles",
     "electronica": "📺 La tienda de electrónica",
     "influencer": "📱 El minijuego de influencer",
-    "medidor": "💗 El medidor de relación",
     "preguntas": "❓ Las preguntas de pareja",
     "aniversario": "🎂 El aniversario",
     "retos": "🎯 Los retos semanales",
@@ -245,7 +244,7 @@ class MenuMixin:
             texto += "\nTodavía juegas sin pareja en la sala. Invítala con 💌 Invitar."
         botones = [
             [("💞 Acciones en pareja", "acc:pareja")],
-            [("💗 Medidor de relación 🚧", "pronto:medidor"), ("❓ Preguntas 🚧", "pronto:preguntas")],
+            [("💗 Medidor de relación", "medidor"), ("❓ Preguntas 🚧", "pronto:preguntas")],
             [("🎂 Aniversario 🚧", "pronto:aniversario"), ("🎯 Retos 🚧", "pronto:retos")],
             [("🏆 Hitos 🚧", "pronto:hitos"), ("📸 Álbum", "album")],
             [("💌 Invitar", "invitar"), ("⬅️ Atrás", "menu")],
@@ -283,6 +282,7 @@ class MenuMixin:
             f"🕒 Su hora: {self._reloj(pareja)} · 📍 {V.nombre_habitacion(pareja.lugar)}",
             f"💼 {self._texto_puesto(pareja) or 'Sin trabajo todavía'}",
             f"📊 {_resumen_necesidades(self._nec(pareja))}",
+            f"💗 Tú → {esc(pareja.personaje)}: {self._relacion(j)} % · {esc(pareja.personaje)} → tú: {self._relacion(pareja)} %",
             "",
             f"<i>{esc(P.descripcion(pareja.personaje, pareja.ap))}</i>",
         ]
