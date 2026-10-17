@@ -158,6 +158,8 @@ class MenuMixin:
                 otro = self.db.jugador(accion["con"])
                 texto += f" con {html.escape(otro.personaje)}" if otro else ""
             return f"{texto} ({_dur(falta)})"
+        if m.lugar == f"{V.FUERA}:viaje":
+            return "✈️ de viaje"
         if m.lugar.startswith(V.FUERA):
             return "📍 fuera de casa"
         if self._congelado(m, ahora):
@@ -252,6 +254,7 @@ class MenuMixin:
             [("💗 Medidor de relación", "medidor"), ("❓ Preguntas" + (" (1)" if falta else ""), "preg")],
             [("🎂 Aniversario" + (" 🎉" if hoy_aniv else ""), "aniv"), ("🎯 Retos", "retos")],
             [("🏆 Hitos", "hitos"), ("📸 Álbum", "album")],
+            [("✈️ Viajes", "viaje")],
             [("💌 Invitar", "invitar"), ("⬅️ Atrás", "menu")],
         ]
         res.pantalla = Pantalla(texto, botones, clave="mpar")

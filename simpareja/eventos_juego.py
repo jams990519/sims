@@ -33,6 +33,9 @@ class EventosMixin:
 
     def _bloqueo_evento(self, j: Jugador, a: V.Accion) -> str | None:
         """Si un evento impide la acción (apagón, lluvia, avería), el motivo."""
+        viaje = self._de_viaje(j)
+        if viaje:
+            return "✈️ Están de viaje: ¡a disfrutar! Las cosas de la casa esperan a que vuelvan."
         ex = self._extras_hogar(self._hogar(j.sala_id))
         ahora = self.reloj()
         if a.clave in E.APAGON and ex.get("apagon_hasta", 0) > ahora:

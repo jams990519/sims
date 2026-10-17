@@ -3,9 +3,16 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.18"
+VERSION = "0.19"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.19", [
+        "✈️ <b>Viajes</b> (💕 Pareja → Viajes): elijan destino y días, de $800 a $2.000: 🏖️ playa (2 días), "
+        "🏔️ montaña (3), 🏛️ ciudad histórica (3) o 🗼 París (4). Uno lo propone y el otro acepta; al aceptar se paga.",
+        "🧳 Durante el viaje no se trabaja, no se hacen cosas de la casa y las necesidades no bajan.",
+        "🏠 Al volver: diversión y energía al máximo y un recuerdo en el álbum. El primero es el hito "
+        "«Primer viaje» (+20 en el medidor de los dos).",
+    ]),
     ("0.18", [
         "🏆 <b>Hitos de pareja</b> (💕 Pareja → Hitos): primera cita, primer mes, mudanza, mascota, primer viaje, "
         "compromiso, boda y casa propia. Son opcionales: cada pareja va a su ritmo.",
