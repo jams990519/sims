@@ -3,9 +3,17 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.10"
+VERSION = "0.11"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.11", [
+        "🎭 <b>Ánimo con foto</b> (/animo): eliges el color y, si quieres, mandas una foto y una frase corta "
+        "(la frase puede ir en el pie de foto).",
+        "🔔 A tu pareja le llega un aviso con tu nuevo ánimo, la frase y la foto.",
+        "👀 En el perfil se ve el color, la frase, desde qué hora y el botón 📸 Ver su foto.",
+        "📸 <b>Álbum</b> (💕 Pareja → Álbum): guarda las fotos de ánimo anteriores de los dos.",
+        "💾 Las fotos se quedan en Telegram: el juego solo guarda su referencia, sin gastar más datos.",
+    ]),
     ("0.10", [
         "🗺️ <b>Plano de la casa</b> (/plano o 🏠 Casa → Ver plano): la casa dibujada en texto, con el cuarto, "
         "el clóset, el baño y la sala-cocina-comedor.",

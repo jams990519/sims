@@ -42,6 +42,13 @@ class TelegramFalso(BaseRequest):
                 "message_id": datos.get("message_id", self._msg), "date": 0,
                 "chat": {"id": datos["chat_id"], "type": "private"}, "text": datos["text"],
             }
+        elif metodo == "sendPhoto":
+            self._msg += 1
+            r = {
+                "message_id": self._msg, "date": 0, "chat": {"id": datos["chat_id"], "type": "private"},
+                "photo": [{"file_id": datos["photo"], "file_unique_id": "u", "width": 1, "height": 1}],
+                "caption": datos.get("caption", ""),
+            }
         elif metodo == "copyMessage":
             self._msg += 1
             r = {"message_id": self._msg}
@@ -62,6 +69,21 @@ def mensaje(uid, texto, upd_id):
             "from": {"id": uid, "is_bot": False, "first_name": f"u{uid}"},
             **({"entities": [{"type": "bot_command", "offset": 0, "length": len(texto.split()[0])}]}
                if texto.startswith("/") else {}),
+        },
+    }
+
+
+def foto(uid, file_id, pie, upd_id):
+    return {
+        "update_id": upd_id,
+        "message": {
+            "message_id": upd_id, "date": 0, "caption": pie,
+            "photo": [
+                {"file_id": f"{file_id}_chica", "file_unique_id": "a", "width": 90, "height": 90},
+                {"file_id": file_id, "file_unique_id": "b", "width": 800, "height": 800},
+            ],
+            "chat": {"id": uid, "type": "private"},
+            "from": {"id": uid, "is_bot": False, "first_name": f"u{uid}"},
         },
     }
 
@@ -139,6 +161,19 @@ async def _recorrido():
     # Chat interno
     await enviar(mensaje(ANA, "te extraño 💞", next(n)))
     assert tg.enviados("sendMessage", ADMIN)[-1]["text"].endswith("<b>Ana</b>: te extraño 💞")
+
+    # Ana cambia su ánimo con foto y frase: a Luis le llega la foto (la grande) con la frase
+    await enviar(boton(ANA, "animo:coqueto", 600, next(n)))
+    await enviar(foto(ANA, "FOTO123", "pensando en ti", next(n)))
+    envio = tg.enviados("sendPhoto", ADMIN)[-1]
+    assert envio["photo"] == "FOTO123" and "«pensando en ti»" in envio["caption"]
+    assert not tg.enviados("copyMessage", ADMIN)  # no se reenvió como chat
+    # Luis la vuelve a ver desde el perfil
+    await enviar(boton(ADMIN, f"fotoan:{ANA}", 700, next(n)))
+    assert tg.enviados("sendPhoto", ADMIN)[-1]["photo"] == "FOTO123"
+    # una foto cualquiera, sin acabar de elegir ánimo, va al chat
+    await enviar(foto(ANA, "OTRA", "", next(n)))
+    assert tg.enviados("copyMessage", ADMIN)
     await app.shutdown()
 
     # Al arrancar una versión nueva se anuncian las novedades a los dos (una sola vez)
