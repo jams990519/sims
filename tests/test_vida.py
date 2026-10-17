@@ -91,7 +91,7 @@ def test_comer_segun_la_hora(solo, reloj):
     poner(solo, ADMIN, hambre=20)
     res = solo.boton(ADMIN, "", "acc:comer")
     assert "Desayunar (+30)" in str(res.pantalla.botones)
-    res = solo.boton(ADMIN, "", "a:comer")
+    res = solo.boton(ADMIN, "", "a:comer:comprar")
     assert "Empezó" in res.pantalla.texto and "termina a las 08:30" in res.pantalla.texto
     reloj.avanzar(30)
     solo.boton(ADMIN, "", "sim")
@@ -99,7 +99,7 @@ def test_comer_segun_la_hora(solo, reloj):
 
 
 def test_no_deja_hacer_lo_que_no_hace_falta(solo):
-    res = solo.boton(ADMIN, "", "a:comer")  # hambre 80, aún puede comer
+    res = solo.boton(ADMIN, "", "a:comer:comprar")  # hambre 80, aún puede comer
     assert res.alerta is None
     poner(solo, ADMIN, higiene=99)
     solo.boton(ADMIN, "", "parar")
@@ -109,7 +109,7 @@ def test_no_deja_hacer_lo_que_no_hace_falta(solo):
 
 def test_mientras_hace_algo_no_puede_hacer_otra_cosa(solo):
     poner(solo, ADMIN, hambre=20)
-    solo.boton(ADMIN, "", "a:comer")
+    solo.boton(ADMIN, "", "a:comer:comprar")
     res = solo.boton(ADMIN, "", "a:tele")
     assert "comiendo" in res.alerta
     assert "parar" in datos(res.pantalla)
@@ -117,7 +117,7 @@ def test_mientras_hace_algo_no_puede_hacer_otra_cosa(solo):
 
 def test_parar_deja_el_efecto_parcial(solo, reloj):
     poner(solo, ADMIN, hambre=20)
-    solo.boton(ADMIN, "", "a:comer")
+    solo.boton(ADMIN, "", "a:comer:comprar")
     reloj.avanzar(15)
     res = solo.boton(ADMIN, "", "parar")
     assert "Paró" in res.pantalla.texto

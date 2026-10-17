@@ -55,15 +55,16 @@ def test_la_pareja_comparte_la_cuenta(pareja):
 
 def test_comer_cuesta_segun_la_comida(solo, reloj):
     poner(solo, ADMIN, hambre=20)
-    assert "Desayunar (+30) · $3" in str(solo.boton(ADMIN, "", "acc:comer").pantalla.botones)
-    solo.boton(ADMIN, "", "a:comer")
+    assert "Desayunar (+30)" in str(solo.boton(ADMIN, "", "acc:comer").pantalla.botones)
+    assert "Comprar comida hecha · $3" in str(solo.boton(ADMIN, "", "a:comer").pantalla.botones)
+    solo.boton(ADMIN, "", "a:comer:comprar")
     assert hogar(solo).cuenta == 1497
     assert "−$3 🍽️ Comida: desayuno (Luis)" in solo.boton(ADMIN, "", "dinero").pantalla.texto
 
 
 def test_comer_juntos_cuesta_por_dos(pareja):
     poner(pareja, ANA, hambre=20)
-    res = pareja.boton(ANA, "", "aj:comer")
+    res = pareja.boton(ANA, "", "aj:comer:comprar")
     si = next(d for fila in res.avisos[0].botones for _, d in fila if d.endswith(":1"))
     pareja.boton(ADMIN, "", si)
     assert hogar(pareja).cuenta == 1494
@@ -74,12 +75,12 @@ def test_sin_dinero_no_se_come_pero_paga_la_cartera(solo):
     h.cuenta = 1
     solo.db.guardar_hogar(h)
     poner(solo, ADMIN, hambre=20)
-    res = solo.boton(ADMIN, "", "a:comer")
+    res = solo.boton(ADMIN, "", "a:comer:comprar")
     assert "No alcanza el dinero ($3)" in res.alerta
     j = solo.db.jugador(ADMIN)
     j.cartera = 10
     solo.db.guardar_jugador(j)
-    res = solo.boton(ADMIN, "", "a:comer")
+    res = solo.boton(ADMIN, "", "a:comer:comprar")
     assert res.alerta is None and solo.db.jugador(ADMIN).cartera == 7
 
 

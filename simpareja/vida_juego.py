@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 
+from . import cocina as C
 from . import dinero as D
 from . import personaje as P
 from . import vida as V
@@ -112,6 +113,12 @@ class VidaMixin:
             texto += " Toda la ropa está limpia 👕"
         elif a.clave == "trabajar":
             texto += self._cobrar_turno(j, accion, accion["fin"], completo=True)
+        elif a.clave == "cocinar" and h.cocina:
+            # Se acabó el tiempo máximo sin terminar la receta: se quemó.
+            receta = C.RECETAS.get(accion.get("x", ""))
+            h.cocina = ""
+            self.db.guardar_hogar(h)
+            texto = f"🔥 ¡Se quemó {receta.nombre.lower() if receta else 'la comida'}!"
         if a.ejercicio:
             racha, j.energia_max, subio = V.registrar_ejercicio(
                 json.loads(j.racha or "{}"), V.dia_de_juego(accion["fin"]), j.energia_max
@@ -128,9 +135,12 @@ class VidaMixin:
             j.ultima_jugada = ahora
             self.db.guardar_jugador(j)
 
-    def _empezar(self, j: Jugador, a: V.Accion, extra: str, con: int | None, ahora: float) -> dict:
+    def _empezar(self, j: Jugador, a: V.Accion, extra: str, con: int | None, ahora: float,
+                 minutos: int | None = None) -> dict:
         s = self._segundos_juego(j, ahora)
         datos = V.preparar(a, s, self._nec(j), j.energia_max, extra, juntos=con is not None)
+        if minutos is not None:
+            datos["fin"] = datos["ini"] + minutos * 60
         datos.update(rini=ahora, rfin=ahora + (datos["fin"] - datos["ini"]), con=con)
         j.accion = json.dumps(datos)
         j.ultima_jugada = ahora
@@ -152,11 +162,16 @@ class VidaMixin:
         a = V.ACCIONES.get(accion["k"])
         if a is None:
             return None
+        verbo = a.verbo
+        if a.clave == "cocinar" and accion.get("x") in C.RECETAS:
+            verbo += f" {C.RECETAS[accion['x']].nombre.lower()}"
         con = ""
         if accion.get("con"):
             otro = self.db.jugador(accion["con"])
             con = f" con {otro.personaje}" if otro else ""
-        return f"{a.emoji} {a.verbo}{con} hasta las {V.hora_texto(accion['fin'])}"
+        if a.clave == "cocinar":
+            return f"{a.emoji} {verbo}{con}"
+        return f"{a.emoji} {verbo}{con} hasta las {V.hora_texto(accion['fin'])}"
 
     def _pareja_en_sala(self, j: Jugador) -> Jugador | None:
         return next((m for m in self._companeros(j) if m.estado == "activo"), None)
@@ -196,6 +211,8 @@ class VidaMixin:
         h = self._hogar(j.sala_id)
         lineas += ["", f"🏡 Casita · 🏦 Compartida {D.dinero(h.cuenta)} · 👛 Tu cartera {D.dinero(j.cartera)}"]
         lineas.append(f"💼 {self._texto_puesto(j) or 'Sin trabajo todavía'}")
+        if j.taper in C.RECETAS:
+            lineas.append(f"🥡 Táper para el trabajo: {C.RECETAS[j.taper].nombre.lower()}")
         cortados = D.servicios_cortados(json.loads(h.pendientes))
         if cortados:
             lineas.append("❌ Servicio cortado: " + ", ".join(D.POR_CLAVE_FACTURA[c].nombre.lower() for c in cortados))
@@ -249,16 +266,19 @@ class VidaMixin:
             titulo = a.titulo(a.juntos == V.OBLIGATORIO)
             precio = ""
             if a.comida:
-                clave_comida, comida, valor = V.comida_del_momento(s)
-                titulo = f"{comida} (+{valor + a.efectos.get('hambre', 0)})" if a.clave == "comer" else f"Cocinar y {comida.lower()}"
-                precio = f" · {D.dinero(D.precio_comida(clave_comida))}"
+                _, comida, valor = V.comida_del_momento(s)
+                titulo = f"{comida} (+{valor})"
             elif a.clave == "picar":
                 precio = f" · {D.dinero(D.PRECIO_PICAR)}"
-            duracion = "" if a.clave == "dormir" else f" · {_dur(a.minutos * 60)}"
+            elif a.clave == "cocinar":
+                titulo = "Cocinar (paso a paso)"
+            duracion = "" if a.clave in ("dormir", "cocinar", "taper") else f" · {_dur(a.minutos * 60)}"
             botones.append([(f"{a.emoji} {titulo}{precio}{duracion}", f"a:{a.clave}")])
         if faltan_pareja:
             lineas += ["", f"💞 Con tu pareja en la sala también podrán: {', '.join(faltan_pareja)}."]
         lineas += ["", "💡 Juntos terminan más rápido."] if pareja else []
+        if categoria in ("comer", "casa"):
+            botones.append([("🧊 Nevera y despensa", "nevera")])
         botones.append([("⬅️ Mi Sim", "sim")])
         res.pantalla = Pantalla("\n".join(lineas), botones, clave=f"acc:{categoria}")
 
@@ -274,6 +294,19 @@ class VidaMixin:
         a = V.ACCIONES.get(clave)
         if a is None:
             res.pantalla = self._pantalla_sim(j)
+            return
+        # Acciones con su propio menú: el súper, las recetas, el táper y qué comer.
+        if clave == "super" and extra != "ir":
+            self._b_super(j, "", res)
+            return
+        if clave == "cocinar":
+            self._b_recetas(j, "", res)
+            return
+        if clave == "taper":
+            self._b_elegir_taper(j, res)
+            return
+        if clave == "comer" and not extra:
+            self._b_elegir_comida(j, res)
             return
         if self._ocupado(j, res):
             return
@@ -333,6 +366,9 @@ class VidaMixin:
 
     def _b_solo(self, j: Jugador, arg: str, res) -> None:
         clave, _, extra = arg.partition(":")
+        if clave == "cocinar":
+            self._b_cocinar_solo(j, extra, res)
+            return
         a = V.ACCIONES.get(clave)
         if a is None or a.juntos == V.OBLIGATORIO or self._ocupado(j, res):
             if a is None or a.juntos == V.OBLIGATORIO:
@@ -352,7 +388,7 @@ class VidaMixin:
             self._proponer(j, a, extra, pareja, res)
 
     def _hacer(self, j: Jugador, a: V.Accion, extra: str, res) -> None:
-        error = self._cobrar_accion(j, a)
+        error = self._cobrar_accion(j, a, extra=extra)
         if error:
             res.alerta = error
             self._b_categoria(j, a.categoria, res)
@@ -376,6 +412,11 @@ class VidaMixin:
             return
         pid = self.db.guardar_propuesta(Propuesta(None, j.id, pareja.id, a.clave, extra, ahora))
         duracion = _dur(round(a.minutos * V.FACTOR_JUNTOS) * 60) if a.clave != "dormir" else "a dormir"
+        receta = C.RECETAS.get(extra.partition(":")[0]) if a.clave in ("cocinar", "comer") else None
+        if receta and a.clave == "cocinar":
+            duracion = f"{receta.nombre.lower()}, unos {round(receta.minutos * V.FACTOR_JUNTOS)} min"
+        elif receta:
+            duracion += f", {receta.nombre.lower()} de la nevera"
         res.avisos.append(Aviso(
             pareja.id,
             f"💞 {self._firma(j)} te propone: <b>{a.emoji} {a.titulo(True)}</b> ({duracion}). ¿Vamos?",
@@ -416,7 +457,7 @@ class VidaMixin:
             res.alerta = f"{de.personaje} ya está haciendo otra cosa."
             res.pantalla = self._pantalla_sim(j)
             return
-        error = self._cobrar_accion(de, a, juntos=True)
+        error = self._cobrar_accion(de, a, juntos=True, extra=p.extra)
         if error:
             p.estado = "caducada"
             self.db.guardar_propuesta(p)
@@ -429,8 +470,19 @@ class VidaMixin:
         if j.accion:  # quien acepta deja lo que estaba haciendo
             self._vivir(j, ahora)
             j.accion = None
-        datos = self._empezar(j, a, p.extra, de.id, ahora)
-        self._empezar(de, a, p.extra, j.id, ahora)
+            self.db.guardar_jugador(j)
+        if a.clave == "cocinar":
+            error = self._iniciar_coccion([de, j], p.extra, juntos=True)
+            if error:
+                p.estado = "caducada"
+                self.db.guardar_propuesta(p)
+                res.alerta = error
+                res.pantalla = self._pantalla_sim(j)
+                return
+            datos = self._accion(self.db.jugador(j.id))
+        else:
+            datos = self._empezar(j, a, p.extra, de.id, ahora)
+            self._empezar(de, a, p.extra, j.id, ahora)
         p.estado = "aceptada"
         self.db.guardar_propuesta(p)
         hasta = V.hora_texto(datos["fin"])
@@ -440,6 +492,9 @@ class VidaMixin:
             [[("🧍 Mi Sim", "sim")]],
         ))
         res.ediciones += self._refrescar_sala(j.sala_id, excepto=j.id)
+        if a.clave == "cocinar":
+            self._b_coccion(self.db.jugador(j.id), "", res, "💞 ¡A cocinar juntos!")
+            return
         res.pantalla = self._pantalla_sim(j, f"💞 ¡Empiezan juntos: {a.emoji} {a.titulo(True)}! (hasta las {hasta})")
 
     def _b_cancelar_propuesta(self, j: Jugador, pid: str, res) -> None:
@@ -452,6 +507,13 @@ class VidaMixin:
 
     def _b_parar(self, j: Jugador, arg: str, res) -> None:
         accion = self._accion(j)
+        if accion and accion.get("k") == "cocinar":
+            h = self._hogar(j.sala_id)
+            coccion = self._coccion(h)
+            if coccion:
+                self._terminar_coccion(h, coccion, quien=j)
+                res.pantalla = self._pantalla_sim(j, "🗑️ Dejaste de cocinar. Los ingredientes usados se perdieron.")
+                return
         if accion:
             ahora = self.reloj()
             self._vivir(j, ahora)

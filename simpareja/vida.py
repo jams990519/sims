@@ -176,8 +176,10 @@ CATEGORIAS = (
 _ACCIONES = (
     Accion("comer", "🍽️", "Comer", "comiendo", "comer", 30, comida=True, zona="salon", ensucia=5,
            nombre_juntos="Comer juntos", necesita="hambre"),
-    Accion("cocinar", "🍳", "Cocinar y comer", "cocinando", "comer", 60, {"energia": -5, "hambre": 10},
-           comida=True, zona="salon", ensucia=15, nombre_juntos="Cocinar juntos", necesita="hambre"),
+    # Cocinar es un minijuego por pasos; la duración real la marca la receta.
+    Accion("cocinar", "🍳", "Cocinar", "cocinando", "comer", 30, {"energia": -5},
+           zona="salon", ensucia=15, nombre_juntos="Cocinar juntos"),
+    Accion("taper", "🥡", "Preparar un táper", "preparando un táper", "comer", 5, juntos=SOLO),
     Accion("picar", "🍎", "Picar algo", "picando algo", "comer", 10, {"hambre": 10}, juntos=SOLO,
            necesita="hambre"),
     Accion("dormir", "😴", "Dormir", "durmiendo", "descansar", 8 * 60, zona="cuarto", ensucia=3,
@@ -209,6 +211,8 @@ _ACCIONES = (
            nombre_juntos="Limpiar juntos"),
     Accion("lavar", "🧺", "Lavar la ropa", "lavando la ropa", "casa", 60, {"energia": -5},
            nombre_juntos="Lavar la ropa juntos"),
+    Accion("super", "🛒", "Hacer el súper", "en el súper", "casa", 45, {"energia": -5},
+           nombre_juntos="Ir al súper juntos"),
     # Se empieza desde la pantalla de trabajo, no desde las categorías.
     Accion("trabajar", "💼", "Trabajar", "trabajando", "trabajo", 8 * 60, juntos=SOLO, ropa=1),
 )
@@ -283,11 +287,13 @@ def avanzar(nec: dict, desde: float, hasta: float, accion: dict | None, energia_
             for clave, cambio in accion["ef"].items():
                 nec[clave] = nec.get(clave, 0) + cambio * fraccion
             horas_ocupado = (a1 - a0) / HORA
+    extra_accion = (accion or {}).get("mult", {})  # p. ej. más hambre trabajando sin táper
     for n in NECESIDADES:
         if n.clave == "energia":
             baja = n.baja_por_hora * max(0.0, horas - horas_ocupado)
         else:
-            baja = n.baja_por_hora * horas * multiplicadores.get(n.clave, 1.0)
+            horas_efectivas = horas + horas_ocupado * (extra_accion.get(n.clave, 1.0) - 1)
+            baja = n.baja_por_hora * horas_efectivas * multiplicadores.get(n.clave, 1.0)
         nec[n.clave] = max(0.0, min(maximo(n.clave, energia_max), nec.get(n.clave, 0) - baja))
     return bool(accion) and hasta >= accion["fin"]
 

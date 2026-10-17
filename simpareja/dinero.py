@@ -25,14 +25,15 @@ class Factura:
     nombre: str
     base: int  # al mes
     sin_servicio: str  # qué pasa si se corta
+    con_articulo: str = ""  # "la luz", "el agua"…
 
 
 FACTURAS = (
     Factura("hipoteca", "🔑", "Hipoteca", 700, ""),
-    Factura("luz", "💡", "Luz", 90, "no hay tele, redes ni lavadora"),
-    Factura("agua", "🚰", "Agua", 40, "no se pueden duchar, bañar, lavar los dientes ni la ropa"),
-    Factura("internet", "🌐", "Internet", 50, "no hay redes ni videos"),
-    Factura("gas", "🔥", "Gas", 30, "no se puede cocinar"),
+    Factura("luz", "💡", "Luz", 90, "no hay tele, redes ni lavadora", "la luz"),
+    Factura("agua", "🚰", "Agua", 40, "no se pueden duchar, bañar, lavar los dientes ni la ropa", "el agua"),
+    Factura("internet", "🌐", "Internet", 50, "no hay redes ni videos", "el internet"),
+    Factura("gas", "🔥", "Gas", 30, "no se puede cocinar", "el gas"),
 )
 POR_CLAVE_FACTURA = {f.clave: f for f in FACTURAS}
 SERVICIOS = ("luz", "agua", "internet", "gas")
@@ -102,7 +103,7 @@ def falta_servicio(accion: str, cortados: set[str]) -> str | None:
     for servicio in NECESITA_SERVICIO.get(accion, ()):
         if servicio in cortados:
             f = POR_CLAVE_FACTURA[servicio]
-            return f"{f.emoji} Les cortaron la {f.nombre.lower()}: {f.sin_servicio}. Paguen la factura en 💰 Dinero."
+            return f"{f.emoji} Les cortaron {f.con_articulo}: {f.sin_servicio}. Paguen la factura en 💰 Dinero."
     return None
 
 

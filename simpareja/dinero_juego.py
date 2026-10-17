@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 
+from . import cocina as C
 from . import dinero as D
 from . import vida as V
 from .db import Hogar, Jugador, Movimiento
@@ -68,7 +69,9 @@ class DineroMixin:
         h = self._hogar(j.sala_id)
         return D.falta_servicio(a.clave, D.servicios_cortados(json.loads(h.pendientes)))
 
-    def _costo_accion(self, j: Jugador, a: V.Accion) -> tuple[int, str]:
+    def _costo_accion(self, j: Jugador, a: V.Accion, extra: str = "") -> tuple[int, str]:
+        if a.comida and extra in C.RECETAS:
+            return 0, ""  # de la nevera: ya se pagaron los ingredientes
         if a.comida:
             comida, _, _ = V.comida_del_momento(self._segundos_juego(j, self.reloj()))
             return D.precio_comida(comida), f"🍽️ Comida: {comida}"
@@ -76,12 +79,16 @@ class DineroMixin:
             return D.PRECIO_PICAR, "🍎 Algo para picar"
         return 0, ""
 
-    def _cobrar_accion(self, j: Jugador, a: V.Accion, juntos: bool = False) -> str | None:
+    def _cobrar_accion(self, j: Jugador, a: V.Accion, juntos: bool = False, extra: str = "") -> str | None:
         """Cobra lo que cuesta empezar la acción y suma su consumo. Devuelve un error si no se puede."""
         bloqueo = self._bloqueo_accion(j, a)
         if bloqueo:
             return bloqueo
-        costo, concepto = self._costo_accion(j, a)
+        if a.comida and extra in C.RECETAS:
+            error = self._sacar_de_la_nevera(j, extra, 2 if juntos else 1)
+            if error:
+                return error
+        costo, concepto = self._costo_accion(j, a, extra)
         if costo:
             personas = 2 if juntos else 1
             total = costo * personas
@@ -328,6 +335,6 @@ class DineroMixin:
         lineas += ["", "🛋️ <i>Muebles y mejoras de la casa llegarán más adelante.</i>"]
         res.pantalla = Pantalla(
             "\n".join(lineas),
-            [[("🧹 Limpiar y lavar", "acc:casa"), ("💰 Dinero", "dinero")], [("🧍 Mi Sim", "sim")]],
+            [[("🧹 Limpiar y lavar", "acc:casa"), ("🧊 Nevera", "nevera")], [("💰 Dinero", "dinero"), ("🧍 Mi Sim", "sim")]],
             clave="casa",
         )

@@ -46,7 +46,9 @@ CREATE TABLE IF NOT EXISTS jugadores (
     racha             TEXT NOT NULL DEFAULT '{}',  -- días seguidos de ejercicio
     aviso_necesidad_ts REAL NOT NULL DEFAULT 0,
     cartera           INTEGER NOT NULL DEFAULT 0,
-    trabajo           TEXT NOT NULL DEFAULT '{}'   -- empleo: puesto, nivel, días trabajados, días libres
+    trabajo           TEXT NOT NULL DEFAULT '{}',  -- empleo: puesto, nivel, días trabajados, días libres
+    carrito           TEXT NOT NULL DEFAULT '{}',  -- paquetes elegidos en el súper
+    taper             TEXT NOT NULL DEFAULT ''     -- receta guardada para llevar al trabajo
 );
 CREATE INDEX IF NOT EXISTS jugadores_sala ON jugadores(sala_id);
 
@@ -96,7 +98,10 @@ CREATE TABLE IF NOT EXISTS hogares (
     dia_hogar     INTEGER NOT NULL DEFAULT 0,   -- último día ya procesado (imprevistos, cobros)
     proximo_cobro INTEGER NOT NULL DEFAULT 0,   -- día en que se cobran las facturas del mes
     consumo       TEXT NOT NULL DEFAULT '{}',   -- consumo de luz y agua del mes, en dólares
-    pendientes    TEXT NOT NULL DEFAULT '[]'    -- facturas impagas, con recargo
+    pendientes    TEXT NOT NULL DEFAULT '[]',   -- facturas impagas, con recargo
+    despensa      TEXT NOT NULL DEFAULT '{}',   -- ingredientes (unidades) en la nevera y la despensa
+    nevera        TEXT NOT NULL DEFAULT '{}',   -- porciones ya cocinadas
+    cocina        TEXT NOT NULL DEFAULT ''      -- receta que se está cocinando ahora (JSON)
 );
 
 -- Movimientos de dinero de la cuenta compartida y de las carteras.
@@ -142,6 +147,11 @@ COLUMNAS_NUEVAS = [
     ("jugadores", "aviso_necesidad_ts", "REAL NOT NULL DEFAULT 0"),
     ("jugadores", "cartera", "INTEGER NOT NULL DEFAULT 0"),
     ("jugadores", "trabajo", "TEXT NOT NULL DEFAULT '{}'"),
+    ("jugadores", "carrito", "TEXT NOT NULL DEFAULT '{}'"),
+    ("jugadores", "taper", "TEXT NOT NULL DEFAULT ''"),
+    ("hogares", "despensa", "TEXT NOT NULL DEFAULT '{}'"),
+    ("hogares", "nevera", "TEXT NOT NULL DEFAULT '{}'"),
+    ("hogares", "cocina", "TEXT NOT NULL DEFAULT ''"),
     ("hogares", "casa", "TEXT NOT NULL DEFAULT ''"),
     ("hogares", "cuenta", "INTEGER NOT NULL DEFAULT 0"),
     ("hogares", "dia_hogar", "INTEGER NOT NULL DEFAULT 0"),
@@ -180,6 +190,8 @@ class Jugador:
     aviso_necesidad_ts: float = 0.0
     cartera: int = 0
     trabajo: str = "{}"
+    carrito: str = "{}"
+    taper: str = ""
 
     @property
     def activo(self) -> bool:
@@ -201,6 +213,9 @@ class Hogar:
     proximo_cobro: int = 0
     consumo: str = "{}"
     pendientes: str = "[]"
+    despensa: str = "{}"
+    nevera: str = "{}"
+    cocina: str = ""
 
 
 @dataclass
