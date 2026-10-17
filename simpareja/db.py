@@ -104,7 +104,8 @@ CREATE TABLE IF NOT EXISTS hogares (
     pendientes    TEXT NOT NULL DEFAULT '[]',   -- facturas impagas, con recargo
     despensa      TEXT NOT NULL DEFAULT '{}',   -- ingredientes (unidades) en la nevera y la despensa
     nevera        TEXT NOT NULL DEFAULT '{}',   -- porciones ya cocinadas
-    cocina        TEXT NOT NULL DEFAULT ''      -- receta que se está cocinando ahora (JSON)
+    cocina        TEXT NOT NULL DEFAULT '',     -- receta que se está cocinando ahora (JSON)
+    extras        TEXT NOT NULL DEFAULT '{}'    -- depósito, propuesta de mudanza, hitos…
 );
 
 -- Movimientos de dinero de la cuenta compartida y de las carteras.
@@ -164,6 +165,7 @@ COLUMNAS_NUEVAS = [
     ("hogares", "proximo_cobro", "INTEGER NOT NULL DEFAULT 0"),
     ("hogares", "consumo", "TEXT NOT NULL DEFAULT '{}'"),
     ("hogares", "pendientes", "TEXT NOT NULL DEFAULT '[]'"),
+    ("hogares", "extras", "TEXT NOT NULL DEFAULT '{}'"),
 ]
 
 
@@ -225,6 +227,7 @@ class Hogar:
     despensa: str = "{}"
     nevera: str = "{}"
     cocina: str = ""
+    extras: str = "{}"
 
 
 @dataclass

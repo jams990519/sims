@@ -44,9 +44,9 @@ class VidaMixin:
     def _hogar(self, sala_id: int) -> Hogar:
         h = self.db.hogar(sala_id)
         if h is None:
-            h = Hogar(sala_id, json.dumps({z: 0 for z in V.ZONAS}))
+            h = Hogar(sala_id, json.dumps({z: 0 for z in D.CASAS[D.CASA_INICIAL].zonas}))
             self.db.guardar_hogar(h)
-        if not h.casa:
+        if not h.casa or "deposito" not in json.loads(h.extras or "{}"):
             self._preparar_casa(h)
         return h
 
@@ -263,7 +263,7 @@ class VidaMixin:
             h = self._hogar(j.sala_id)
             zonas = json.loads(h.zonas)
             lineas.append("")
-            for z, (e, nombre) in V.ZONAS.items():
+            for z, (e, nombre) in self._zonas(j.sala_id).items():
                 lineas.append(f"{e} {nombre}: {V.estado_zona(zonas.get(z, 0))}")
             lineas.append(f"🧺 Ropa sucia: {h.ropa_sucia} prendas" + (" (¡no queda limpia!)" if h.ropa_sucia >= V.ROPA_LIMITE else ""))
         botones = []
@@ -337,11 +337,12 @@ class VidaMixin:
                 clave=volver,
             )
             return
-        if clave == "limpiar" and extra not in V.ZONAS:
+        if clave == "limpiar" and extra not in self._zonas(j.sala_id):
             zonas = json.loads(self._hogar(j.sala_id).zonas)
             res.pantalla = Pantalla(
                 "🧹 <b>¿Qué zona quieres limpiar?</b>",
-                [[(f"{e} {n} · {V.estado_zona(zonas.get(z, 0))}", f"a:limpiar:{z}")] for z, (e, n) in V.ZONAS.items()]
+                [[(f"{e} {n} · {V.estado_zona(zonas.get(z, 0))}", f"a:limpiar:{z}")]
+                 for z, (e, n) in self._zonas(j.sala_id).items()]
                 + [[("⬅️ Atrás", volver)]],
                 clave=volver,
             )

@@ -109,6 +109,7 @@ ZONAS = {
     "cuarto": ("🛏️", "Cuarto"),
     "bano": ("🚿", "Baño"),
     "closet": ("👗", "Clóset"),
+    "extra": ("🧸", "Cuarto extra"),  # al mudarse a una casa más grande
 }
 
 

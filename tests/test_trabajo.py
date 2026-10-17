@@ -128,7 +128,7 @@ def test_un_turno_de_8_horas(juego, reloj):
     assert any(a.para == ADMIN and "Cobró $88" in a.texto for a in avisos)
     j = juego.db.jugador(ADMIN)
     assert j.cartera == 88
-    assert juego._hogar(j.sala_id).cuenta == 1500 - 4  # transporte
+    assert juego._hogar(j.sala_id).cuenta == 2100 - 4  # transporte
     assert nec(juego, ADMIN)["energia"] == pytest.approx(100 - 64, abs=0.5)
     assert empleo(juego)["dias"] == 1
 
@@ -193,7 +193,7 @@ def test_si_estas_conectado_solo_puedes_quedarte(juego, reloj):
     reloj.avanzar(6)  # se desconectó
     aviso = next(a for a in juego.tick().avisos if "se fue a trabajar" in a.texto)
     assert "Sale a las 17:10" in aviso.texto
-    assert juego._hogar(juego.db.jugador(ADMIN).sala_id).cuenta == 1500 - 4  # el pasaje se paga una vez
+    assert juego._hogar(juego.db.jugador(ADMIN).sala_id).cuenta == 2100 - 4  # el pasaje se paga una vez
 
 
 def test_tiempo_juntos_protegido(pareja, reloj):
