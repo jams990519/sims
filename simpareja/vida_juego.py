@@ -123,7 +123,7 @@ class VidaMixin:
             texto = f"🔥 ¡Se quemó {receta.nombre.lower() if receta else 'la comida'}!"
         if a.ejercicio:
             racha, j.energia_max, subio = V.registrar_ejercicio(
-                json.loads(j.racha or "{}"), V.dia_de_juego(accion["fin"]), j.energia_max
+                json.loads(j.racha or "{}"), self._hoy(j, accion["rfin"]), j.energia_max
             )
             j.racha = json.dumps(racha)
             if subio:
@@ -140,7 +140,8 @@ class VidaMixin:
     def _empezar(self, j: Jugador, a: V.Accion, extra: str, con: int | None, ahora: float,
                  minutos: int | None = None) -> dict:
         s = self._segundos_juego(j, ahora)
-        datos = V.preparar(a, s, self._nec(j), j.energia_max, extra, juntos=con is not None)
+        datos = V.preparar(a, s, self._nec(j), j.energia_max, extra, juntos=con is not None,
+                           hora=self._hora_local(j, ahora))
         if minutos is not None:
             datos["fin"] = datos["ini"] + minutos * 60
         datos.update(rini=ahora, rfin=ahora + (datos["fin"] - datos["ini"]), con=con)
@@ -179,7 +180,7 @@ class VidaMixin:
             con = f" con {otro.personaje}" if otro else ""
         if a.clave == "cocinar":
             return f"{a.emoji} {verbo}{con}"
-        return f"{a.emoji} {verbo}{con} hasta las {V.hora_texto(accion['fin'])}"
+        return f"{a.emoji} {verbo}{con} hasta las {self._hora(j, accion['rfin'])}"
 
     def _pareja_en_sala(self, j: Jugador) -> Jugador | None:
         return next((m for m in self._companeros(j) if m.estado == "activo"), None)
@@ -196,11 +197,10 @@ class VidaMixin:
         s = self._segundos_juego(j, ahora)
         nec, accion = self._nec(j), self._accion(j)
         animo = P.animo(j.ap)
-        dia = V.dia_de_juego(s)
         lineas = [aviso, ""] if aviso else []
         lineas += [
             f"🧍 {self._firma(j)}{' · ' + animo if animo else ''}",
-            f"🕒 {V.reloj_texto(s)}{' · 🎉 fin de semana' if V.es_fin_de_semana(dia) else ''}",
+            f"🕒 {self._reloj(j)}{' · 🎉 fin de semana' if self._finde(j) else ''}",
             f"📍 {V.nombre_habitacion(j.lugar)}",
         ]
         haciendo = self._texto_accion(j, ahora)
@@ -236,6 +236,8 @@ class VidaMixin:
         botones = []
         if haciendo:
             botones.append([("⏹️ Parar lo que está haciendo", "parar")])
+        if self._trabajando(j):
+            botones.append([("📱 Descanso: ver redes", "rapida:redes"), ("🤗 Mandar un abrazo", "rapida:abrazo")])
         botones.append([("⚡ Acciones", "macc"), ("🔄 Actualizar", "sim")])
         botones.append([("⬅️ Atrás", "mest"), ("🎮 Menú", "menu")])
         return Pantalla("\n".join(lineas), botones, clave="sim")
@@ -251,12 +253,10 @@ class VidaMixin:
         if info is None:
             self._b_menu_acciones(j, "", res)
             return
-        ahora = self.reloj()
-        s = self._segundos_juego(j, ahora)
         pareja = self._pareja_en_sala(j)
         lineas = [aviso, ""] if aviso else []
         lineas += [
-            f"{info[1]} <b>{info[2]}</b> · 🕒 {V.reloj_texto(s)}",
+            f"{info[1]} <b>{info[2]}</b> · 🕒 {self._reloj(j)}",
             f"📍 Estás en: {V.nombre_habitacion(j.lugar)}",
         ]
         if categoria == "limpieza":
@@ -276,7 +276,7 @@ class VidaMixin:
                 continue
             titulo = a.titulo(a.juntos == V.OBLIGATORIO)
             if a.clave == "comer":
-                _, comida, valor = V.comida_del_momento(s)
+                _, comida, valor = V.comida_del_momento(self._hora_local(j))
                 titulo = f"Comer lo que hay ({comida.lower()}, +{valor})"
             donde = ""
             if a.habitacion and a.habitacion != V.FUERA and a.habitacion != j.lugar:
@@ -387,7 +387,7 @@ class VidaMixin:
         if a.juntos != V.SOLO and pareja is not None:
             opciones.append(True)
         for juntos in opciones:
-            datos = V.preparar(a, s, nec, j.energia_max, extra, juntos=juntos)
+            datos = V.preparar(a, s, nec, j.energia_max, extra, juntos=juntos, hora=self._hora_local(j))
             costo, _ = self._costo_accion(j, a, extra, juntos, pareja if juntos else None)
             quien = f"💞 Con {self._firma(pareja)}" if juntos else "👤 Solo"
             detalle = f"{V.texto_efectos(datos['ef'])} · ⏱️ {_dur(datos['fin'] - datos['ini'])}"
@@ -454,7 +454,7 @@ class VidaMixin:
         datos = self._empezar(j, a, extra, None, self.reloj())
         res.ediciones += self._refrescar_sala(j.sala_id, excepto=j.id)
         res.pantalla = self._pantalla_sim(
-            j, f"▶️ Empezó: {a.emoji} {self._titulo_accion(a, extra, False)} · termina a las {V.hora_texto(datos['fin'])}."
+            j, f"▶️ Empezó: {a.emoji} {self._titulo_accion(a, extra, False)} · termina a las {self._hora(j, datos['rfin'])}."
         )
 
     def _proponer(self, j: Jugador, a: V.Accion, extra: str, pareja: Jugador, res) -> None:
@@ -505,6 +505,10 @@ class VidaMixin:
             res.avisos.append(Aviso(de.id, f"🙈 {self._firma(j)} dijo que ahora no: {a.emoji} {a.titulo(True)}."))
             res.pantalla = self._pantalla_sim(j)
             return
+        if self._trabajando(j):
+            res.alerta = "Estás trabajando: en el descanso puedes mandarle un abrazo rápido 🤗"
+            self._b_trabajo(j, "", res)
+            return
         self._vivir(de, ahora)
         if self._texto_accion(de, ahora):
             p.estado = "caducada"
@@ -540,7 +544,7 @@ class VidaMixin:
             self._empezar(de, a, p.extra, j.id, ahora)
         p.estado = "aceptada"
         self.db.guardar_propuesta(p)
-        hasta = V.hora_texto(datos["fin"])
+        hasta = self._hora(j, datos["rfin"])
         res.avisos.append(Aviso(
             de.id,
             f"💞 {self._firma(j)} aceptó. ¡Empiezan juntos: {a.emoji} {a.titulo(True)}!",

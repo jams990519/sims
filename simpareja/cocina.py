@@ -88,13 +88,13 @@ RECETAS: dict[str, Receta] = {r.clave: r for r in (
 COMIDAS = (("desayuno", "🌅 Desayunos"), ("almuerzo", "☀️ Almuerzos"), ("cena", "🌙 Cenas"))
 
 
-def precio(ingrediente: str, dia: int) -> float:
+def precio(ingrediente: str, finde: bool) -> float:
     base = INGREDIENTES[ingrediente].precio
-    return round(base * (1 - OFERTA_FIN_DE_SEMANA), 2) if V.es_fin_de_semana(dia) else base
+    return round(base * (1 - OFERTA_FIN_DE_SEMANA), 2) if finde else base
 
 
-def total_carrito(carrito: dict, dia: int) -> float:
-    return round(sum(precio(i, dia) * n for i, n in carrito.items() if i in INGREDIENTES), 2)
+def total_carrito(carrito: dict, finde: bool) -> float:
+    return round(sum(precio(i, finde) * n for i, n in carrito.items() if i in INGREDIENTES), 2)
 
 
 def guardar_compra(despensa: dict, carrito: dict) -> dict:

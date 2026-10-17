@@ -3,9 +3,23 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.7"
+VERSION = "0.8"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.8", [
+        "🗓️ <b>Horario de trabajo real</b>: en 💼 Trabajo → Mi horario eliges los días, la hora de entrada y las "
+        "horas (como mucho 8 al día). El sueldo es horas × pago por hora.",
+        "🕒 Tu Sim vive con <b>tu hora real</b>: el bot te pregunta qué hora es donde estás (puedes cambiarla en "
+        "⚙️ Ajustes → Mi hora local).",
+        "🕗 <b>Trabajo automático</b>: a la hora de tu horario tu Sim se va solo a trabajar, aunque no estés "
+        "conectado, y cobra al terminar.",
+        "💞 <b>Tiempo juntos protegido</b>: si están conectados los dos a esa hora, nunca se les obliga. Te pregunto "
+        "si vas ahora o «cuando me desconecte»: tu Sim trabaja sin ti en cuanto te vayas y cobra igual.",
+        "⚠️ Si ese día no repones el turno, no cobras.",
+        "💬 Mientras trabajas el chat sigue abierto y, cada media hora, hay acciones rápidas: 📱 ver redes en el "
+        "descanso o 🤗 mandarle un abrazo a tu pareja.",
+        "❄️ El reloj ya no se para: lo que se congela en la pausa son las necesidades de tu Sim.",
+    ]),
     ("0.7", [
         "🎮 <b>Menú nuevo</b> (/menu): 🏠 Casa · ⚡ Acciones · 📍 Lugares · 💼 Trabajo · 💕 Pareja · 👤 Estado · 💬 Chat. "
         "Todos los submenús tienen ⬅️ Atrás.",
