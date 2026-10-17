@@ -149,7 +149,9 @@ class BotSimPareja:
         await self._aplicar(update, context, res)
 
     async def _media(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        await self._aplicar(update, context, self.juego.media(update.effective_user.id))
+        msg = update.effective_message
+        foto = msg.photo[-1].file_id if msg.photo else None  # la de mayor tamaño
+        await self._aplicar(update, context, self.juego.media(update.effective_user.id, foto, msg.caption or ""))
 
     async def _boton(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         q = update.callback_query
@@ -212,6 +214,8 @@ class BotSimPareja:
                 else:
                     await bot.send_message(aviso.para, aviso.texto)
                     await bot.copy_message(aviso.para, original.chat_id, original.message_id)
+            elif aviso.foto:
+                await bot.send_photo(aviso.para, aviso.foto, caption=aviso.texto, reply_markup=teclado(aviso.botones))
             else:
                 await bot.send_message(aviso.para, aviso.texto, reply_markup=teclado(aviso.botones))
             return True

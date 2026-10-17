@@ -24,6 +24,7 @@ from . import personaje as P
 from . import vida as V
 from .config import Config
 from .db import DB, Invitacion, Jugador, UltimaConexion, Visitante
+from .animo_juego import AnimoMixin
 from .cocina_juego import CocinaMixin
 from .dinero_juego import DineroMixin
 from .menus import MenuMixin
@@ -51,6 +52,7 @@ class Aviso:
     botones: Botones = field(default_factory=list)
     chat: bool = False  # mensaje del chat interno: si no se entrega, se avisa a quien lo mandó
     copiar: bool = False  # además, copiar el mensaje original (foto, sticker, nota de voz…)
+    foto: str | None = None  # file_id de Telegram: se envía como foto con el texto de pie
 
 
 @dataclass
@@ -114,6 +116,8 @@ LUGARES = {
     "invs": ("📋 Invitaciones enviadas", "revisando sus invitaciones"),
     "pjs": ("🪪 Personajes", "mirando los personajes"),
     "animo": ("🎭 Estado de ánimo", "eligiendo su estado de ánimo"),
+    "animofoto": ("🎭 Estado de ánimo", "eligiendo la foto de su estado de ánimo"),
+    "album": ("📸 Álbum de recuerdos", "mirando el álbum de recuerdos"),
     "ajustes": ("⚙️ Ajustes", "en los ajustes"),
     "renombrar": ("✏️ Cambiar nombre", "cambiando su nombre"),
 }
@@ -168,7 +172,7 @@ def en_filas(botones: list[tuple[str, str]], por_fila: int = 2) -> Botones:
     return [botones[i:i + por_fila] for i in range(0, len(botones), por_fila)]
 
 
-class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
+class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoMixin):
     def __init__(self, db: DB, cfg: Config, reloj=time.time, rng: random.Random | None = None):
         self.db = db
         self.cfg = cfg
@@ -235,6 +239,12 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
             res.nuevo = True
         else:
             invitar = INVITAR_RE.fullmatch(texto.strip())
+            if invitar is None and self._animo_pendiente(j):
+                res = self._tocar(j, jugada=False)
+                self._frase_animo(j, texto, res)
+                res.nuevo = True
+                self._anotar(j.id, res)
+                return res
             if invitar is None:
                 return self._chat(j, texto)
             res = self._tocar(j)
@@ -244,13 +254,22 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
         return res
 
     @_con_notas
-    def media(self, uid: int) -> Resultado:
-        """Foto, sticker, nota de voz, etc.: se reenvía a la sala como parte del chat."""
+    def media(self, uid: int, foto: str | None = None, pie: str = "") -> Resultado:
+        """Foto, sticker, nota de voz, etc.: se reenvía a la sala como parte del chat.
+
+        Si acaba de elegir su estado de ánimo, la foto (`file_id`) y su pie son los del ánimo.
+        """
         j = self.db.jugador(uid)
         if j is None:
             return self._visitante(uid, "")
         if not j.activo:
             return Resultado(pantalla=Pantalla("✋ Primero termina de crear tu personaje."), nuevo=True)
+        if foto and self._animo_pendiente(j):
+            res = self._tocar(j, jugada=False)
+            self._publicar_animo(j, foto, pie, res)
+            res.nuevo = True
+            self._anotar(j.id, res)
+            return res
         res = self._tocar(j, jugada=False)
         otros = self._companeros(j)
         if not otros:
@@ -459,6 +478,9 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
             "mudno": self._b_mudanza_no,
             "remodelar": self._b_remodelar,
             "plano": self._b_plano,
+            "animop": self._b_publicar_animo,
+            "fotoan": self._b_foto_animo,
+            "album": self._b_album,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -1005,6 +1027,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
             "macc": self._b_menu_acciones, "mlug": self._b_menu_lugares, "mpar": self._b_menu_pareja,
             "mest": self._b_menu_estado, "perfil": self._b_perfil, "carrera": self._b_carrera,
             "mudanza": self._b_mudanza, "plano": self._b_plano,
+            "animofoto": self._b_animos, "album": self._b_album,
         }.get(accion, self._b_menu)
         tmp = Resultado()
         manejador(j, arg, tmp)
@@ -1236,30 +1259,6 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin):
             ],
             clave="pjs",
         )
-
-    def _b_animos(self, j: Jugador, arg: str, res: Resultado) -> None:
-        ap = j.ap
-        genero, actual = ap.get("genero"), ap.get("animo")
-        opciones = [
-            (("✅ " if o.clave == actual else "") + o.boton(genero), f"animo:{o.clave}")
-            for o in P.ANIMO.opciones
-        ]
-        res.pantalla = Pantalla(
-            f"🎭 <b>¿Cómo se siente {esc(j.personaje)} ahora?</b>\n"
-            "Cada estado de ánimo tiene su color y tu pareja lo verá en la sala.",
-            en_filas(opciones) + [[("⬅️ Atrás", "mest")]],
-            clave="animo",
-        )
-
-    def _b_animo(self, j: Jugador, clave: str, res: Resultado) -> None:
-        if P.ANIMO.opcion(clave) is not None:
-            ap = j.ap
-            ap["animo"] = clave
-            j.apariencia = json.dumps(ap, ensure_ascii=False)
-            self.db.guardar_jugador(j)
-            res.alerta = f"Ánimo: {P.animo(ap)}"
-            res.ediciones += self._refrescar_sala(j.sala_id, excepto=j.id)
-        res.pantalla = self._pantalla_sala(j)
 
     def _b_ajustes(self, j: Jugador, arg: str, res: Resultado) -> None:
         avisos = "Sí" if j.avisos_conexion else "No"

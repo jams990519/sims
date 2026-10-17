@@ -28,7 +28,6 @@ PRONTO = {
     "aniversario": "🎂 El aniversario",
     "retos": "🎯 Los retos semanales",
     "hitos": "🏆 Los hitos de pareja",
-    "album": "📸 El álbum de recuerdos",
 }
 
 
@@ -248,7 +247,7 @@ class MenuMixin:
             [("💞 Acciones en pareja", "acc:pareja")],
             [("💗 Medidor de relación 🚧", "pronto:medidor"), ("❓ Preguntas 🚧", "pronto:preguntas")],
             [("🎂 Aniversario 🚧", "pronto:aniversario"), ("🎯 Retos 🚧", "pronto:retos")],
-            [("🏆 Hitos 🚧", "pronto:hitos"), ("📸 Álbum 🚧", "pronto:album")],
+            [("🏆 Hitos 🚧", "pronto:hitos"), ("📸 Álbum", "album")],
             [("💌 Invitar", "invitar"), ("⬅️ Atrás", "menu")],
         ]
         res.pantalla = Pantalla(texto, botones, clave="mpar")
@@ -279,10 +278,7 @@ class MenuMixin:
             self._b_menu_estado(j, "", res)
             return
         ahora = self.reloj()
-        animo = P.animo(pareja.ap)
-        lineas = [
-            f"👀 <b>Perfil de {self._firma(pareja)}</b>",
-            f"🎭 {animo or 'Sin estado de ánimo'}",
+        lineas = [f"👀 <b>Perfil de {self._firma(pareja)}</b>"] + self._texto_animo_actual(j, pareja) + [
             f"{self._texto_presencia(pareja, ahora)}",
             f"🕒 Su hora: {self._reloj(pareja)} · 📍 {V.nombre_habitacion(pareja.lugar)}",
             f"💼 {self._texto_puesto(pareja) or 'Sin trabajo todavía'}",
@@ -290,6 +286,8 @@ class MenuMixin:
             "",
             f"<i>{esc(P.descripcion(pareja.personaje, pareja.ap))}</i>",
         ]
-        res.pantalla = Pantalla(
-            "\n".join(lineas), [[("💞 Hacer algo juntos", "acc:pareja"), ("⬅️ Atrás", "mest")]], clave="perfil"
-        )
+        botones = [[("💞 Hacer algo juntos", "acc:pareja"), ("⬅️ Atrás", "mest")]]
+        actual = self._extras(pareja).get("animo_actual")
+        if actual and actual.get("foto") and actual["animo"] == pareja.ap.get("animo"):
+            botones.insert(0, [("📸 Ver su foto", f"fotoan:{pareja.id}"), ("📸 Álbum", "album")])
+        res.pantalla = Pantalla("\n".join(lineas), botones, clave="perfil")

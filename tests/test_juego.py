@@ -238,8 +238,11 @@ def test_cambiar_animo_se_ve_en_la_sala_de_la_pareja(pareja):
     res = pareja.boton(ANA, "Ana", "animos")
     assert "animo:triste" in datos(res.pantalla)
     res = pareja.boton(ANA, "Ana", "animo:triste")
+    assert "mándame una foto" in res.pantalla.texto
+    res = pareja.boton(ANA, "Ana", "animop")
     assert "Triste" in res.alerta
     assert "🔵 😢 Triste" in res.ediciones[0].pantalla.texto
+    assert any(a.para == ADMIN and "ahora se siente" in a.texto for a in res.avisos)
 
 
 def test_avatar_en_emoji():
