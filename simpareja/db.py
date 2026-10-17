@@ -37,7 +37,14 @@ CREATE TABLE IF NOT EXISTS jugadores (
     -- Reloj propio del Sim: corre como un día real y se congela tras unos minutos sin jugar.
     reloj_juego       REAL NOT NULL DEFAULT 0,  -- segundos de juego acumulados
     reloj_desde       REAL,                     -- desde cuándo corre (NULL = congelado)
-    ultima_jugada     REAL NOT NULL DEFAULT 0   -- última acción de juego (el chat no cuenta)
+    ultima_jugada     REAL NOT NULL DEFAULT 0,  -- última acción de juego (el chat no cuenta)
+    -- Necesidades (JSON) y hasta qué segundo del reloj del Sim están calculadas.
+    necesidades       TEXT NOT NULL DEFAULT '',
+    nec_seg           REAL NOT NULL DEFAULT 0,
+    accion            TEXT,                     -- JSON de la acción en curso
+    energia_max       INTEGER NOT NULL DEFAULT 100,
+    racha             TEXT NOT NULL DEFAULT '{}',  -- días seguidos de ejercicio
+    aviso_necesidad_ts REAL NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS jugadores_sala ON jugadores(sala_id);
 
@@ -77,6 +84,24 @@ CREATE TABLE IF NOT EXISTS ultima_conexion (
     desconectado     REAL
 );
 
+-- La casa de cada sala: suciedad de cada zona y ropa sucia acumulada.
+CREATE TABLE IF NOT EXISTS hogares (
+    sala_id    INTEGER PRIMARY KEY,
+    zonas      TEXT NOT NULL DEFAULT '{}',
+    ropa_sucia INTEGER NOT NULL DEFAULT 0
+);
+
+-- Propuestas para hacer una acción juntos.
+CREATE TABLE IF NOT EXISTS propuestas (
+    id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    de     INTEGER NOT NULL,
+    para   INTEGER NOT NULL,
+    accion TEXT NOT NULL,
+    extra  TEXT NOT NULL DEFAULT '',
+    creada REAL NOT NULL,
+    estado TEXT NOT NULL DEFAULT 'pendiente'
+);
+
 CREATE TABLE IF NOT EXISTS meta (
     clave TEXT PRIMARY KEY,
     valor TEXT NOT NULL
@@ -89,6 +114,12 @@ COLUMNAS_NUEVAS = [
     ("jugadores", "reloj_juego", "REAL NOT NULL DEFAULT 0"),
     ("jugadores", "reloj_desde", "REAL"),
     ("jugadores", "ultima_jugada", "REAL NOT NULL DEFAULT 0"),
+    ("jugadores", "necesidades", "TEXT NOT NULL DEFAULT ''"),
+    ("jugadores", "nec_seg", "REAL NOT NULL DEFAULT 0"),
+    ("jugadores", "accion", "TEXT"),
+    ("jugadores", "energia_max", "INTEGER NOT NULL DEFAULT 100"),
+    ("jugadores", "racha", "TEXT NOT NULL DEFAULT '{}'"),
+    ("jugadores", "aviso_necesidad_ts", "REAL NOT NULL DEFAULT 0"),
 ]
 
 
@@ -113,6 +144,12 @@ class Jugador:
     reloj_juego: float = 0.0
     reloj_desde: float | None = None
     ultima_jugada: float = 0.0
+    necesidades: str = ""
+    nec_seg: float = 0.0
+    accion: str | None = None
+    energia_max: int = 100
+    racha: str = "{}"
+    aviso_necesidad_ts: float = 0.0
 
     @property
     def activo(self) -> bool:
@@ -121,6 +158,24 @@ class Jugador:
     @property
     def ap(self) -> dict:
         return json.loads(self.apariencia or "{}")
+
+
+@dataclass
+class Hogar:
+    sala_id: int
+    zonas: str = "{}"
+    ropa_sucia: int = 0
+
+
+@dataclass
+class Propuesta:
+    id: int | None
+    de: int
+    para: int
+    accion: str
+    extra: str
+    creada: float
+    estado: str = "pendiente"
 
 
 @dataclass
@@ -280,6 +335,32 @@ class DB:
     def guardar_ultima_conexion(self, uc: UltimaConexion) -> None:
         with self.con:
             self.con.execute(_sql_upsert("ultima_conexion", UltimaConexion), astuple(uc))
+
+    # --- hogar y propuestas ----------------------------------------------
+
+    def hogar(self, sala_id: int) -> Hogar | None:
+        fila = self.con.execute("SELECT * FROM hogares WHERE sala_id = ?", (sala_id,)).fetchone()
+        return Hogar(**fila) if fila else None
+
+    def guardar_hogar(self, h: Hogar) -> None:
+        with self.con:
+            self.con.execute(_sql_upsert("hogares", Hogar), astuple(h))
+
+    def propuesta(self, pid: int) -> Propuesta | None:
+        fila = self.con.execute("SELECT * FROM propuestas WHERE id = ?", (pid,)).fetchone()
+        return Propuesta(**fila) if fila else None
+
+    def guardar_propuesta(self, p: Propuesta) -> int:
+        with self.con:
+            if p.id is None:
+                cur = self.con.execute(
+                    "INSERT INTO propuestas (de, para, accion, extra, creada, estado) VALUES (?, ?, ?, ?, ?, ?)",
+                    (p.de, p.para, p.accion, p.extra, p.creada, p.estado),
+                )
+                p.id = int(cur.lastrowid)
+            else:
+                self.con.execute(_sql_upsert("propuestas", Propuesta), astuple(p))
+        return p.id
 
     # --- meta ------------------------------------------------------------
 

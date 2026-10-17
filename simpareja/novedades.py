@@ -3,9 +3,25 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.2"
+VERSION = "0.3"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.3", [
+        "🧍 <b>Mi Sim</b> (/sim): tu Sim ya tiene necesidades: 🍔 hambre, ⚡ energía, 🚿 higiene, 🎉 diversión "
+        "y 💬 social. Bajan con su reloj; si alguna llega a 0 se pone de mal humor, y sin energía se duerme "
+        "donde esté.",
+        "🎬 Acciones: comer (desayuno, almuerzo o cena según la hora), cocinar, dormir, siesta, ducharse, "
+        "bañarse juntos, lavarse los dientes, tele, redes, parque, hablar, abrazar, besar, masaje, cita, "
+        "limpiar una zona y lavar la ropa.",
+        "💞 Casi todo se puede hacer juntos: tu pareja recibe la propuesta y, si acepta, terminan antes.",
+        "😴 Mientras tu Sim hace algo (por ejemplo dormir 8 horas), su reloj sigue aunque no estés; "
+        "se congela 5 minutos después de terminar.",
+        "💪 Constancia: 3 días seguidos de parque suben 5 la energía máxima (hasta 130).",
+        "🗓️ El reloj muestra el día de la semana y los fines de semana.",
+        "🎭 Nuevos estados de ánimo: 🟢 feliz, 🌸 coqueto, 🔵 triste, 🔴 enojado, 🟡 con energía, "
+        "🔘 cansado y 🟣 inspirado. Elige el tuyo con /animo.",
+        "🎮 Puedes jugar sin esperar a que tu pareja acepte la invitación.",
+    ]),
     ("0.2", [
         "🧑‍🎨 Personaje completo: además del aspecto, ahora tiene hasta 3 <b>rasgos de personalidad</b>, "
         "una <b>aspiración de vida</b> y un <b>estado de ánimo</b> con su color (cámbialo cuando quieras con /animo). "

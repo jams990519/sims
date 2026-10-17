@@ -193,12 +193,12 @@ def test_creador_paso_a_paso_con_personalidad(juego):
     assert "✅ Listo (3/3)" in etiquetas(res.pantalla)
     juego.boton(ADMIN, "", "apml:rasgos")
     juego.boton(ADMIN, "", "ap:aspiracion:amor")
-    res = juego.boton(ADMIN, "", "ap:animo:enamorado")
+    res = juego.boton(ADMIN, "", "ap:animo:coqueto")
     assert "Ficha de Luis" in res.pantalla.texto
     assert "<b>Personalidad</b>" in res.pantalla.texto
     assert (
         "Es romántica, divertida y ordenada. Sueña con un amor para toda la vida. "
-        "Ahora mismo se siente enamorada 🩷."
+        "Ahora mismo se siente coqueta 🌸."
     ) in res.pantalla.texto
     assert juego.boton(ADMIN, "", "invitar").alerta  # mientras se crea, el resto no funciona
     juego.boton(ADMIN, "", "apok")
@@ -256,19 +256,19 @@ def test_todo_al_azar_siempre_completo():
 # --- reloj del Sim, pausa y Continuar ---------------------------------------------
 
 def test_reloj_propio_y_pausa_a_los_5_minutos(pareja, reloj):
-    assert "🕒 Día 1 · 08:00" in pareja.boton(ANA, "Ana", "sala").pantalla.texto
+    assert "🕒 Lunes 08:00 · día 1" in pareja.boton(ANA, "Ana", "sala").pantalla.texto
     reloj.avanzar(3)
-    assert "Día 1 · 08:03" in pareja.boton(ANA, "Ana", "sala").pantalla.texto
+    assert "Lunes 08:03 · día 1" in pareja.boton(ANA, "Ana", "sala").pantalla.texto
     reloj.avanzar(20)  # 20 min sin hacer nada: el Sim se congeló a los 5
     res = pareja.boton(ANA, "Ana", "pjs")
     assert "Tu Sim estaba en pausa" in res.pantalla.texto
-    assert "se detuvo en: <b>Día 1 · 08:08</b>" in res.pantalla.texto
+    assert "se detuvo en: <b>Lunes 08:08 · día 1</b>" in res.pantalla.texto
     assert datos(res.pantalla) == ["continuar"]
     reloj.avanzar(1)
     res = pareja.boton(ANA, "Ana", "continuar")
     assert "¡Seguimos!" in res.pantalla.texto
     reloj.avanzar(2)
-    assert "Día 1 · 08:10" in pareja.boton(ANA, "Ana", "sala").pantalla.texto
+    assert "Lunes 08:10 · día 1" in pareja.boton(ANA, "Ana", "sala").pantalla.texto
 
 
 def test_la_pausa_es_solo_de_quien_se_fue(pareja, reloj):
@@ -276,8 +276,8 @@ def test_la_pausa_es_solo_de_quien_se_fue(pareja, reloj):
     pareja.boton(ADMIN, "", "continuar")  # Luis sigue jugando
     reloj.avanzar(3)
     texto = pareja.boton(ADMIN, "", "sala").pantalla.texto
-    assert "Día 1 · 08:08" in texto  # el reloj de Luis corrió 3 min tras continuar (más los 5 iniciales)
-    assert "Ana</b> · " in texto and "❄️ en pausa" in texto
+    assert "Lunes 08:08 · día 1" in texto  # el reloj de Luis corrió 3 min tras continuar (más los 5 iniciales)
+    assert "🟡 ausente · hace 13 min · ❄️ Sim en pausa" in texto  # Ana sigue en pausa
 
 
 def test_el_chat_no_descongela_al_sim(pareja, reloj):
@@ -298,8 +298,8 @@ def test_tick_congela_la_sala_abierta(pareja, reloj):
 
 
 def test_hora_de_juego():
-    assert hora_de_juego(0) == "Día 1 · 08:00"
-    assert hora_de_juego(16 * 3600 + 90) == "Día 2 · 00:01"
+    assert hora_de_juego(0) == "Lunes 08:00 · día 1"
+    assert hora_de_juego(16 * 3600 + 90) == "Martes 00:01 · día 2"
 
 
 # --- última conexión: volver al mismo sitio ---------------------------------------
@@ -400,7 +400,8 @@ def test_presencia_en_vivo(pareja, reloj):
     pareja.registrar_pantalla(ADMIN, 55, es_sala=True)
     reloj.avanzar(6)
     res = pareja.tick()
-    assert "❄️ en pausa · hace 6 min" in next(e for e in res.ediciones if e.para == ADMIN).pantalla.texto
+    assert "🟡 ausente · hace 6 min · ❄️ Sim en pausa" in next(
+        e for e in res.ediciones if e.para == ADMIN).pantalla.texto
     reloj.avanzar(60)
     res = pareja.tick()
     assert "⚫ fuera de línea · visto hace 1 h" in res.ediciones[0].pantalla.texto

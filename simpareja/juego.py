@@ -7,6 +7,7 @@ ediciones de las salas abiertas (para que el estado "en línea" se vea en vivo).
 
 from __future__ import annotations
 
+import functools
 import html
 import json
 import logging
@@ -19,8 +20,10 @@ from urllib.parse import quote
 
 from . import novedades as N
 from . import personaje as P
+from . import vida as V
 from .config import Config
 from .db import DB, Invitacion, Jugador, UltimaConexion, Visitante
+from .vida_juego import VidaMixin
 
 log = logging.getLogger(__name__)
 
@@ -59,6 +62,7 @@ class Resultado:
     nuevo: bool = False  # mostrar en un mensaje nuevo aunque venga de un botón
     avisos: list[Aviso] = field(default_factory=list)
     ediciones: list[Edicion] = field(default_factory=list)
+    notas: list[str] = field(default_factory=list)  # lo que pasó mientras no mirabas (va arriba de la pantalla)
 
 
 ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # sin 0/O ni 1/I para que no se confundan
@@ -67,9 +71,7 @@ LARGO_CODIGO_INVITACION = 10
 NOMBRE_RE = re.compile(r"[^\W\d_][\w '.\-]{1,19}")
 INVITAR_RE = re.compile(r"/?invitar[_\s]+([A-Za-z0-9]{4,12})(?:@\w+)?", re.IGNORECASE)
 MINUTO = 60
-HORA = 3600
 DIA = 86400
-HORA_INICIAL = 8 * HORA  # el día 1 del Sim empieza a las 08:00
 AVISO_CONEXION_CADA = 30 * MINUTO
 MAX_FALLOS_CODIGO = 8
 VENTANA_FALLOS = 15 * MINUTO
@@ -83,6 +85,8 @@ LUGARES = {
     "creador": ("🧑‍🎨 Creador de personaje", "creando su personaje"),
     "bienvenida": ("✨ Personaje recién creado", "decidiendo si jugar o invitar"),
     "sala": ("🏠 Sala", "en la sala"),
+    "sim": ("🧍 Mi Sim", "mirando a su Sim"),
+    "acc": ("🎬 Acciones", "eligiendo qué hacer"),
     "invitar": ("💌 Invitar", "invitando a alguien"),
     "invs": ("📋 Invitaciones enviadas", "revisando sus invitaciones"),
     "pjs": ("🪪 Personajes", "mirando los personajes"),
@@ -118,9 +122,24 @@ def duracion(seg: float) -> str:
 
 
 def hora_de_juego(segundos: float) -> str:
-    """'Día 1 · 08:00' para 0 segundos de juego."""
-    s = int(HORA_INICIAL + segundos)
-    return f"Día {1 + s // DIA} · {s % DIA // HORA:02d}:{s % HORA // MINUTO:02d}"
+    """'Lunes 08:00 · día 1' para 0 segundos de juego."""
+    return V.reloj_texto(segundos)
+
+
+def _con_notas(metodo):
+    """Pone arriba de la pantalla lo que le pasó al Sim mientras el jugador no miraba."""
+    @functools.wraps(metodo)
+    def envoltura(self, uid, *args, **kwargs):
+        res = metodo(self, uid, *args, **kwargs)
+        if res.notas:
+            texto = "\n".join(res.notas)
+            if res.pantalla is not None:
+                res.pantalla.texto = texto + "\n\n" + res.pantalla.texto
+            else:
+                res.avisos.append(Aviso(uid, texto))
+            res.notas = []
+        return res
+    return envoltura
 
 
 def normalizar_codigo(texto: str) -> str:
@@ -131,7 +150,7 @@ def en_filas(botones: list[tuple[str, str]], por_fila: int = 2) -> Botones:
     return [botones[i:i + por_fila] for i in range(0, len(botones), por_fila)]
 
 
-class Juego:
+class Juego(VidaMixin):
     def __init__(self, db: DB, cfg: Config, reloj=time.time, rng: random.Random | None = None):
         self.db = db
         self.cfg = cfg
@@ -148,6 +167,7 @@ class Juego:
     # Entradas desde Telegram
     # ------------------------------------------------------------------
 
+    @_con_notas
     def inicio(self, uid: int, nombre_tg: str, carga: str | None = None) -> Resultado:
         """/start: quien no juega ve su código personal; quien juega retoma donde lo dejó."""
         j = self.db.jugador(uid)
@@ -157,6 +177,7 @@ class Juego:
             return self._pausa(j, nuevo=True)
         return self._reanudar(j)
 
+    @_con_notas
     def texto(self, uid: int, nombre_tg: str, texto: str) -> Resultado:
         j = self.db.jugador(uid)
         if j is None:
@@ -178,6 +199,7 @@ class Juego:
         self._anotar(j.id, res)
         return res
 
+    @_con_notas
     def media(self, uid: int) -> Resultado:
         """Foto, sticker, nota de voz, etc.: se reenvía a la sala como parte del chat."""
         j = self.db.jugador(uid)
@@ -196,6 +218,7 @@ class Juego:
         self._anotar(j.id, res, CHATEANDO)
         return res
 
+    @_con_notas
     def boton(self, uid: int, nombre_tg: str, data: str) -> Resultado:
         accion, _, arg = data.partition(":")
         j = self.db.jugador(uid)
@@ -209,7 +232,8 @@ class Juego:
             j.estado = "activo"
         if accion in ("continuar", "volver"):
             return self._continuar(j)
-        if j.estado == "activo" and self._congelado(j, self.reloj()):
+        # Con el Sim en pausa solo se puede continuar o responder a una propuesta de la pareja.
+        if j.estado == "activo" and self._congelado(j, self.reloj()) and accion != "pj":
             return self._pausa(j)
         res = self._tocar(j)
         if j.estado == "creando" and not accion.startswith("ap"):
@@ -236,7 +260,7 @@ class Juego:
             if j is None:
                 return self._visitante(uid, nombre_tg)
             return Resultado(pantalla=self._pantalla_conexion(j), nuevo=True)
-        data = {"sala": "sala", "menu": "sala", "invitar": "invitar", "ajustes": "ajustes",
+        data = {"sala": "sala", "menu": "sala", "sim": "sim", "invitar": "invitar", "ajustes": "ajustes",
                 "personajes": "pjs", "animo": "animos", "salir": "salir"}.get(nombre, "sala")
         res = self.boton(uid, nombre_tg, data)
         res.nuevo = True
@@ -249,10 +273,12 @@ class Juego:
             "a quien ya juega y esa persona escribe <code>invitar_TUCÓDIGO</code>.\n"
             "🧑‍🎨 Creas tu personaje: aspecto, rasgos, aspiración y estado de ánimo.\n"
             "🎮 Puedes jugar sin compañía o 💌 invitar a tu pareja a tu sala.\n"
+            "🧍 En <b>Mi Sim</b> cuidas sus necesidades (hambre, energía, higiene, diversión y social) "
+            "con acciones: solo o juntos, que terminan antes.\n"
             "💬 En la sala, todo lo que escribas (texto, fotos, stickers, notas de voz) le llega a la otra persona.\n"
             f"🕒 Tu Sim tiene su propio reloj, como un día real. Si pasas {self.cfg.pausa_min} min sin jugar se "
             "congela ❄️; al volver tocas ▶️ Continuar y sigues donde lo dejaste.\n\n"
-            "Comandos: /start · /sala · /invitar · /personajes · /animo · /ajustes · /conexion · /novedades · /salir",
+            "Comandos: /start · /sim · /sala · /invitar · /personajes · /animo · /ajustes · /conexion · /novedades · /salir",
             [[SALA]],
         )
 
@@ -293,9 +319,10 @@ class Juego:
             self.db.guardar_jugador(j)
 
     def tick(self) -> Resultado:
-        """Se llama cada minuto: detecta quién pasó a en pausa o fuera de línea."""
+        """Se llama cada minuto: avanza a los Sims y detecta quién pasó a ausente o fuera de línea."""
         ahora = self.reloj()
         res = Resultado()
+        self._tick_vida(ahora, res)
         salas: set[int] = set()
         for j in self.db.jugadores_en_sala():
             estado = self._estado_presencia(j, ahora)
@@ -311,6 +338,8 @@ class Juego:
                     self.db.guardar_ultima_conexion(uc)
         for sala_id in salas:
             res.ediciones += self._refrescar_sala(sala_id)
+        # Una sola edición por mensaje: la última es la más actual.
+        res.ediciones = list({(e.para, e.msg_id): e for e in res.ediciones}.values())
         return res
 
     def _manejadores(self):
@@ -328,6 +357,14 @@ class Juego:
             "avisos": self._b_avisos,
             "renombrar": self._b_renombrar,
             "conexion": self._b_conexion,
+            "sim": self._b_sim,
+            "acc": self._b_categoria,
+            "a": self._b_accion,
+            "as": self._b_solo,
+            "aj": self._b_juntos,
+            "pj": self._b_respuesta,
+            "pjx": self._b_cancelar_propuesta,
+            "parar": self._b_parar,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -500,8 +537,9 @@ class Juego:
         res.pantalla = Pantalla(
             f"✅ <b>Invitación enviada a {esc(v.nombre_tg or 'esa persona')}.</b>\n\n"
             "Le llegó un aviso en el bot para aceptarla. Te aviso cuando entre.\n"
-            f"⏳ Vence en {duracion(inv.expira - ahora + MINUTO)}.",
-            [[("📋 Invitaciones enviadas", "invs"), SALA]],
+            f"⏳ Vence en {duracion(inv.expira - ahora + MINUTO)}.\n\n"
+            "🎮 Mientras tanto, puedes seguir jugando.",
+            [[("🎮 Jugar mientras tanto", "sim")], [("📋 Invitaciones enviadas", "invs"), SALA]],
         )
 
     # ------------------------------------------------------------------
@@ -713,6 +751,8 @@ class Juego:
         j.reloj_juego = 0.0
         j.reloj_desde = ahora
         j.ultima_jugada = ahora
+        j.necesidades = json.dumps(V.nuevas_necesidades())
+        j.nec_seg = 0.0
         res = self._tocar(j, avisar_conexion=False)
         if not res.ediciones:  # alguien nuevo en la sala: hay que redibujarla siempre
             res.ediciones = self._refrescar_sala(j.sala_id, excepto=j.id)
@@ -746,25 +786,28 @@ class Juego:
             ]
         lineas += [
             "<b>¿Qué quieres hacer ahora?</b>",
-            "🎮 <b>Jugar</b>: entra a tu sala y empieza, con o sin compañía.",
+            "🎮 <b>Jugar</b>: cuida a tu Sim y vive el día, con o sin compañía.",
             "💌 <b>Invitar</b>: invita a tu pareja o a quien quieras.",
         ]
         return Pantalla(
-            "\n".join(lineas), [[("🎮 Jugar", "sala"), ("💌 Invitar", "invitar")]], clave="bienvenida"
+            "\n".join(lineas), [[("🎮 Jugar", "sim"), ("💌 Invitar", "invitar")]], clave="bienvenida"
         )
 
     # ------------------------------------------------------------------
     # Reloj del Sim: corre como un día real y se congela sin actividad
     # ------------------------------------------------------------------
 
+    def _limite_pausa(self, j: Jugador) -> float:
+        """El reloj corre hasta 5 min después de la última jugada o del fin de la acción en curso."""
+        return max(j.ultima_jugada, self._fin_accion_real(j)) + self.pausa
+
     def _congelado(self, j: Jugador, ahora: float) -> bool:
-        return bool(j.salio) or j.reloj_desde is None or ahora - j.ultima_jugada >= self.pausa
+        return j.reloj_desde is None or ahora >= self._limite_pausa(j)
 
     def _segundos_juego(self, j: Jugador, ahora: float) -> float:
         if j.reloj_desde is None:
             return j.reloj_juego
-        hasta = ahora if not j.salio else j.ultima_actividad
-        hasta = min(hasta, j.ultima_jugada + self.pausa)
+        hasta = min(ahora, self._limite_pausa(j))
         return j.reloj_juego + max(0.0, hasta - j.reloj_desde)
 
     def _congelar(self, j: Jugador, ahora: float) -> None:
@@ -775,7 +818,7 @@ class Juego:
     def _pausa(self, j: Jugador, nuevo: bool = False) -> Resultado:
         """Pantalla de 'tu Sim estaba en pausa': hay que tocar Continuar para seguir."""
         ahora = self.reloj()
-        desde = j.ultima_jugada + self.pausa if j.ultima_jugada and not j.salio else j.ultima_actividad
+        desde = self._limite_pausa(j) if j.ultima_jugada else j.ultima_actividad
         self._congelar(j, ahora)
         res = self._tocar(j, jugada=False)
         uc = self.db.ultima_conexion(j.id)
@@ -791,11 +834,7 @@ class Juego:
         return res
 
     def _continuar(self, j: Jugador) -> Resultado:
-        ahora = self.reloj()
-        if j.estado == "activo" and self._congelado(j, ahora):
-            self._congelar(j, ahora)
-            j.reloj_desde = ahora
-            j.ultima_jugada = ahora
+        self._descongelar(j, self.reloj())
         return self._reanudar(j, nuevo=False, saludo="▶️ <b>¡Seguimos!</b>")
 
     # ------------------------------------------------------------------
@@ -865,6 +904,7 @@ class Juego:
         manejador = {
             "sala": self._b_sala, "invitar": self._b_invitar, "invs": self._b_mis_invitaciones,
             "pjs": self._b_personajes, "animo": self._b_animos, "ajustes": self._b_ajustes,
+            "sim": self._b_sim, "acc": self._b_categoria,
         }.get(accion, self._b_sala)
         tmp = Resultado()
         manejador(j, arg, tmp)
@@ -911,17 +951,23 @@ class Juego:
         return "fuera"
 
     def _texto_presencia(self, j: Jugador, ahora: float, actividad: str | None = None) -> str:
+        """Si la persona está conectada y qué está haciendo su Sim."""
         estado = self._estado_presencia(j, ahora)
         hace = duracion(ahora - j.ultima_actividad)
         if estado == "en_linea":
-            if self._congelado(j, ahora):
-                return "🟢 en línea · ❄️ Sim en pausa"
-            return f"🟢 en línea · {esc(actividad)}" if actividad else "🟢 en línea"
-        if estado == "ausente":
-            return f"❄️ en pausa · hace {hace}"
-        if j.ultima_actividad:
-            return f"⚫ fuera de línea · visto hace {hace}"
-        return "⚫ fuera de línea"
+            partes = ["🟢 en línea"]
+        elif estado == "ausente":
+            partes = [f"🟡 ausente · hace {hace}"]
+        else:
+            partes = [f"⚫ fuera de línea · visto hace {hace}" if j.ultima_actividad else "⚫ fuera de línea"]
+        haciendo = self._texto_accion(j, ahora)
+        if haciendo:
+            partes.append(haciendo)
+        elif j.estado == "activo" and self._congelado(j, ahora):
+            partes.append("❄️ Sim en pausa")
+        elif estado == "en_linea" and actividad:
+            partes.append(esc(actividad))
+        return " · ".join(partes)
 
     def _tocar(self, j: Jugador, avisar_conexion: bool = True, jugada: bool = True) -> Resultado:
         """Marca actividad: quien usa el bot aparece en línea y su sala se actualiza.
@@ -929,6 +975,7 @@ class Juego:
         `jugada` indica una acción de juego (el chat no lo es): mantiene el reloj del Sim corriendo.
         """
         ahora = self.reloj()
+        eventos = self._vivir(j, ahora)
         estaba = self._estado_presencia(j, ahora)
         if jugada and j.estado == "activo" and not self._congelado(j, ahora):
             j.ultima_jugada = ahora
@@ -948,7 +995,7 @@ class Juego:
             uc.conectado_desde = ahora
             uc.desconectado = None
             self.db.guardar_ultima_conexion(uc)
-        res = Resultado()
+        res = Resultado(notas=[texto for texto, _ in eventos])
         if not j.activo:
             return res
         if cambio:
@@ -961,7 +1008,6 @@ class Juego:
 
     def _salir(self, j: Jugador) -> Resultado:
         ahora = self.reloj()
-        self._congelar(j, ahora)
         j.salio = 1
         j.presencia = "fuera"
         self.db.guardar_jugador(j)
@@ -971,7 +1017,7 @@ class Juego:
         res = Resultado(ediciones=self._refrescar_sala(j.sala_id, excepto=j.id))
         res.pantalla = Pantalla(
             "🚪 <b>Saliste del juego.</b>\n"
-            "Ahora apareces ⚫ fuera de línea y tu Sim queda en pausa ❄️.\n\n"
+            "Ahora apareces ⚫ fuera de línea. Tu Sim termina lo que esté haciendo y luego queda en pausa ❄️.\n\n"
             f"Guardé dónde estabas (<b>{uc.lugar or LUGARES['sala'][0]}</b>): al volver, sigues desde ahí.\n"
             "Los mensajes de tu sala te seguirán llegando. Para volver, toca el botón o escribe /start.",
             [[("🔁 Volver a entrar", "volver")]],
@@ -1017,7 +1063,8 @@ class Juego:
                 cabeza = self._firma(m)
                 presencia = self._texto_presencia(m, ahora, uc.actividad if uc else None)
             lineas.append(f"{cabeza}{' · ' + animo if animo else ''}")
-            lineas.append(f"      {presencia} · 🕒 {hora_de_juego(self._segundos_juego(m, ahora))}")
+            lineas.append(f"      {presencia}")
+            lineas.append(f"      🕒 {hora_de_juego(self._segundos_juego(m, ahora))}")
         lineas.append("")
         if otros:
             lineas.append(
@@ -1026,8 +1073,9 @@ class Juego:
             )
         else:
             lineas.append("🎮 Por ahora juegas sin compañía. Cuando quieras, invita a alguien con 💌.")
-        lineas += ["", "🚧 <i>Próximamente: casa y dinero, compras, acciones del día, cocina y trabajo.</i>"]
+        lineas += ["", "🚧 <i>Próximamente: casa y dinero, trabajos, súper y cocina, relación.</i>"]
         botones = [
+            [("🎮 Mi Sim", "sim")],
             [("🎭 Mi ánimo", "animos"), ("🪪 Personajes", "pjs")],
             [("💌 Invitar", "invitar"), ("⚙️ Ajustes", "ajustes")],
             [("🔄 Actualizar", "act"), ("🚪 Salir", "salir")],
@@ -1163,9 +1211,11 @@ class Juego:
             "2️⃣ El bot le mostrará su <b>código personal</b>.\n"
             "3️⃣ Cuando te lo pase, escríbelo aquí así:\n"
             "<code>invitar_CÓDIGO</code>   (por ejemplo: <code>invitar_K7M2QX</code>)\n\n"
-            "🔐 Cada código pertenece a una sola persona: nadie más puede entrar con él.",
+            "🔐 Cada código pertenece a una sola persona: nadie más puede entrar con él.\n\n"
+            "🎮 No hace falta esperar: puedes jugar ya y tu pareja se une cuando entre.",
             [
                 [("📤 Pasarle el bot", compartir)],
+                [("🎮 Jugar sin esperar", "sim")],
                 [("📋 Invitaciones enviadas", "invs"), SALA],
             ],
             clave="invitar",

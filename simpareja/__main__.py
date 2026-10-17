@@ -18,6 +18,7 @@ def main() -> None:
         stream=sys.stdout,  # Railway marca como error todo lo que sale por stderr
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("apscheduler").setLevel(logging.WARNING)  # no anotar cada minuto
     cfg = Config.desde_entorno()
     if not cfg.token:
         sys.exit("Falta BOT_TOKEN. Copia .env.example a .env y pon el token de @BotFather.")
