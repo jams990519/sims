@@ -108,7 +108,7 @@ class VidaMixin:
         if a is None:
             return ""
         texto = f"✅ {self._firma(j)} terminó: {a.emoji} {a.titulo(bool(accion.get('con')))}."
-        texto += self._efecto_mascota(j, accion) + self._paso_influencer(j, accion)
+        texto += self._efecto_mascota(j, accion) + self._paso_influencer(j, accion) + self._sesion_estudio(j, accion)
         self._recordar_cita(j, accion)
         self._reto_accion(j, accion)
         h = self._hogar(j.sala_id)
@@ -308,6 +308,8 @@ class VidaMixin:
             return f"acc:{a.categoria}"
         if a.categoria == "influencer":
             return "influ"
+        if a.categoria == "estudios":
+            return "estudios"
         return "mlug"
 
     # ------------------------------------------------------------------

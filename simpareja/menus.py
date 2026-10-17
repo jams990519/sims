@@ -17,7 +17,6 @@ from .db import EN_JUEGO, Jugador
 
 # Lo que todavía no existe: se ve en el menú, pero avisa que llega pronto.
 PRONTO = {
-    "estudiar": "📚 Los estudios",
 }
 
 
@@ -216,7 +215,7 @@ class MenuMixin:
             [(f"{e} {nombre}", f"acc:{clave}") for clave, e, nombre in V.CATEGORIAS[i:i + 2]]
             for i in range(0, len(V.CATEGORIAS), 2)
         ]
-        botones.append([("📚 Estudiar 🚧", "pronto:estudiar")])
+        botones.append([("📚 Estudiar", "estudios")])
         botones.append([("⬅️ Atrás", "menu")])
         res.pantalla = Pantalla(
             f"⚡ <b>Acciones</b>\n📍 Estás en: {V.nombre_habitacion(j.lugar)}\n"

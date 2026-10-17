@@ -88,7 +88,7 @@ class TrabajoMixin:
                 [(f"{t.emoji} {t.niveles[0].nombre(genero)} · ${t.niveles[0].por_hora}/h", f"vtrab:{t.clave}")]
                 for t in T.TRABAJOS.values()
             ]
-            botones.append([("📚 Estudios 🚧", "pronto:estudiar"), ("📱 Influencer", "influ")])
+            botones.append([("📚 Estudios", "estudios"), ("📱 Influencer", "influ")])
             botones.append([("⬅️ Atrás", "menu")])
             res.pantalla = Pantalla("\n".join(lineas), botones, clave="trabajo")
             return
@@ -132,7 +132,7 @@ class TrabajoMixin:
             botones.append([("💼 Ir a trabajar ahora", "trabajar:ir"), ("⏰ Cuando me desconecte", "trabajar:luego")])
         botones.append([("🗓️ Mi horario", "hor"), ("📈 Mi carrera", "carrera")])
         botones.append([("🚪 Renunciar o cambiar", "renunciar")])
-        botones.append([("📚 Estudios 🚧", "pronto:estudiar"), ("📱 Influencer", "influ")])
+        botones.append([("📚 Estudios", "estudios"), ("📱 Influencer", "influ")])
         botones.append([("⬅️ Atrás", "menu")])
         res.pantalla = Pantalla("\n".join(lineas), botones, clave="trabajo")
 
@@ -164,8 +164,14 @@ class TrabajoMixin:
         if t is None or self._empleo(j).get("clave"):
             self._b_trabajo(j, "", res)
             return
-        self._guardar_empleo(j, {"clave": clave, "nivel": 1, "dias": 0, "ultimo": 0})
-        aviso = f"🎉 ¡Te contrataron! Ahora eres {t.niveles[0].nombre(j.ap.get('genero')).lower()}."
+        nivel = self._nivel_por_estudios(j, clave)  # certificado: nivel 2; título: nivel 3
+        extras = self._extras(j)
+        credito = extras.pop("credito", 0)  # días de ascenso ganados con cursos
+        j.extras = json.dumps(extras)
+        self._guardar_empleo(j, {"clave": clave, "nivel": nivel, "dias": credito, "ultimo": 0})
+        aviso = f"🎉 ¡Te contrataron! Ahora eres {t.niveles[nivel - 1].nombre(j.ap.get('genero')).lower()}."
+        if nivel > 1:
+            aviso += " 🎓 Gracias a tus estudios, entras en el nivel " + str(nivel) + "."
         self._b_horario(j, "", res, aviso)
 
     def _b_renunciar(self, j: Jugador, arg: str, res) -> None:

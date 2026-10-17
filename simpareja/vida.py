@@ -255,6 +255,9 @@ _ACCIONES = (
            {"energia": -5}, juntos=SOLO),
     Accion("guion", "✍️", "Escribir el guion del video de tu pareja", "escribiendo un guion", "influencer", 20,
            {"diversion": 5}, juntos=SOLO),
+    # 📚 Estudios (una sesión al día; las horas dependen del curso)
+    Accion("estudiar", "📚", "Estudiar", "estudiando", "estudios", 60, {"energia": -5, "diversion": -3},
+           nombre_juntos="Estudiar juntos"),
     # 📍 Lugares (fuera de casa; en pareja, una salida cuenta como cita)
     Accion("super", "🛒", "Hacer el súper", "en el súper", "super", 45, {"energia": -5},
            habitacion=FUERA, nombre_juntos="Ir al súper juntos"),
@@ -311,6 +314,8 @@ def preparar(
         )
         minutos = horas * 60
         efectos["energia"] = ENERGIA_POR_HORA_DORMIDO * horas
+    if a.clave == "estudiar" and extra.isdigit():
+        minutos = max(1, min(3, int(extra))) * 60
     if a.clave == "trabajar":
         horas = max(1, min(12, int(extra or 8)))
         minutos = horas * 60
