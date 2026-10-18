@@ -10,14 +10,38 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+MOMENTOS = ("manana", "tarde", "atardecer", "noche")
+
+
+def momento(hora: float) -> str:
+    """El momento del día según la hora local (con decimales): para el texto y el dibujo."""
+    if 5.5 <= hora < 11:
+        return "manana"
+    if 11 <= hora < 17.5:
+        return "tarde"
+    if 17.5 <= hora < 19.5:
+        return "atardecer"
+    return "noche"
+
+
+def letra(genero: str | None) -> str:
+    """La figura del dibujo: h (hombre), m (mujer) o n."""
+    return {"hombre": "h", "mujer": "m"}.get(genero or "", "n")
+
+
 @dataclass(frozen=True)
 class Etapa:
     fraccion: float  # en qué parte de la acción llega (0 = al empezar, 1 = al terminar)
     solo: str
     juntos: str = ""
     pregunta: str = ""  # "carta" o "postre": el mensaje trae botones
+    escena: str = ""  # el dibujo que llega con el mensaje (ilustraciones.py)
+    variantes: tuple = ()  # (momento, solo, juntos): otro texto según la hora (de noche, al atardecer…)
 
-    def texto(self, juntos: bool) -> str:
+    def texto(self, juntos: bool, momento: str = "") -> str:
+        for cuando, solo, en_pareja in self.variantes:
+            if cuando == momento:
+                return en_pareja if juntos and en_pareja else solo
         return self.juntos if juntos and self.juntos else self.solo
 
 
@@ -86,11 +110,29 @@ ETAPAS: dict[str, tuple[Etapa, ...]] = {
           "👏 Salen los créditos. De camino a casa comentan la película."),
     ),
     "parque": (
-        E(0.10, "🌳 Llegas al parque: hace un día bonito.", "🌳 Llegan al parque de la mano: hace un día bonito."),
-        E(0.40, "🦆 Ves los patos del estanque y les tiras unas migas.", "🦆 Se paran a ver los patos del estanque."),
+        E(0.10, "🌳 Llegas al parque: hace un día bonito.", "🌳 Llegan al parque de la mano: hace un día bonito.",
+          escena="parque_llegada", variantes=(
+              ("atardecer", "🌇 Llegas al parque con el cielo naranja del atardecer.",
+               "🌇 Llegan al parque de la mano con el cielo naranja del atardecer."),
+              ("noche", "🌙 Llegas al parque: la noche está fresca y las farolas iluminan el camino.",
+               "🌙 Llegan al parque de la mano: la noche está fresca y hay estrellas."),
+          )),
+        E(0.40, "🦆 Ves los patos del estanque y les tiras unas migas.", "🦆 Se paran a ver los patos del estanque.",
+          escena="parque_patos", variantes=(
+              ("noche", "🦆 Los patos duermen en el estanque, bajo la luna.",
+               "🦆 Se paran a ver a los patos dormidos en el estanque, bajo la luna."),
+          )),
         E(0.70, "🪑 Te sientas en una banca a descansar un rato.",
-          "🪑 Se sientan en una banca y conversan un rato. 💬"),
-        E(0.92, "🌇 Cae la tarde: es hora de volver.", "🌇 Cae la tarde: vuelven a casa caminando."),
+          "🪑 Se sientan en una banca y conversan un rato. 💬", escena="parque_banca", variantes=(
+              ("noche", "🪑 Te sientas en una banca bajo la farola a mirar las estrellas. ✨",
+               "🪑 Se sientan en una banca bajo la farola y conversan mirando las estrellas. 💬✨"),
+          )),
+        E(0.92, "🏠 ¡Qué buen paseo! Es hora de volver a casa.", "🏠 ¡Qué buen paseo! Vuelven a casa de la mano.",
+          escena="parque_regreso", variantes=(
+              ("atardecer", "🌇 Cae la tarde: es hora de volver.", "🌇 Cae la tarde: vuelven a casa caminando."),
+              ("noche", "🌙 Ya es de noche: vuelves a casa bajo las estrellas.",
+               "🌙 Ya es de noche: vuelven a casa de la mano, bajo las estrellas."),
+          )),
     ),
     "gimnasio": (
         E(0.08, "🏋️ Llegas al gimnasio y calientas un poco.", "🏋️ Llegan al gimnasio y calientan juntos."),

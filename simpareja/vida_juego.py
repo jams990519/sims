@@ -317,6 +317,8 @@ class VidaMixin:
             if a.habitacion and a.habitacion != V.FUERA and a.habitacion != j.lugar:
                 donde = f" · {V.ZONAS[a.habitacion][0]}"
             botones.append([(f"{a.emoji} {titulo}{donde}", f"a:{a.clave}")])
+        if categoria == "pareja" and pareja:
+            botones.append([("🔥 Momento íntimo", "intimo")])
         if faltan_pareja:
             lineas += ["", f"💞 Con tu pareja en la sala también podrán: {', '.join(faltan_pareja)}."]
         lineas += ["", "💡 Juntos terminan más rápido."] if pareja else []

@@ -208,6 +208,8 @@ class MenuMixin:
             [("🔑 Renta y mudanza", "casa"), ("🔄 Actualizar", "plano")],
             [("⬅️ Atrás", "menu")],
         ]
+        if self._pareja_en_sala(j):
+            botones.insert(-1, [("🔥 Momento íntimo", "intimo")])
         if pausado:
             botones.insert(0, [CONTINUAR])
         return Pantalla("\n".join(lineas), botones, es_sala=True, clave="plano")

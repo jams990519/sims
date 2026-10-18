@@ -130,3 +130,17 @@ def test_no_hay_atajos(pareja):
     pareja.boton(ADMIN, "", "as:abrazados")
     assert pareja.db.jugador(ADMIN).accion is None
     assert pareja.boton(ANA, "", "intsi").alerta == "Esa propuesta ya no está."  # nadie propuso nada
+
+
+def test_en_cualquier_lugar_de_la_casa(pareja):
+    assert "intimo" in datos(pareja.boton(ADMIN, "", "acc:pareja").pantalla)  # ⚡ Acciones → 💞 Pareja
+    assert "intimo" in datos(pareja.boton(ADMIN, "", "mcasa").pantalla)  # 🏠 Casa
+    pareja.boton(ADMIN, "", "ir:bano")
+    res = pareja.boton(ADMIN, "", "intimo")
+    assert res.pantalla.botones[0] == [("📍 🚿 En la ducha", "intl:bano")]  # primero, donde estás
+    lugares = set(datos(res.pantalla))
+    assert {"intl:cuarto", "intl:salon", "intl:cocina", "intl:closet"} <= lugares and "intl:extra" not in lugares
+    proponer(pareja, "cocina", "jugueton")
+    res = pareja.boton(ANA, "", "intsi")
+    assert "🍳 en la cocina" in res.pantalla.texto
+    assert pareja.db.jugador(ADMIN).lugar == pareja.db.jugador(ANA).lugar == "salon"

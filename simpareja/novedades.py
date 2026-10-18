@@ -3,9 +3,19 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.39"
+VERSION = "0.40"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.40", [
+        "🖼️ <b>Los mensajitos traen dibujos</b>: en el 🌳 parque cada momento llega con su dibujo (llegan, los "
+        "patos, la banca, el regreso), según la hora real: de día con sol, al atardecer naranja y de noche con "
+        "luna, estrellas y farolas. Salen ustedes dos (o tú, si vas solo) y los puedes descargar.",
+        "🌙 Los textos también cambian con la hora: de noche se sientan bajo la farola a mirar las estrellas. ✨",
+        "🔥 <b>Momento íntimo en cualquier lugar de la casa</b>: en la cama, en la ducha, en el sofá, en la cocina, "
+        "en el clóset (y en el cuarto extra si lo tienen). Primero aparece donde estás, y tiene botón en "
+        "⚡ Acciones → 💞 Pareja y en 🏠 Casa.",
+        "📶 ¿Pocos datos? Quita los dibujos en ⚙️ Ajustes → 🖼️ Quitar los dibujos.",
+    ]),
     ("0.39", [
         "🕐 <b>Las horas ahora van en formato de 12 horas</b>: la 1 de la tarde es «1:00 pm» y no «13:00», "
         "y la medianoche es «12:00 am». También en tu horario de trabajo.",

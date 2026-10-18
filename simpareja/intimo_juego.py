@@ -17,7 +17,15 @@ from __future__ import annotations
 from . import vida as V
 from .db import Hogar, Jugador
 
-LUGARES = {"cuarto": ("🛏️", "en el cuarto"), "bano": ("🚿", "en la ducha"), "salon": ("🛋️", "en el sofá")}
+# En cualquier lugar de la casa: (emoji, dónde, habitación del plano).
+LUGARES = {
+    "cuarto": ("🛏️", "en la cama", "cuarto"),
+    "bano": ("🚿", "en la ducha", "bano"),
+    "salon": ("🛋️", "en el sofá", "salon"),
+    "cocina": ("🍳", "en la cocina", "salon"),
+    "closet": ("👗", "en el clóset", "closet"),
+    "extra": ("🧸", "en el cuarto extra", "extra"),
+}
 # Cada ambiente va con uno de los tres estilos de las opciones (el mismo orden en cada ronda).
 AMBIENTES = {"romantico": ("🕯️", "Romántico"), "jugueton": ("😏", "Juguetón"), "apasionado": ("🔥", "Apasionado")}
 ESTILOS = tuple(AMBIENTES)
@@ -119,7 +127,7 @@ class IntimoMixin:
         ]
         botones = []
         if estado and estado["para"] == j.id:
-            lugar, ambiente = LUGARES[estado["lugar"]], AMBIENTES[estado["ambiente"]]
+            lugar, ambiente = LUGARES[estado["lugar"]][:2], AMBIENTES[estado["ambiente"]]
             lineas.append(f"💌 {self._firma(pareja)} te propone un momento a solas {lugar[0]} {lugar[1]} · "
                           f"{ambiente[0]} {ambiente[1].lower()}.")
             botones.append([("✅ Sí, me encantaría", "intsi"), ("🙈 Hoy no", "intno")])
@@ -131,20 +139,36 @@ class IntimoMixin:
             if motivo:
                 lineas.append(f"ℹ️ {motivo}")
             else:
-                lineas.append("<b>¿Dónde?</b>")
-                botones += [[(f"{e} {nombre[0].upper()}{nombre[1:]}", f"intl:{clave}")]
-                            for clave, (e, nombre) in LUGARES.items()]
+                lineas.append("<b>¿Dónde?</b> En cualquier lugar de la casa.")
+                botones += self._botones_lugares_intimo(j)
         botones.append([("⬅️ Pareja", "mpar"), ("🎮 Menú", "menu")])
         res.pantalla = Pantalla("\n".join(lineas), botones, clave="intimo")
+
+    def _lugares_intimo(self, j: Jugador) -> list[str]:
+        """Los lugares de esta casa (el cuarto extra, solo si lo hay); primero donde estás ahora."""
+        zonas = self._zonas(j.sala_id)
+        lugares = [clave for clave, (_, _, zona) in LUGARES.items() if zona in zonas]
+        aqui = next((c for c in lugares if LUGARES[c][2] == j.lugar), None)
+        return ([aqui] if aqui else []) + [c for c in lugares if c != aqui]
+
+    def _botones_lugares_intimo(self, j: Jugador):
+        from .juego import en_filas
+
+        botones = []
+        for clave in self._lugares_intimo(j):
+            e, nombre, zona = LUGARES[clave]
+            texto = f"{e} {nombre[0].upper()}{nombre[1:]}"
+            botones.append((("📍 " if zona == j.lugar and not botones else "") + texto, f"intl:{clave}"))
+        return [[botones[0]]] + en_filas(botones[1:]) if botones else []
 
     def _b_intimo_lugar(self, j: Jugador, lugar: str, res) -> None:
         """intl:<lugar>: elegir el ambiente."""
         from .juego import Pantalla
 
-        if lugar not in LUGARES:
+        if lugar not in self._lugares_intimo(j):
             self._b_intimo(j, "", res)
             return
-        e, nombre = LUGARES[lugar]
+        e, nombre, _ = LUGARES[lugar]
         res.pantalla = Pantalla(
             f"🔥 <b>Momento íntimo</b> · {e} {nombre}\n\n<b>¿Qué ambiente?</b>",
             [[(f"{ae} {anombre}", f"intp:{lugar}:{clave}")] for clave, (ae, anombre) in AMBIENTES.items()]
@@ -157,7 +181,7 @@ class IntimoMixin:
 
         ronda = estado["ronda"]
         titulo, opciones = RONDAS[ronda]
-        lugar, ambiente = LUGARES[estado["lugar"]], AMBIENTES[estado["ambiente"]]
+        lugar, ambiente = LUGARES[estado["lugar"]][:2], AMBIENTES[estado["ambiente"]]
         lineas = [aviso, ""] if aviso else []
         lineas += [
             f"🔥 <b>Momento íntimo</b> · {lugar[0]} {lugar[1]} · {ambiente[0]} {ambiente[1].lower()}",
@@ -188,7 +212,7 @@ class IntimoMixin:
         h = self._hogar(j.sala_id)
         pareja = self._pareja_en_sala(j)
         motivo = self._no_se_puede_intimo(j, pareja)
-        if lugar not in LUGARES or ambiente not in AMBIENTES or motivo or self._intimo(h):
+        if lugar not in self._lugares_intimo(j) or ambiente not in AMBIENTES or motivo or self._intimo(h):
             res.alerta = motivo or "Ahora no se puede."
             self._b_intimo(j, "", res)
             return
@@ -196,7 +220,7 @@ class IntimoMixin:
             "estado": "propuesto", "de": j.id, "para": pareja.id, "lugar": lugar, "ambiente": ambiente,
             "ronda": 0, "elecciones": {}, "puntos": 0, "ts": self.reloj(),
         })
-        e, nombre = LUGARES[lugar]
+        e, nombre, _ = LUGARES[lugar]
         ae, anombre = AMBIENTES[ambiente]
         res.avisos.append(Aviso(
             pareja.id,
@@ -229,7 +253,7 @@ class IntimoMixin:
         ahora = self.reloj()
         for m in (j, de):
             self._descongelar(m, ahora)
-            m.lugar = estado["lugar"]
+            m.lugar = LUGARES[estado["lugar"]][2]
             m.ultima_jugada = ahora
             self.db.guardar_jugador(m)
         estado.update(estado="jugando", ts=ahora)
