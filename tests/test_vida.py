@@ -184,7 +184,7 @@ def test_constancia_sube_la_energia_maxima(solo, reloj):
         res = solo.boton(ADMIN, "", "sim")
     assert "¡Constancia! 3 días seguidos" in res.pantalla.texto
     assert solo.db.jugador(ADMIN).energia_max == 105
-    assert "/105 Energía" in res.pantalla.texto
+    assert "/105" in res.pantalla.texto
 
 
 def test_registrar_ejercicio():

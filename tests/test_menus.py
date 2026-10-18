@@ -182,3 +182,26 @@ def test_hablar_por_telefono(solo, reloj):
     solo.boton(ADMIN, "", "sim")
     assert nec(solo, ADMIN)["social"] == pytest.approx(10 + 20 - 3 * 21 / 60, abs=0.2)
     assert json.loads(solo.db.jugador(ADMIN).necesidades)
+
+
+def test_flechas_de_las_necesidades_y_mi_dinero(pareja, reloj):
+    import re
+
+    texto = pareja.boton(ADMIN, "", "menu").pantalla.texto
+    assert "👛 Tu dinero: <b>$0</b>" in texto and "⬆️" not in texto and "⬇️" not in texto
+    assert "🍔 80 · ⚡ 90 · 🚿 80\n🎉 70 · 💬 60" in texto  # en dos líneas: cabe en un teléfono pequeño
+    poner(pareja, ADMIN, hambre=10)
+    pareja.boton(ADMIN, "", "as:picar")
+    reloj.avanzar(3 * 60)  # termina de picar y pasa el rato
+    pareja.boton(ADMIN, "", "continuar")
+    texto = pareja.boton(ADMIN, "", "menu").pantalla.texto
+    assert re.search(r"🍔 \d+❗?⬆️", texto) and re.search(r"🎉 \d+❗?⬇️", texto)
+    assert re.search(r"\d+⬆️ Hambre", pareja.boton(ADMIN, "", "sim").pantalla.texto)
+    pareja.boton(ANA, "", "continuar")
+    perfil = pareja.boton(ANA, "", "perfil").pantalla.texto  # Ana ve las flechas de Luis, pero no su dinero
+    assert re.search(r"🍔 \d+❗?⬆️", perfil) and "👛" not in perfil and "📍 📍" not in perfil
+    j = pareja.db.jugador(ADMIN)
+    j.cartera = 35
+    pareja.db.guardar_jugador(j)
+    assert "👛 Tu dinero: <b>$35</b>" in pareja.boton(ADMIN, "", "menu").pantalla.texto
+    assert "$35" not in pareja.boton(ANA, "", "menu").pantalla.texto  # cada quien ve solo el suyo

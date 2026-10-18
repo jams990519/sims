@@ -349,6 +349,7 @@ class TrabajoMixin:
         if empleo["rojo"]:
             aviso += "\n⚠️ Va con necesidades en rojo: este día no contará para el ascenso."
         j.accion = json.dumps(datos)
+        self._guardar_antes(j, self._nec(j))
         self.db.guardar_jugador(j)
         return None, aviso
 
