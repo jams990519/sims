@@ -1,0 +1,97 @@
+"""Narración de las acciones: mensajitos mientras dura cada acción (el restaurante primero)."""
+
+import pytest
+
+from simpareja import narracion as N
+from test_juego import ADMIN, ANA, aceptar, crear_personaje, invitar
+from test_vida import nuevo_juego, poner, Reloj
+
+LLENO = dict(hambre=40, energia=100, higiene=100, diversion=50, social=50)
+
+
+@pytest.fixture
+def reloj():
+    return Reloj()
+
+
+@pytest.fixture
+def solo(reloj):
+    juego = nuevo_juego(reloj)
+    juego.inicio(ADMIN, "Admin")
+    crear_personaje(juego, ADMIN, "Luis")
+    poner(juego, ADMIN, **LLENO)
+    return juego
+
+
+@pytest.fixture
+def pareja(solo):
+    aceptar(solo, ANA, invitar(solo, ADMIN, ANA))
+    crear_personaje(solo, ANA, "Ana")
+    poner(solo, ANA, **LLENO)
+    return solo
+
+
+def datos(aviso):
+    return [d for fila in aviso.botones for _, d in fila]
+
+
+def hasta(juego, reloj, minuto, inicio):
+    """Avanza hasta `minuto` desde que empezó la acción y devuelve los mensajitos de narración."""
+    reloj.t = inicio + minuto * 60
+    return [a for a in juego.tick().avisos if a.silencio or "rplato:" in str(a.botones) or "rpostre:" in str(a.botones)]
+
+
+def test_etapas():
+    assert N.siguiente(N.RESTAURANTE, 0, 0.01) is None
+    assert N.siguiente(N.RESTAURANTE, 0, 0.05) == 0
+    assert N.siguiente(N.RESTAURANTE, 1, 0.05) is None
+    assert N.siguiente(N.RESTAURANTE, 1, 0.5) == 4  # se juntaron varias: solo la última
+
+
+def test_una_cena_en_el_restaurante(solo, reloj):
+    inicio = reloj()
+    solo.boton(ADMIN, "", "as:restaurante")  # 90 min
+    (aviso,) = hasta(solo, reloj, 3, inicio)
+    assert "🚗 Llegas a <b>" in aviso.texto and aviso.silencio and not aviso.botones
+    assert "El mesero te recibe" in hasta(solo, reloj, 10, inicio)[0].texto
+    assert hasta(solo, reloj, 12, inicio) == []  # nada nuevo todavía
+    (carta,) = hasta(solo, reloj, 17, inicio)
+    assert "Te presentan la carta" in carta.texto and "rplato:pasta" in datos(carta) and not carta.silencio
+    res = solo.boton(ADMIN, "", "rplato:pasta")
+    assert "Pediste 🍝 <b>pasta a la boloñesa</b>" in res.pantalla.texto
+    assert solo.boton(ADMIN, "", "rplato:pizza").alerta == "Ya pediste pasta a la boloñesa."
+    assert "preparan tu 🍝 pasta a la boloñesa" in hasta(solo, reloj, 29, inicio)[0].texto
+    assert "¡Llega tu 🍝 pasta" in hasta(solo, reloj, 41, inicio)[0].texto
+    (postre,) = hasta(solo, reloj, 74, inicio)
+    assert "postre" in postre.texto and datos(postre) == ["rpostre:si", "rpostre:no"]
+    h = solo._hogar(solo.db.jugador(ADMIN).sala_id)
+    antes = h.cuenta
+    assert "¡Delicioso!" in solo.boton(ADMIN, "", "rpostre:si").pantalla.texto
+    assert solo._hogar(h.sala_id).cuenta == antes - N.POSTRE
+    assert solo.boton(ADMIN, "", "rpostre:no").alerta == "Eso ya está decidido."
+    assert "Pides la cuenta" in hasta(solo, reloj, 86, inicio)[0].texto
+    hasta(solo, reloj, 91, inicio)  # termina
+    assert solo.boton(ADMIN, "", "rplato:pasta").alerta == "Ya no estás en el restaurante."
+
+
+def test_si_no_eliges_te_recomiendan_lo_de_la_casa(solo, reloj):
+    inicio = reloj()
+    solo.boton(ADMIN, "", "as:restaurante")
+    hasta(solo, reloj, 17, inicio)
+    (aviso,) = hasta(solo, reloj, 29, inicio)
+    assert "te recomendó lo de la casa" in aviso.texto and "🍖 cerdo asado con congrí" in aviso.texto
+
+
+def test_en_cita_cada_uno_elige_su_plato(pareja, reloj):
+    inicio = reloj()
+    res = pareja.boton(ADMIN, "", "aj:restaurante")
+    si = next(d for fila in next(a for a in res.avisos if a.para == ANA).botones for _, d in fila if d.endswith(":1"))
+    pareja.boton(ANA, "", si)  # cita: 90 min × 0,7 = 63 min
+    avisos = hasta(pareja, reloj, 2, inicio)
+    assert {a.para for a in avisos} == {ADMIN, ANA} and all("Llegan juntos" in a.texto for a in avisos)
+    assert avisos[0].texto == avisos[1].texto  # el mismo restaurante para los dos
+    hasta(pareja, reloj, 12, inicio)
+    pareja.boton(ADMIN, "", "rplato:pescado")
+    pareja.boton(ANA, "", "rplato:pizza")
+    avisos = {a.para: a.texto for a in hasta(pareja, reloj, 21, inicio)}
+    assert "pescado" in avisos[ADMIN] and "pizza" in avisos[ANA] and "conversan" in avisos[ADMIN]
