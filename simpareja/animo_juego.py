@@ -39,9 +39,12 @@ class AnimoMixin:
             (("✅ " if o.clave == actual else "") + o.boton(genero), f"animo:{o.clave}")
             for o in P.ANIMO.opciones
         ]
+        ahora = P.animo(ap)
         res.pantalla = Pantalla(
             f"🎭 <b>¿Cómo se siente {esc(j.personaje)} ahora?</b>\n"
-            "Elige el color. Después puedes agregar una foto y una frase corta: tu pareja recibe un aviso.",
+            f"Ahora: <b>{ahora or 'sin elegir'}</b>\n\n"
+            "Elige el color. Se ve junto a tu personaje en el menú, la sala, la casa y tus mensajes.\n"
+            "Después puedes agregar una foto y una frase corta: tu pareja recibe un aviso.",
             en_filas(opciones) + [[("⬅️ Atrás", "mest")]],
             clave="animo",
         )

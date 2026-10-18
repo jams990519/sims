@@ -160,7 +160,8 @@ async def _recorrido():
 
     # Chat interno
     await enviar(mensaje(ANA, "te extraño 💞", next(n)))
-    assert tg.enviados("sendMessage", ADMIN)[-1]["text"].endswith("<b>Ana</b>: te extraño 💞")
+    texto = tg.enviados("sendMessage", ADMIN)[-1]["text"]
+    assert "<b>Ana</b>" in texto and texto.endswith(": te extraño 💞")
 
     # Ana cambia su ánimo con foto y frase: a Luis le llega la foto (la grande) con la frase
     await enviar(boton(ANA, "animo:coqueto", 600, next(n)))

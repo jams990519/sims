@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from simpareja import personaje as P
 from simpareja import plano as PL
 from test_juego import ADMIN, ANA, aceptar, crear_personaje, invitar
 from test_vida import dar_objetos, nuevo_juego, poner, Reloj
@@ -29,6 +30,11 @@ def pareja(solo):
     aceptar(solo, ANA, invitar(solo, ADMIN, ANA))
     crear_personaje(solo, ANA, "Ana")
     return solo
+
+
+def quien(juego, uid, nombre):
+    """'Ana 🌸': el nombre con el color de su ánimo, como en la leyenda del plano."""
+    return f"{nombre} {P.color_animo(juego.db.jugador(uid).ap)}"
 
 
 def datos(pantalla):
@@ -79,14 +85,14 @@ def test_la_casa_es_el_plano(pareja, reloj):
     assert "[A]😴" in lineas[2] and "CUARTO" in lineas[1]  # Ana duerme en el cuarto (arriba a la izquierda)
     assert lineas[-3].startswith("| [L]") and "SALA·COCINA·COMEDOR" in texto  # Luis en la sala, sin hacer nada
     assert not any(cosa in texto.split("</pre>")[0] for cosa in ("cama", "ducha", "nevera"))  # solo los jugadores
-    assert "<code>[A]</code> Ana: 😴 durmiendo" in texto
+    assert f"<code>[A]</code> {quien(pareja, ANA, 'Ana')}: 😴 durmiendo" in texto
 
 
 def test_ver_el_plano(pareja):
     pareja.boton(ANA, "", "ir:cuarto")
     texto = pareja.boton(ADMIN, "", "plano").pantalla.texto
-    assert "<code>[L]</code> Luis (tú): 🧍 sin hacer nada" in texto
-    assert "<code>[A]</code> Ana: 🧍 sin hacer nada" in texto
+    assert f"<code>[L]</code> {quien(pareja, ADMIN, 'Luis')} (tú): 🧍 sin hacer nada" in texto
+    assert f"<code>[A]</code> {quien(pareja, ANA, 'Ana')}: 🧍 sin hacer nada" in texto
 
 
 def test_lo_que_hacen_y_lo_que_falta(pareja, reloj):
@@ -99,8 +105,8 @@ def test_lo_que_hacen_y_lo_que_falta(pareja, reloj):
     pareja.boton(ANA, "", "trabajar:8:sin")
     reloj.avanzar(1)
     texto = pareja.boton(ADMIN, "", "plano").pantalla.texto
-    assert "Luis (tú): 🍳 cocinando sándwich de jamón y queso (5 min)" in texto
-    assert "Ana: 💼 trabajando (7 h 59 min)" in texto
+    assert f"{quien(pareja, ADMIN, 'Luis')} (tú): 🍳 cocinando sándwich de jamón y queso (5 min)" in texto
+    assert f"{quien(pareja, ANA, 'Ana')}: 💼 trabajando (7 h 59 min)" in texto
     assert "🚗 Fuera de casa: [A]" in texto
 
 

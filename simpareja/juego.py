@@ -357,7 +357,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             res.nuevo = True
             return res
         for o in otros:
-            res.avisos.append(Aviso(o.id, f"💬 {self._firma(j)}:", chat=True, copiar=True))
+            res.avisos.append(Aviso(o.id, f"💬 {self._firma_animo(j)}:", chat=True, copiar=True))
         self._anotar(j.id, res, CHATEANDO)
         return res
 
@@ -1443,6 +1443,11 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
     def _firma(self, j: Jugador) -> str:
         return f"{P.avatar(j.ap)} <b>{esc(j.personaje)}</b>"
 
+    def _firma_animo(self, j: Jugador) -> str:
+        """La firma con el color de su ánimo al lado (en sus mensajes): '🧑🏽 <b>Luis</b> 🟣'."""
+        color = P.color_animo(j.ap)
+        return f"{self._firma(j)} {color}" if color else self._firma(j)
+
     def _companeros(self, j: Jugador) -> list[Jugador]:
         return [m for m in self.db.miembros_sala(j.sala_id) if m.id != j.id]
 
@@ -1493,7 +1498,6 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             )
         else:
             lineas.append("🎮 Por ahora juegas sin compañía. Cuando quieras, invita a alguien con 💌.")
-        lineas += ["", "🚧 <i>Próximamente: eventos sorpresa, aniversario, retos, hitos, tiendas y mascota.</i>"]
         botones = [
             [("🎮 Menú", "menu")],
             [("🎭 Mi ánimo", "animos"), ("🪪 Personajes", "pjs")],
@@ -1523,7 +1527,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             largo = largo * 3 // 4
         cuerpo = esc(texto[:largo])
         for o in otros:
-            res.avisos.append(Aviso(o.id, f"💬 {self._firma(j)}: {cuerpo}", chat=True))
+            res.avisos.append(Aviso(o.id, f"💬 {self._firma_animo(j)}: {cuerpo}", chat=True))
         self._anotar(j.id, res, CHATEANDO)
         return res
 

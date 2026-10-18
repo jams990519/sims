@@ -40,7 +40,8 @@ class MenuMixin:
         animo = P.animo(j.ap)
         lineas = [aviso, ""] if aviso else []
         lineas += [
-            f"🎮 <b>Menú</b> · {self._firma(j)}{' · ' + animo if animo else ''}",
+            f"🎮 <b>Menú</b> · {self._firma(j)}",
+            f"🎭 Ánimo: <b>{animo}</b>" if animo else "🎭 Ánimo: sin elegir (toca 🎭 Ánimo)",
             f"🕒 {self._reloj(j)} · {V.nombre_habitacion(j.lugar)}",
         ]
         haciendo = self._texto_accion(j, ahora)
@@ -61,7 +62,7 @@ class MenuMixin:
             [("🏠 Casa" + (" 📝" if self._notas_sin_leer(j) else ""), "mcasa"), ("⚡ Acciones", "macc")],
             [("📍 Lugares", "mlug"), ("💼 Trabajo", "trabajo")],
             [("💕 Pareja", "mpar"), ("👤 Estado", "mest")],
-            [("💬 Chat", "sala")],
+            [("💬 Chat", "sala"), ("🎭 Ánimo", "animos")],
         ]
         if haciendo:
             botones.insert(0, [("⏹️ Parar lo que está haciendo", "parar")])
@@ -190,7 +191,8 @@ class MenuMixin:
             lineas.append(f"🚗 Fuera de casa: {html.escape(PL.marcas(fuera))}")
         lineas.append("")
         for m, letra in zip(miembros, letras):
-            quien = f"{html.escape(m.personaje)}{' (tú)' if m.id == j.id else ''}"
+            color = P.color_animo(m.ap)
+            quien = f"{html.escape(m.personaje)}{' ' + color if color else ''}{' (tú)' if m.id == j.id else ''}"
             lineas.append(f"<code>[{html.escape(letra)}]</code> {quien}: {self._estado_en_plano(m, ahora)}")
         mascota = self._mascota(h)
         if mascota:
