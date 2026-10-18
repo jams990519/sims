@@ -25,6 +25,7 @@ Se entra **solo por invitación** y funciona en **cualquier país donde abra Tel
 | 📝 **Notas en la nevera** | Un jugador deja un mensaje en la nevera y su pareja lo ve al entrar al juego (o al volver de la pausa); mientras no lo lea, el menú y la sala lo marcan. También se dejan desde el trabajo. |
 | ❓ **Preguntas de pareja** | Según el color del ánimo aparecen preguntas (70, 10 por estado, de temas buenos y difíciles): al cambiar de ánimo o pidiendo una nueva. Los dos responden; el otro marca «me gustó» (sube su medidor y la respuesta va al álbum) o «no me gustó» (no baja nada solo: se ofrece hablarlo en el chat o bajar el medidor). Queda el registro de los temas que más gustan. |
 | 🎭 **Ánimo con foto** | Al cambiar de ánimo se elige el color y, si se quiere, una foto y una frase corta. La pareja recibe un aviso con la foto; en el perfil ve el color, la frase, la hora y la foto, y las fotos anteriores quedan en el 📸 álbum. Las fotos usan el almacenamiento de Telegram (se guarda solo su `file_id`). |
+| 🐷 **Caja de ahorros** | En 💰 Dinero. Se abre cuando la pareja lo decide (uno propone y el otro acepta; sin pareja, al momento). Cualquiera pone dinero de su cartera o de la compartida; lo de la caja no se gasta en facturas ni compras y gana un 1 % al mes. Sacarlo a la compartida lo deciden los dos. |
 | ⬆️⬇️ **Flechas y tu dinero** | En el menú, en 👤 Estado y en 🧍 Mis necesidades cada necesidad lleva ⬆️ o ⬇️ según cómo cambió desde que empezó la última acción (mientras se hace y al volver). El menú muestra 👛 **tu dinero**, que solo ves tú. |
 | 🗺️ **Plano de la casa** | Al tocar **🏠 Casa** (o `/casa`, `/plano`) sale el plano de la casa en texto monoespaciado, hecho para la pantalla de un **teléfono pequeño** (22 columnas): cuarto arriba a la izquierda, clóset y baño a la derecha, sala-cocina-comedor abajo (con cuarto extra si se mudan). **Solo marca dónde está cada jugador**: su inicial y, al lado, el ícono de lo que hace (😴, 🚿, 🍳…), justo debajo del nombre de la habitación; en la sala-cocina-comedor, debajo de la parte donde hace la acción (📺 sala, 🍳 cocina, 🍴 comedor). Cada ícono cuenta como dos letras para que no se descuadre. Debajo, quién es quién, qué hace y cuánto le falta. Se actualiza solo mientras está abierto. |
 | 🏠 **Sala** | Muestra a cada quien con su avatar, su ánimo, si está 🟢 en línea (y qué hace), ❄️ en pausa o ⚫ fuera de línea, y la hora de su Sim. **Se actualiza sola.** |
@@ -131,6 +132,7 @@ simpareja/
 ├── novedades.py    # notas de cada versión (se anuncian solas al desplegar)
 ├── menus.py        # menú principal, submenús y plano de la casa
 ├── plano.py        # dibujo del plano en texto (lógica pura)
+├── caja_juego.py   # caja de ahorros de la pareja
 ├── bot.py          # adaptador de Telegram (python-telegram-bot)
 ├── db.py           # SQLite
 ├── config.py       # variables de entorno

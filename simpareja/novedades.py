@@ -3,9 +3,17 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.30"
+VERSION = "0.31"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.31", [
+        "🐷 <b>Caja de ahorros</b> (💰 Dinero → Caja de ahorros): se abre cuando la pareja lo decide. Uno lo "
+        "propone y el otro acepta.",
+        "➕ Cualquiera de los dos pone dinero, de su cartera o de la cuenta compartida, y a la pareja le llega "
+        "el aviso.",
+        "🔒 Lo de la caja no se gasta en facturas ni compras, y 📈 gana un 1 % cada mes.",
+        "➖ Para sacar dinero a la cuenta compartida tienen que estar de acuerdo los dos.",
+    ]),
     ("0.30", [
         "⬆️⬇️ <b>Flechas en tus necesidades</b> (🍔 hambre, ⚡ energía, 🚿 aseo, 🎉 diversión y 💬 social): "
         "muestran si subieron o bajaron con lo último que hiciste, mientras lo haces y al volver.",

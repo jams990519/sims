@@ -1,3 +1,4 @@
+import json
 import random
 import sqlite3
 
@@ -160,7 +161,7 @@ def test_invitar_a_quien_ya_juega_sin_pareja(juego):
     sala_luis = juego.db.jugador(LUIS).sala_id
     h = juego._hogar(sala_luis)
     h.cuenta = 500
-    juego.db.guardar_hogar(h)
+    juego._guardar_extras_hogar(h, {**json.loads(h.extras), "caja": {"saldo": 100, "desde": 1}})
     res = juego.texto(ADMIN, "Admin", f"invitar_{LUIS}")
     assert "ya juega sin pareja" in res.pantalla.texto and f"invc:{LUIS}:pareja" in datos(res.pantalla)
     res = juego.boton(ADMIN, "Admin", f"invc:{LUIS}:pareja")
@@ -171,7 +172,7 @@ def test_invitar_a_quien_ya_juega_sin_pareja(juego):
     assert "¡Te mudaste a la sala de" in res.pantalla.texto
     assert any(a.para == ADMIN and "se mudó a tu sala" in a.texto for a in res.avisos)
     assert juego.db.jugador(LUIS).sala_id == juego.db.jugador(ADMIN).sala_id
-    assert juego._hogar(juego.db.jugador(ADMIN).sala_id).cuenta == antes + 500
+    assert juego._hogar(juego.db.jugador(ADMIN).sala_id).cuenta == antes + 500 + 100  # también su caja de ahorros
     assert juego._hogar(sala_luis).cuenta == 0
     assert "ya está en tu sala" in juego.texto(ADMIN, "Admin", f"invitar_{LUIS}").pantalla.texto
 

@@ -29,6 +29,7 @@ from .boda_juego import BodaMixin
 from .aniversario_juego import AniversarioMixin
 from .cocina_juego import CocinaMixin
 from .dinero_juego import DineroMixin
+from .caja_juego import CajaMixin
 from .estudios_juego import EstudiosMixin
 from .eventos_juego import EventosMixin
 from .hitos_juego import HitosMixin
@@ -163,6 +164,7 @@ LUGARES = {
     "mascnombre": ("🐾 Mascota", "eligiendo el nombre de la mascota"),
     "influ": ("📱 Influencer", "preparando un video"),
     "estudios": ("📚 Estudios", "mirando sus estudios"),
+    "caja": ("🐷 Caja de ahorros", "mirando la caja de ahorros"),
     "ajustes": ("⚙️ Ajustes", "en los ajustes"),
     "renombrar": ("✏️ Cambiar nombre", "cambiando su nombre"),
 }
@@ -219,7 +221,7 @@ def en_filas(botones: list[tuple[str, str]], por_fila: int = 2) -> Botones:
 
 class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoMixin, RelacionMixin, PreguntasMixin,
             NotasMixin, EventosMixin, AniversarioMixin, RetosMixin, HitosMixin, ViajeMixin, BodaMixin, TiendasMixin,
-            MascotaMixin, InfluencerMixin, EstudiosMixin):
+            MascotaMixin, InfluencerMixin, EstudiosMixin, CajaMixin):
     def __init__(self, db: DB, cfg: Config, reloj=time.time, rng: random.Random | None = None):
         self.db = db
         self.cfg = cfg
@@ -615,6 +617,11 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "estin": self._b_inscribirse,
             "estno": self._b_dejar_estudio,
             "estpagar": self._b_pagar_carrera,
+            "caja": self._b_caja,
+            "cajap": self._b_caja_poner,
+            "cajas": self._b_caja_sacar,
+            "cajaok": self._b_caja_si,
+            "cajano": self._b_caja_no,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -906,6 +913,11 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             h.cuenta += h0.cuenta
             self._anotar_movimiento(nueva, j.id, "compartida", h0.cuenta, f"🧳 Ahorros de {j.personaje}")
             h0.cuenta = 0
+        caja0 = ex0.pop("caja", None)
+        if caja0 and caja0["saldo"] > 0:  # su caja de ahorros pasa a la cuenta compartida
+            h.cuenta += caja0["saldo"]
+            self._anotar_movimiento(nueva, j.id, "compartida", caja0["saldo"], f"🐷 Caja de ahorros de {j.personaje}")
+        ex0.pop("caja_prop", None)
         ex["objetos"] = sorted(set(ex.get("objetos", [])) | set(ex0.pop("objetos", [])))
         if ex0.get("mascota") and not ex.get("mascota"):
             ex["mascota"] = ex0.pop("mascota")
@@ -1303,6 +1315,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "retos": self._b_retos, "hitos": self._b_hitos, "viaje": self._b_viaje,
             "comp": self._b_compromiso, "boda": self._b_boda, "objetos": self._b_objetos, "tienda": self._b_tienda,
             "mascota": self._b_mascota, "mascnombre": self._b_mascota, "influ": self._b_influencer,
+            "caja": self._b_caja,
             "estudios": self._b_estudios,
         }.get(accion, self._b_menu)
         tmp = Resultado()
