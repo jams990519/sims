@@ -3,9 +3,15 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.29"
+VERSION = "0.30"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.30", [
+        "⬆️⬇️ <b>Flechas en tus necesidades</b> (🍔 hambre, ⚡ energía, 🚿 aseo, 🎉 diversión y 💬 social): "
+        "muestran si subieron o bajaron con lo último que hiciste, mientras lo haces y al volver.",
+        "👛 <b>Tu dinero en el menú</b>: cada quien ve solo el suyo; tu pareja no ve tu cartera.",
+        "📱 Las necesidades salen en dos líneas para que quepan en un teléfono pequeño.",
+    ]),
     ("0.29", [
         "🚶 <b>En el plano tu letra se mueve según lo que haces</b>: en la sala-cocina-comedor se pone justo "
         "debajo de la parte donde estás: 📺 en la sala, 🍳🍎 en la cocina, 🍴📚 en el comedor.",

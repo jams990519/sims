@@ -38,6 +38,24 @@ class VidaMixin:
     def _accion(self, j: Jugador) -> dict | None:
         return json.loads(j.accion) if j.accion else None
 
+    def _guardar_antes(self, j: Jugador, nec: dict) -> None:
+        """Cómo estaban sus necesidades al empezar la acción (para las flechas ⬆️⬇️). Lo guarda quien llama."""
+        extras = self._extras(j)
+        extras["nec_antes"] = {k: round(v) for k, v in nec.items()}
+        j.extras = json.dumps(extras)
+
+    def _flechas(self, j: Jugador) -> dict[str, str]:
+        """⬆️ o ⬇️ por necesidad: cómo cambió desde que empezó su última acción (mientras la hace y al volver)."""
+        antes = self._extras(j).get("nec_antes")
+        if not antes:
+            return {}
+        nec = self._nec(j)
+        flechas = {}
+        for clave, valor in antes.items():
+            cambio = round(nec.get(clave, 0)) - valor
+            flechas[clave] = "⬆️" if cambio >= 1 else "⬇️" if cambio <= -1 else ""
+        return flechas
+
     def _fin_accion_real(self, j: Jugador) -> float:
         a = self._accion(j)
         return a["rfin"] if a else 0.0
@@ -98,6 +116,7 @@ class VidaMixin:
                     eventos.append((f"💼 Dejó de trabajar a mitad del turno.{self._cobrar_turno(j, interrumpida, s, False)}", True))
             datos = V.preparar(V.ACCIONES["dormir"], s, nec, j.energia_max, str(V.HORAS_DESMAYO))
             datos.update(rini=ahora, rfin=ahora + (datos["fin"] - datos["ini"]), con=None)
+            self._guardar_antes(j, nec)
             j.accion = json.dumps(datos)
             eventos.append((f"😵 {self._firma(j)} se quedó sin energía y se durmió donde estaba.", True))
         self.db.guardar_jugador(j)
@@ -157,6 +176,7 @@ class VidaMixin:
             datos["fin"] = datos["ini"] + minutos * 60
         datos.update(rini=ahora, rfin=ahora + (datos["fin"] - datos["ini"]), con=con)
         j.accion = json.dumps(datos)
+        self._guardar_antes(j, self._nec(j))
         j.ultima_jugada = ahora
         if a.habitacion == V.FUERA:
             j.lugar = f"{V.FUERA}:{a.clave}"
@@ -213,7 +233,7 @@ class VidaMixin:
         lineas += [
             f"🧍 {self._firma(j)}{' · ' + animo if animo else ''}",
             f"🕒 {self._reloj(j)}{' · 🎉 fin de semana' if self._finde(j) else ''}",
-            f"📍 {V.nombre_habitacion(j.lugar)}",
+            f"{V.nombre_habitacion(j.lugar)}",
         ]
         haciendo = self._texto_accion(j, ahora)
         if haciendo:
@@ -225,11 +245,14 @@ class VidaMixin:
         if V.de_mal_humor(nec):
             lineas.append("😡 <b>De mal humor</b>: tiene alguna necesidad en 0.")
         lineas.append("")
+        flechas = self._flechas(j)
         for n in V.NECESIDADES:
             tope = V.maximo(n.clave, j.energia_max)
             valor = nec.get(n.clave, 0)
             cifra = f"{round(valor)}/{tope}" if n.clave == "energia" and tope != 100 else f"{round(valor)}"
-            lineas.append(f"{n.emoji} {V.barra(valor, tope)} {cifra} {n.nombre}")
+            lineas.append(f"{n.emoji} {V.barra(valor, tope)} {cifra}{flechas.get(n.clave, '')} {n.nombre}")
+        if any(flechas.values()):
+            lineas.append("<i>⬆️⬇️ cómo cambiaron desde que empezó lo último que hizo</i>")
         h = self._hogar(j.sala_id)
         lineas += ["", f"🏦 Compartida {D.dinero(h.cuenta)} · 👛 Tu cartera {D.dinero(j.cartera)}"]
         lineas.append(f"💼 {self._texto_puesto(j) or 'Sin trabajo todavía'}")

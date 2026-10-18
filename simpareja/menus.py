@@ -9,6 +9,7 @@ from __future__ import annotations
 import html
 
 from . import cocina as C
+from . import dinero as D
 from . import personaje as P
 from . import plano as PL
 from . import vida as V
@@ -19,13 +20,16 @@ PRONTO = {
 }
 
 
-def _resumen_necesidades(nec: dict) -> str:
-    """'🍔 62 · ⚡ 81 · 🚿 70 · 🎉 55 · 💬 40' (en rojo las que están bajas)."""
+def _resumen_necesidades(nec: dict, flechas: dict | None = None) -> str:
+    """'🍔 62⬆️ · ⚡ 81⬇️ · 🚿 70' y en otra línea '🎉 55 · 💬 40❗' (cabe en un teléfono pequeño).
+
+    ❗ marca las que están bajas; ⬆️⬇️, cómo cambiaron con lo último que hizo.
+    """
     partes = []
     for n in V.NECESIDADES:
         valor = round(nec.get(n.clave, 0))
-        partes.append(f"{n.emoji} {valor}{'❗' if valor <= V.ROJO else ''}")
-    return " · ".join(partes)
+        partes.append(f"{n.emoji} {valor}{'❗' if valor <= V.ROJO else ''}{(flechas or {}).get(n.clave, '')}")
+    return " · ".join(partes[:3]) + "\n" + " · ".join(partes[3:])
 
 
 class MenuMixin:
@@ -45,7 +49,8 @@ class MenuMixin:
             lineas.append(f"▶️ Está {haciendo}")
         elif pausado:
             lineas.append("❄️ Tu Sim está en pausa: toca ▶️ Continuar.")
-        lineas.append(_resumen_necesidades(self._nec(j)))
+        lineas.append(f"👛 Tu dinero: <b>{D.dinero(j.cartera)}</b>")
+        lineas.append(_resumen_necesidades(self._nec(j), self._flechas(j)))
         eventos = self._eventos_activos(j)
         if eventos:
             lineas += ["🎲 " + " · ".join(eventos)]
@@ -276,7 +281,7 @@ class MenuMixin:
             [("⬅️ Atrás", "menu")],
         ]
         res.pantalla = Pantalla(
-            f"👤 <b>Estado</b>\n{self._firma(j)} · {_resumen_necesidades(self._nec(j))}",
+            f"👤 <b>Estado</b>\n{self._firma(j)}\n{_resumen_necesidades(self._nec(j), self._flechas(j))}",
             botones,
             clave="mest",
         )
@@ -292,9 +297,9 @@ class MenuMixin:
         ahora = self.reloj()
         lineas = [f"👀 <b>Perfil de {self._firma(pareja)}</b>"] + self._texto_animo_actual(j, pareja) + [
             f"{self._texto_presencia(pareja, ahora)}",
-            f"🕒 Su hora: {self._reloj(pareja)} · 📍 {V.nombre_habitacion(pareja.lugar)}",
+            f"🕒 Su hora: {self._reloj(pareja)} · {V.nombre_habitacion(pareja.lugar)}",
             f"💼 {self._texto_puesto(pareja) or 'Sin trabajo todavía'}",
-            f"📊 {_resumen_necesidades(self._nec(pareja))}",
+            _resumen_necesidades(self._nec(pareja), self._flechas(pareja)),
             f"💗 Tú → {esc(pareja.personaje)}: {self._relacion(j)} % · {esc(pareja.personaje)} → tú: {self._relacion(pareja)} %",
             "",
             f"<i>{esc(P.descripcion(pareja.personaje, pareja.ap))}</i>",
