@@ -3,9 +3,14 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.31"
+VERSION = "0.32"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.32", [
+        "🎭 <b>Tu estado de ánimo, a la vista</b>: el menú muestra tu color y cómo te sientes "
+        "(por ejemplo, 🟣 ✨ Con inspiración) y tiene el botón 🎭 Ánimo para cambiarlo cuando quieras.",
+        "🎨 El color de tu ánimo va junto a tu personaje: en tus mensajes del chat, en la sala y en 🏠 Casa.",
+    ]),
     ("0.31", [
         "🐷 <b>Caja de ahorros</b> (💰 Dinero → Caja de ahorros): se abre cuando la pareja lo decide. Uno lo "
         "propone y el otro acepta.",

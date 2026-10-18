@@ -513,7 +513,8 @@ def test_chat_le_llega_a_la_pareja(pareja):
     assert len(res.avisos) == 1
     aviso = res.avisos[0]
     assert aviso.para == ADMIN and aviso.chat
-    assert "<b>Ana</b>: hola &lt;amor&gt; &amp; más" in aviso.texto
+    color = P.color_animo(pareja.db.jugador(ANA).ap)
+    assert f"<b>Ana</b> {color}: hola &lt;amor&gt; &amp; más" in aviso.texto  # con el color de su ánimo
     assert res.pantalla is None
 
 

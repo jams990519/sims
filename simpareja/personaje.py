@@ -251,6 +251,12 @@ def animo(ap: dict) -> str:
     return o.boton(ap.get("genero")) if o else ""
 
 
+def color_animo(ap: dict) -> str:
+    """Solo el color del ánimo, p. ej. '🌸' ('' si no eligió ninguno)."""
+    o = ANIMO.opcion(ap.get("animo"))
+    return o.color if o else ""
+
+
 # --- avatar en emoji --------------------------------------------------------
 
 _TONOS = {

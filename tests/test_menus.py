@@ -39,7 +39,9 @@ def hogar(juego):
 
 def test_menu_principal_con_las_7_secciones(solo):
     res = solo.boton(ADMIN, "", "menu")
-    assert datos(res.pantalla) == ["mcasa", "macc", "mlug", "trabajo", "mpar", "mest", "sala"]
+    assert datos(res.pantalla) == ["mcasa", "macc", "mlug", "trabajo", "mpar", "mest", "sala", "animos"]
+    assert "🎭 Ánimo: <b>🟣 ✨ Con inspiración</b>" in res.pantalla.texto  # su color y su estado, fácil de ver
+    assert "Ahora: <b>🟣 ✨ Con inspiración</b>" in solo.boton(ADMIN, "", "animos").pantalla.texto
     assert "🍔 80" in res.pantalla.texto and "día 1 · 🛋️ Sala-cocina-comedor" in res.pantalla.texto
     assert "📍 📍" not in res.pantalla.texto
 
