@@ -3,9 +3,17 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.36"
+VERSION = "0.37"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.37", [
+        "⌨️ <b>Los botones ahora están abajo</b>, debajo de donde escribes, y quedan siempre a la vista. "
+        "Tócalos como siempre.",
+        "🧹 Cada vez que tocas uno, el bot borra la pantalla anterior para que el chat quede limpio.",
+        "💌 Si llega algo que pregunta (una propuesta de tu pareja, la carta del restaurante…), sus botones "
+        "aparecen arriba de los demás, con 🎮 Menú para volver.",
+        "💬 Lo que escribas que no sea un botón le sigue llegando a tu pareja.",
+    ]),
     ("0.36", [
         "⏱️ <b>Todo dura menos</b>, para aprovechar el ratito que pasan juntos: 🍝 restaurante 25 min, 🎬 cine 30, "
         "🏋️ gimnasio 20, 🌳 parque, 📺 tele, 🎮 consola y 📱 redes 15, 🍽️ comer, 🛵 domicilio y 🧹 limpiar 10, "

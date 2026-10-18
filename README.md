@@ -9,6 +9,7 @@ Se entra **solo por invitación** y funciona en **cualquier país donde abra Tel
 |---|---|
 | 🔐 **Entrada solo por invitación** | El **código de cada persona es su ID de jugador** (el de Telegram): quien todavía no juega lo ve al abrir el bot, y quien ya juega lo ve con su nombre en 💌 Invitar. Hay **dos formas de invitar**: 📤 **pasar el bot** (un enlace `t.me/…?start=inv_…` que, al abrirlo, le lleva la invitación directamente; sirve para una sola persona) o ⌨️ escribir `invitar_CÓDIGO`. En las dos se elige **quién es esa persona**: 💞 pareja (entra a tu sala), 👨‍👩‍👧 familia, 🤝 amistad o 💼 trabajo o estudios (con sala propia); si la persona ya juega sin pareja, se le invita a mudarse a tu sala con sus ahorros y sus cosas. A la persona invitada le llega un aviso para **aceptar o rechazar**. |
 | 🧑‍🎨 **Creador de personaje** | **Aspecto**: género, edad, piel, forma del cuerpo, estatura, peinado, color de pelo, ojos, detalles y estilo. **Personalidad**: hasta 3 rasgos, una aspiración de vida y un estado de ánimo con su color. Botón 🎲 al azar en cada paso, ficha editable, textos en masculino, femenino o neutro y avatar en emoji (👩🏾‍🦱, 🧔🏽‍♂️, 👱🏼‍♀️…). |
+| ⌨️ **Botones abajo** | Los botones van en el teclado de Telegram, debajo de la barra de escribir, y quedan siempre visibles (`BOTONES_ABAJO=0` los vuelve a poner dentro de los mensajes). Al tocar uno se borra la pantalla anterior para que el chat quede limpio; los avisos que preguntan algo ponen sus botones arriba, con 🎮 Menú. Los enlaces (pasar el bot) van en el texto. Lo que no es un botón sigue siendo chat. |
 | 🎮 **Menú** | 🏠 Casa · ⚡ Acciones · 📍 Lugares · 💼 Trabajo · 💕 Pareja · 👤 Estado · 💬 Chat, con ⬅️ Atrás en cada submenú. Cada acción termina en una ficha con efecto, tiempo y precio para confirmar (solo o juntos). El Sim está en una habitación y va solo a donde toca. Lo que aún no existe aparece como 🚧. |
 | 🎮 **Jugar o invitar** | Al terminar el personaje eliges **Jugar** (también sin compañía, sin esperar a nadie) o **Invitar**. |
 | ⏱️ **Tiempos cortos** | Pensado para ratos cortos juntos: las acciones duran poco (restaurante 25 min, cine 30, gimnasio 20, parque, tele, consola y redes 15, comer y limpiar 10, ducha 5, abrazos y besos 2) y juntos aún menos (×0,7). Las recetas duran la mitad. Dormir y trabajar siguen con su horario real. |
@@ -140,6 +141,7 @@ simpareja/
 ├── intimo_juego.py # minijuego del momento íntimo
 ├── narracion.py    # mensajitos de cada acción (datos)
 ├── narracion_juego.py # los envía mientras dura la acción
+├── teclado.py      # botones abajo (lógica pura)
 ├── bot.py          # adaptador de Telegram (python-telegram-bot)
 ├── db.py           # SQLite
 ├── config.py       # variables de entorno

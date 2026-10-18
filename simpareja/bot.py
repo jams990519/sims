@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 
 from telegram import (
@@ -10,8 +11,10 @@ from telegram import (
     BotCommand,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    KeyboardButton,
     LinkPreviewOptions,
     Message,
+    ReplyKeyboardMarkup,
     Update,
 )
 from telegram.constants import ParseMode
@@ -26,6 +29,7 @@ from telegram.ext import (
     filters,
 )
 
+from . import teclado as TK
 from .config import Config
 from .juego import Aviso, Botones, Juego, Pantalla, Resultado
 
@@ -70,6 +74,16 @@ def teclado(botones: Botones) -> InlineKeyboardMarkup | None:
         ]
         for fila in botones
     ])
+
+
+def teclado_abajo(filas: list[TK.Fila]) -> ReplyKeyboardMarkup | None:
+    """Los botones debajo de la barra de escribir, siempre visibles."""
+    if not filas:
+        return None
+    return ReplyKeyboardMarkup(
+        [[KeyboardButton(texto) for texto, _ in fila] for fila in filas],
+        resize_keyboard=True, is_persistent=True, input_field_placeholder="Escribe aquí a tu pareja…",
+    )
 
 
 class BotSimPareja:
@@ -145,7 +159,14 @@ class BotSimPareja:
 
     async def _texto(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         u = update.effective_user
-        res = self.juego.texto(u.id, u.first_name or "", update.effective_message.text)
+        msg = update.effective_message
+        dato = TK.buscar(self._teclado(u.id), msg.text) if self.cfg.botones_abajo else None
+        if dato is not None:  # tocó un botón de abajo
+            await self._borrar(context.bot, u.id, msg.message_id)
+            res = self.juego.boton(u.id, u.first_name or "", dato)
+            await self._aplicar(update, context, res, alerta=True)
+            return
+        res = self.juego.texto(u.id, u.first_name or "", msg.text)
         await self._aplicar(update, context, res)
 
     async def _media(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -157,6 +178,11 @@ class BotSimPareja:
         q = update.callback_query
         res = self.juego.boton(q.from_user.id, q.from_user.first_name or "", q.data or "")
         await q.answer(res.alerta)
+        if self.cfg.botones_abajo and q.message is not None and res.pantalla is not None:
+            try:  # un mensaje viejo con botones pegados: se le quitan, ahora van abajo
+                await q.edit_message_reply_markup(None)
+            except TelegramError:
+                pass
         await self._aplicar(update, context, res)
 
     async def _tick(self, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -167,9 +193,13 @@ class BotSimPareja:
 
     # --- salida ----------------------------------------------------------
 
-    async def _aplicar(self, update: Update | None, context: ContextTypes.DEFAULT_TYPE, res: Resultado) -> None:
+    async def _aplicar(self, update: Update | None, context: ContextTypes.DEFAULT_TYPE, res: Resultado,
+                       alerta: bool = False) -> None:
+        """`alerta`: el aviso corto del botón va como mensaje (con los botones de abajo no hay ventanita)."""
+        if alerta and res.alerta and res.pantalla is None and update is not None:
+            await context.bot.send_message(update.effective_user.id, f"ℹ️ {res.alerta}")
         if res.pantalla is not None and update is not None:
-            await self._mostrar(update, context, res)
+            await self._mostrar(update, context, res, alerta)
         original = update.effective_message if update else None
         fallidos = []
         for aviso in res.avisos:
@@ -183,7 +213,11 @@ class BotSimPareja:
         for ed in res.ediciones:
             await self._editar(context.bot, ed.para, ed.msg_id, ed.pantalla)
 
-    async def _mostrar(self, update: Update, context: ContextTypes.DEFAULT_TYPE, res: Resultado) -> None:
+    async def _mostrar(self, update: Update, context: ContextTypes.DEFAULT_TYPE, res: Resultado,
+                       alerta: bool = False) -> None:
+        if self.cfg.botones_abajo:
+            await self._mostrar_abajo(update, context, res, alerta)
+            return
         p: Pantalla = res.pantalla
         uid = update.effective_user.id
         q = update.callback_query
@@ -202,7 +236,66 @@ class BotSimPareja:
             msg_id = m.message_id
         self.juego.registrar_pantalla(uid, msg_id, p.es_sala, p.clave)
 
+    # --- botones abajo ---------------------------------------------------------
+
+    def _teclado(self, uid: int) -> dict:
+        return json.loads(self.juego.db.meta(f"teclado:{uid}") or "{}")
+
+    def _guardar_teclado(self, uid: int, estado: dict) -> None:
+        self.juego.db.guardar_meta(f"teclado:{uid}", json.dumps(estado, ensure_ascii=False))
+
+    async def _borrar(self, bot: Bot, uid: int, msg_id: int | None) -> None:
+        if msg_id:
+            try:
+                await bot.delete_message(uid, msg_id)
+            except TelegramError:
+                pass  # ya no existe o es muy viejo: no pasa nada
+
+    async def _mostrar_abajo(self, update: Update, context: ContextTypes.DEFAULT_TYPE, res: Resultado,
+                             alerta: bool) -> None:
+        """La pantalla va en un mensaje nuevo con sus botones abajo; la anterior se borra."""
+        p: Pantalla = res.pantalla
+        uid = update.effective_user.id
+        filas, enlaces = TK.separar(p.botones)
+        texto = TK.texto_con_enlaces(p.texto, enlaces)
+        if alerta and res.alerta:
+            texto = f"ℹ️ {res.alerta}\n\n{texto}"
+        estado = self._teclado(uid)
+        estado["extra"] = []
+        if filas:
+            estado["filas"] = filas
+            anterior = estado.get("msg")
+            await self._borrar(context.bot, uid, anterior)
+            if anterior:
+                self.juego.olvidar_pantalla(uid, anterior)
+        m = await context.bot.send_message(uid, texto, reply_markup=teclado_abajo(TK.mostrar([], estado.get("filas", []))))
+        if filas:  # una pantalla sin botones (un resultado) no reemplaza a la anterior
+            estado["msg"] = m.message_id
+            self.juego.registrar_pantalla(uid, m.message_id, p.es_sala, p.clave)
+        self._guardar_teclado(uid, estado)
+
     async def _enviar_aviso(self, bot: Bot, aviso: Aviso, original: Message | None) -> bool:
+        if self.cfg.botones_abajo and aviso.botones and not aviso.copiar:
+            filas, enlaces = TK.separar(aviso.botones)
+            texto = TK.texto_con_enlaces(aviso.texto, enlaces)
+            markup = None
+            if filas:  # lo que pregunta el aviso va arriba de los botones de la pantalla
+                estado = self._teclado(aviso.para)
+                estado["extra"] = filas
+                self._guardar_teclado(aviso.para, estado)
+                markup = teclado_abajo(TK.mostrar(filas, estado.get("filas", [])))
+            try:
+                if aviso.foto:
+                    await bot.send_photo(aviso.para, aviso.foto, caption=texto, reply_markup=markup,
+                                         disable_notification=aviso.silencio)
+                else:
+                    await bot.send_message(aviso.para, texto, reply_markup=markup, disable_notification=aviso.silencio)
+                return True
+            except Forbidden:
+                log.info("El usuario %s bloqueó el bot", aviso.para)
+            except TelegramError as e:
+                log.warning("No se pudo avisar a %s: %s", aviso.para, e)
+            return False
         try:
             if aviso.copiar and original is not None:
                 pie = original.caption_html or ""
@@ -229,8 +322,9 @@ class BotSimPareja:
 
     async def _editar(self, bot: Bot, uid: int, msg_id: int, p: Pantalla) -> None:
         try:
-            await bot.edit_message_text(
-                p.texto, chat_id=uid, message_id=msg_id, reply_markup=teclado(p.botones)
+            await bot.edit_message_text(  # con los botones abajo, solo se actualiza el texto
+                p.texto, chat_id=uid, message_id=msg_id,
+                reply_markup=None if self.cfg.botones_abajo else teclado(p.botones),
             )
         except BadRequest as e:
             if "not modified" not in str(e).lower():
