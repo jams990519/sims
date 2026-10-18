@@ -592,3 +592,25 @@ def test_migra_una_base_de_datos_de_la_version_anterior(tmp_path):
     j = db.jugador(1)
     assert j.personaje == "Vieja" and j.reloj_desde is None
     assert db.invitaciones_para(1, 0) == []
+
+
+def test_cerrado_a_jugadores_nuevos(reloj):
+    cfg = Config(token="x", admins=frozenset({ADMIN}), eventos=False, registro_abierto=False)
+    juego = Juego(DB(":memory:"), cfg, reloj=reloj, rng=random.Random(7))
+    admin_listo(juego)  # el admin sí entra
+    res = juego.inicio(ANA, "Ana")
+    assert "no acepta jugadores nuevos" in res.pantalla.texto and str(ANA) not in res.pantalla.texto
+    assert "cerrado a jugadores nuevos" in juego.boton(ADMIN, "", "invitar").pantalla.texto
+    assert juego.boton(ADMIN, "", "invq:familia").alerta == "🔒 El juego está cerrado a jugadores nuevos."
+    assert "cerrado a jugadores nuevos" in juego.texto(ADMIN, "Admin", f"invitar_{ANA}").pantalla.texto
+    texto = juego.boton(ADMIN, "", "ajustes").pantalla.texto
+    assert "Jugadores nuevos: <b>🔒 cerrado</b>" in texto
+    res = juego.boton(ADMIN, "", "registro")  # el admin lo abre
+    assert res.alerta == "🔓 Abierto a jugadores nuevos" and "🔓 abierto" in res.pantalla.texto
+    aviso = invitar(juego, ADMIN, ANA)
+    acepto = next(d for fila in aviso.botones for _, d in fila if d.startswith("acepto:"))
+    juego.boton(ADMIN, "", "registro")  # y lo vuelve a cerrar: la invitación ya no sirve
+    res = juego.boton(ANA, "Ana", acepto)
+    assert "no acepta jugadores nuevos" in res.pantalla.texto and juego.db.jugador(ANA) is None
+    juego.boton(ANA, "Ana", "registro")  # quien no es admin no puede abrirlo
+    assert juego.db.meta("registro") == "cerrado"

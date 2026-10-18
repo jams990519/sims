@@ -3,9 +3,13 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.41"
+VERSION = "0.42"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.42", [
+        "🔒 <b>El juego queda cerrado a jugadores nuevos</b>: la sala es solo de ustedes. Nadie más puede crear un "
+        "personaje, aunque tenga una invitación o un enlace.",
+    ]),
     ("0.41", [
         "🔥 <b>El momento íntimo, justo donde estás</b>: en 🏠 Casa y en ⚡ Acciones aparece «🔥 Aquí» con el lugar "
         "de la casa donde estás (🛏️ en la cama, 🚿 en la ducha, 🛋️ en el sofá, 👗 en el clóset…), y «En otro "

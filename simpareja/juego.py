@@ -645,6 +645,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "rplato": self._b_restaurante_plato,
             "rpostre": self._b_restaurante_postre,
             "narr": self._b_narracion,
+            "registro": self._b_registro,
             "zonal": self._b_zona_lugar,
             "fotos": self._b_fotos,
         }
@@ -691,11 +692,34 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         if not self.cfg.admins and self.db.contar_jugadores() == 0:
             log.warning("No hay ADMIN_IDS ni jugadores: %s (%s) entra como primer jugador.", uid, nombre_tg)
             return self._crear_jugador(uid, nombre_tg, None)
+        if not self._registro_abierto():
+            return Resultado(pantalla=self._pantalla_cerrado(), nuevo=True)
         v = self._registrar_visitante(uid, nombre_tg)
         pendientes = self.db.invitaciones_para(uid, self.reloj())
         if pendientes:
             return Resultado(pantalla=self._pantalla_invitado(pendientes[0]), nuevo=True)
         return Resultado(pantalla=self._candado(v), nuevo=True)
+
+    # --- registro abierto o cerrado a jugadores nuevos ---
+
+    def _registro_abierto(self) -> bool:
+        valor = self.db.meta("registro")
+        return self.cfg.registro_abierto if valor is None else valor == "abierto"
+
+    def _pantalla_cerrado(self) -> Pantalla:
+        return Pantalla(
+            f"🔒 <b>{esc(self.cfg.nombre_juego)} no acepta jugadores nuevos por ahora.</b>\n\n"
+            "Es un juego privado. Si alguien te pasó el bot, pídele que te avise cuando se abra.",
+            [],
+        )
+
+    def _b_registro(self, j: Jugador, arg: str, res: Resultado) -> None:
+        """⚙️ Ajustes (solo admins): abrir o cerrar el juego a jugadores nuevos."""
+        if j.id in self.cfg.admins:
+            abierto = not self._registro_abierto()
+            self.db.guardar_meta("registro", "abierto" if abierto else "cerrado")
+            res.alerta = "🔓 Abierto a jugadores nuevos" if abierto else "🔒 Cerrado a jugadores nuevos"
+        self._b_ajustes(j, "", res)
 
     def _candado(self, v: Visitante, nota: str | None = None) -> Pantalla:
         lineas = [nota, ""] if nota else []
@@ -727,7 +751,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         )
 
     def _boton_visitante(self, uid: int, nombre_tg: str, accion: str, codigo: str) -> Resultado:
-        if accion not in ("acepto", "rechazo"):
+        if accion not in ("acepto", "rechazo") or not self._registro_abierto():
             res = self._visitante(uid, nombre_tg)
             res.nuevo = False
             return res
@@ -781,6 +805,9 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         if otro is not None:
             self._invitar_jugador(j, otro, volver, res)
             return
+        if not self._registro_abierto():  # quien no juega todavía no puede entrar
+            res.pantalla = Pantalla("🔒 El juego está cerrado a jugadores nuevos: esa persona no puede entrar.", volver)
+            return
         if v is None:
             self._fallos[j.id].append(ahora)
             res.pantalla = Pantalla(
@@ -832,7 +859,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         if otro is not None and otro.id != j.id:
             self._confirmar_invitacion_jugador(j, otro, tipo, res)
             return
-        if v is None or otro is not None or tipo not in VINCULOS:
+        if v is None or otro is not None or tipo not in VINCULOS or not self._registro_abierto():
             res.alerta = "Esa persona ya no se puede invitar."
             self._b_invitar(j, "", res)
             return
@@ -1595,13 +1622,17 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             f"🖼️ Con dibujos (gastan algo más de datos): <b>{'Sí' if fotos else 'No'}</b>\n"
             f"🕒 Tu hora local: {self._hora(j, self.reloj())} · {lugar}\n"
             f"🪪 Tu código de jugador (tu ID): <code>{j.id}</code>\n"
-            f"🏷️ Versión del juego: {N.VERSION}",
+            f"🏷️ Versión del juego: {N.VERSION}"
+            + (f"\n🚪 Jugadores nuevos: <b>{'🔓 abierto' if self._registro_abierto() else '🔒 cerrado'}</b>"
+               if j.id in self.cfg.admins else ""),
             [
                 [("🔕 Desactivar avisos" if j.avisos_conexion else "🔔 Activar avisos", "avisos")],
                 [("🎬 Apagar los mensajitos" if narracion else "🎬 Encender los mensajitos", "narr"),
                  ("🖼️ Quitar los dibujos" if fotos else "🖼️ Poner los dibujos", "fotos")],
                 [("🪞 Cambiar personaje", "apedit"), ("✏️ Cambiar nombre", "renombrar")],
                 [("🕒 Mi hora local", "zona"), ("🧾 Mi última conexión", "conexion")],
+                *([[("🔓 Abrir a jugadores nuevos" if not self._registro_abierto() else "🔒 Cerrar a jugadores nuevos",
+                     "registro")]] if j.id in self.cfg.admins else []),
                 [("⬅️ Atrás", "mest")],
             ],
             clave="ajustes",
@@ -1687,7 +1718,8 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         """💌 Invitar: tu código y las dos formas de invitar (las dos invitan igual)."""
         res.pantalla = Pantalla(
             "💌 <b>Invitar</b>\n\n"
-            f"🪪 <b>Tu código</b> ({self._firma(j)}): <code>{j.id}</code>\n"
+            + ("🔒 <b>Ahora el juego está cerrado a jugadores nuevos.</b>\n\n" if not self._registro_abierto() else "")
+            + f"🪪 <b>Tu código</b> ({self._firma(j)}): <code>{j.id}</code>\n"
             "<i>Es tu ID de jugador. Tócalo para copiarlo y pásaselo a quien quiera invitarte.</i>\n\n"
             "<b>Dos formas de invitar</b> (las dos invitan igual):\n"
             "📤 <b>Pasar el bot</b>: le mandas un enlace y, al abrirlo, le llega tu invitación directamente.\n"
@@ -1719,6 +1751,10 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
 
     def _b_pasar_bot(self, j: Jugador, tipo: str, res: Resultado) -> None:
         """invq · invq:<vínculo>: un enlace que invita directamente a quien lo abra."""
+        if not self._registro_abierto():
+            res.alerta = "🔒 El juego está cerrado a jugadores nuevos."
+            self._b_invitar(j, "", res)
+            return
         if tipo not in VINCULOS:
             res.pantalla = Pantalla(
                 "📤 <b>Pasar el bot a alguien</b>\n\n¿Quién es esa persona para ti?\n"
@@ -1779,6 +1815,8 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
                 "📤 Este es <b>tu</b> enlace de invitación: pásaselo a la otra persona.", [[("💌 Invitar", "invitar")]]
             ), nuevo=True)
         j = self.db.jugador(uid)
+        if j is None and uid not in self.cfg.admins and not self._registro_abierto():
+            return Resultado(pantalla=self._pantalla_cerrado(), nuevo=True)
         if j is None and uid not in self.cfg.admins:
             self._registrar_visitante(uid, nombre_tg)
             inv.para_id = uid
