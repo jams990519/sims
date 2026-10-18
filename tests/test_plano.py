@@ -6,7 +6,7 @@ import pytest
 
 from simpareja import plano as PL
 from test_juego import ADMIN, ANA, aceptar, crear_personaje, invitar
-from test_vida import nuevo_juego, poner, Reloj
+from test_vida import dar_objetos, nuevo_juego, poner, Reloj
 
 LLENO = dict(hambre=100, energia=100, higiene=100, diversion=100, social=100)
 
@@ -76,8 +76,8 @@ def test_la_casa_es_el_plano(pareja, reloj):
     texto = res.pantalla.texto
     assert "🏡 <b>Casita en renta</b> — Lunes 08:00" in texto
     lineas = plano(texto)
-    assert "[A]😴" in lineas[3] and "CUARTO" in lineas[1]  # Ana duerme en el cuarto (arriba a la izquierda)
-    assert lineas[-2].startswith("| [L]") and "SALA·COCINA·COMEDOR" in texto  # Luis en la sala, sin hacer nada
+    assert "[A]😴" in lineas[2] and "CUARTO" in lineas[1]  # Ana duerme en el cuarto (arriba a la izquierda)
+    assert lineas[-3].startswith("| [L]") and "SALA·COCINA·COMEDOR" in texto  # Luis en la sala, sin hacer nada
     assert not any(cosa in texto.split("</pre>")[0] for cosa in ("cama", "ducha", "nevera"))  # solo los jugadores
     assert "<code>[A]</code> Ana: 😴 durmiendo" in texto
 
@@ -124,7 +124,7 @@ def test_moverse_desde_el_plano_vuelve_al_plano(solo):
     assert "ir:cuarto:plano" in datos(res.pantalla) and ("⬅️ Atrás", "plano") in res.pantalla.botones[-1]
     res = solo.boton(ADMIN, "", "ir:cuarto:plano")
     assert "Ahora estás en 🛏️ cuarto" in res.pantalla.texto and "<pre>" in res.pantalla.texto
-    assert "[L]" in plano(res.pantalla.texto)[3]
+    assert "[L]" in plano(res.pantalla.texto)[2]
 
 
 def test_casa_grande_con_cuarto_extra(solo):
@@ -135,3 +135,22 @@ def test_casa_grande_con_cuarto_extra(solo):
     solo.boton(ADMIN, "", "ir:extra")
     lineas = plano(solo.boton(ADMIN, "", "plano").pantalla.texto)
     assert "CUARTO 2" in lineas[4] and lineas[5].startswith("| [L]")  # Luis en el cuarto 2 (abajo del cuarto)
+
+
+def test_la_marca_va_debajo_de_donde_hace_la_accion(solo):
+    def columnas(palabra):
+        lineas = plano(solo.boton(ADMIN, "", "plano").pantalla.texto)
+        return lineas[7].index(palabra), lineas[8].index("[L]")
+
+    assert columnas("SALA") == (2, 2)  # sin hacer nada: en la sala
+    poner(solo, ADMIN, hambre=10)
+    solo.boton(ADMIN, "", "as:picar")
+    assert columnas("COCINA") == (7, 7) and "[L]🍎" in plano(solo.boton(ADMIN, "", "plano").pantalla.texto)[8]
+    solo.boton(ADMIN, "", "parar")
+    poner(solo, ADMIN, hambre=10)
+    solo.boton(ADMIN, "", "as:domicilio")
+    assert columnas("COMEDOR") == (14, 14)
+    solo.boton(ADMIN, "", "parar")
+    dar_objetos(solo, ADMIN, "tv")
+    solo.boton(ADMIN, "", "as:tele")
+    assert columnas("SALA") == (2, 2)
