@@ -5,6 +5,8 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 
+from .vida import hora_12_texto
+
 TRANSPORTE = 4  # por día trabajado
 ENERGIA_POR_HORA = 8
 MAX_HORAS = 8  # como mucho 8 horas al día
@@ -121,8 +123,9 @@ def texto_dias(dias: list[int]) -> str:
 
 
 def texto_horario(horario: dict) -> str:
-    """'de lunes a viernes, de 09:00 a 17:00 (8 h)'."""
-    return f"{texto_dias(horario['dias'])}, de {horario['inicio']} a {hora_salida(horario)} ({horario['horas']} h)"
+    """'de lunes a viernes, de 9:00 am a 5:00 pm (8 h)'."""
+    inicio, salida = hora_12_texto(horario["inicio"]), hora_12_texto(hora_salida(horario))
+    return f"{texto_dias(horario['dias'])}, de {inicio} a {salida} ({horario['horas']} h)"
 
 
 def puede_ascender(nivel: int, dias: int) -> bool:

@@ -80,7 +80,7 @@ def test_la_casa_es_el_plano(pareja, reloj):
     assert {"moverse:plano", "nevera", "objetos", "notas", "mascota", "casa"} <= set(datos(res.pantalla))
     assert pareja.comando(ADMIN, "Admin", "casa").pantalla.clave == "plano"
     texto = res.pantalla.texto
-    assert "🏡 <b>Casita en renta</b> — Lunes 08:00" in texto
+    assert "🏡 <b>Casita en renta</b> — Lunes 8:00 am" in texto
     lineas = plano(texto)
     assert "[A]😴" in lineas[2] and "CUARTO" in lineas[1]  # Ana duerme en el cuarto (arriba a la izquierda)
     assert lineas[-3].startswith("| [L]") and "SALA·COCINA·COMEDOR" in texto  # Luis en la sala, sin hacer nada

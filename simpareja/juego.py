@@ -264,7 +264,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         return V.reloj_texto(self._local(j, ts), self._dia(j, ts))
 
     def _hora(self, j: Jugador, ts: float) -> str:
-        return f"{self._local(j, ts):%H:%M}"
+        return V.hora_12(self._local(j, ts))
 
     def _finde(self, j: Jugador, ts: float | None = None) -> bool:
         return V.es_fin_de_semana(self._local(j, ts).weekday())
