@@ -237,6 +237,9 @@ _ACCIONES = (
     Accion("besar", "💋", "Besar", "besándose", "pareja", 5, {"social": 10, "diversion": 5}, juntos=OBLIGATORIO),
     Accion("masaje", "💆", "Darse un masaje", "dándose un masaje", "pareja", 20,
            {"social": 10, "energia": 5, "diversion": 5}, juntos=OBLIGATORIO),
+    # 💞 Después del momento íntimo (solo desde ese minijuego: no sale en los menús)
+    Accion("abrazados", "💞", "Descansar abrazados", "descansando abrazados", "intimo", 20,
+           {"energia": 5, "social": 5}, juntos=OBLIGATORIO),
     # 🧹 Limpieza
     Accion("limpiar", "🧹", "Limpiar una zona", "limpiando", "limpieza", 30, {"energia": -10},
            nombre_juntos="Limpiar juntos"),
