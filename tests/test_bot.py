@@ -112,7 +112,7 @@ def botones(datos):
 
 async def _recorrido():
     tg = TelegramFalso()
-    cfg = Config(token="123:ABC", admins=frozenset({ADMIN}))
+    cfg = Config(token="123:ABC", admins=frozenset({ADMIN}), botones_abajo=False)  # botones en los mensajes
     juego = Juego(DB(":memory:"), cfg, rng=random.Random(3))
     bot = BotSimPareja(juego, cfg)
     app = bot.construir(peticiones=tg)
@@ -185,3 +185,70 @@ async def _recorrido():
     antes = len(tg.llamadas)
     await bot._al_iniciar(app)
     assert not [m for m, _ in tg.llamadas[antes:] if m == "sendMessage"]
+
+
+def teclado_de(datos):
+    markup = datos.get("reply_markup") or {}
+    return json.loads(markup) if isinstance(markup, str) else markup
+
+
+def test_botones_abajo():
+    asyncio.run(_botones_abajo())
+
+
+async def _botones_abajo():
+    tg = TelegramFalso()
+    cfg = Config(token="123:ABC", admins=frozenset({ADMIN}))  # por defecto, los botones van abajo
+    juego = Juego(DB(":memory:"), cfg, rng=random.Random(3))
+    bot = BotSimPareja(juego, cfg)
+    app = bot.construir(peticiones=tg)
+    await app.initialize()
+    n = iter(range(1, 1000))
+
+    async def enviar(upd):
+        await app.process_update(Update.de_json(upd, app.bot))
+
+    def tocar_dato(uid, dato):
+        return next(t for fila in bot._teclado(uid)["filas"] for t, d in fila if d == dato)
+
+    await enviar(mensaje(ADMIN, "/start", next(n)))
+    await enviar(mensaje(ADMIN, "Luis", next(n)))
+    markup = teclado_de(tg.enviados("sendMessage", ADMIN)[-1])
+    assert markup["is_persistent"] and markup["resize_keyboard"] and markup["keyboard"]
+    assert "inline_keyboard" not in markup  # nada pegado al mensaje: todo abajo
+
+    # Tocar un botón de abajo manda su texto: el bot lo reconoce, borra el toque y la pantalla anterior
+    anterior = bot._teclado(ADMIN)["msg"]
+    toque = next(n)
+    await enviar(mensaje(ADMIN, tocar_dato(ADMIN, "ap:genero:?"), toque))
+    borrados = [d["message_id"] for d in tg.enviados("deleteMessage", ADMIN)]
+    assert toque in borrados and anterior in borrados
+    assert "genero" in juego.db.jugador(ADMIN).borrador  # el toque eligió el género al azar
+    # los botones viejos pegados a un mensaje siguen funcionando
+    await enviar(boton(ADMIN, "apr", 101, next(n)))
+    await enviar(boton(ADMIN, "apok", 101, next(n)))
+    assert "Personaje creado" in tg.enviados("sendMessage", ADMIN)[-1]["text"]
+    assert juego.db.jugador(ADMIN).estado == "activo"
+
+    # Los botones con enlace (pasar el bot) van en el texto, como enlaces
+    await enviar(mensaje(ADMIN, "/invitar", next(n)))
+    await enviar(mensaje(ADMIN, tocar_dato(ADMIN, "invq"), next(n)))
+    await enviar(mensaje(ADMIN, tocar_dato(ADMIN, "invq:pareja"), next(n)))
+    assert '<a href="https://t.me/share/url?' in tg.enviados("sendMessage", ADMIN)[-1]["text"]
+
+    # Un aviso que pregunta algo pone sus botones arriba, sin quitar los de la pantalla (y con 🎮 Menú)
+    await enviar(mensaje(ANA, "/start", next(n)))
+    await enviar(mensaje(ADMIN, f"/invitar_{ANA}", next(n)))
+    await enviar(mensaje(ADMIN, tocar_dato(ADMIN, f"invc:{ANA}:pareja"), next(n)))
+    invitacion = tg.enviados("sendMessage", ANA)[-1]
+    etiquetas = [b["text"] for fila in teclado_de(invitacion)["keyboard"] for b in fila]
+    assert "✅ Aceptar y crear mi personaje" in etiquetas and "🎮 Menú" in etiquetas
+    await enviar(mensaje(ANA, "✅ Aceptar y crear mi personaje", next(n)))
+    assert juego.db.jugador(ANA).estado == "nombrando"
+
+    # Lo que no es un botón sigue siendo chat: un aviso corto del botón llega como mensaje
+    res_alerta = [d["text"] for d in tg.enviados("sendMessage", ADMIN) if d["text"].startswith("ℹ️")]
+    await enviar(mensaje(ADMIN, tocar_dato(ADMIN, "invs"), next(n)))
+    assert "Invitaciones enviadas" in tg.enviados("sendMessage", ADMIN)[-1]["text"]
+    assert res_alerta == []
+    await app.shutdown()

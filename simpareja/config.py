@@ -41,6 +41,8 @@ class Config:
     max_invitaciones_activas: int = 5
     # Eventos sorpresa (uno o dos por semana); EVENTOS=0 los apaga.
     eventos: bool = True
+    # Botones abajo, en el teclado de Telegram (siempre visibles); BOTONES_ABAJO=0 los deja en los mensajes.
+    botones_abajo: bool = True
     # Opcionales, para servidores en países donde Telegram está bloqueado.
     proxy: str = ""
     api_url: str = ""
@@ -61,6 +63,7 @@ class Config:
             invitacion_dias=int(e("INVITACION_DIAS", cls.invitacion_dias)),
             max_invitaciones_activas=int(e("MAX_INVITACIONES", cls.max_invitaciones_activas)),
             eventos=e("EVENTOS", "1") not in ("0", "no", "false"),
+            botones_abajo=e("BOTONES_ABAJO", "1") not in ("0", "no", "false"),
             proxy=e("TELEGRAM_PROXY", ""),
             api_url=e("TELEGRAM_API_URL", ""),
         )
