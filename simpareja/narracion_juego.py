@@ -17,10 +17,23 @@ from .db import Jugador
 
 
 class NarracionMixin:
+    def _quiere_narracion(self, uid: int) -> bool:
+        """Los mensajitos se pueden apagar en ⚙️ Ajustes."""
+        j = self.db.jugador(uid)
+        return j is not None and self._extras(j).get("narracion", True)
+
+    def _b_narracion(self, j: Jugador, arg: str, res) -> None:
+        """⚙️ Ajustes: encender o apagar los mensajitos de las acciones."""
+        extras = self._extras(j)
+        extras["narracion"] = not extras.get("narracion", True)
+        j.extras = json.dumps(extras)
+        self.db.guardar_jugador(j)
+        self._b_ajustes(j, "", res)
+
     def _tick_narracion(self, ahora: float, res) -> None:
         for j in self.db.jugadores_en_sala():
             j = self.db.jugador(j.id) or j
-            accion = self._accion(j) if j.estado == "activo" else None
+            accion = self._accion(j) if j.estado == "activo" and self._extras(j).get("narracion", True) else None
             etapas = N.ETAPAS.get(accion["k"]) if accion else None
             if not etapas or accion["rfin"] <= ahora:
                 continue

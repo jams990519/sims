@@ -639,6 +639,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "intpara": self._b_intimo_parar,
             "rplato": self._b_restaurante_plato,
             "rpostre": self._b_restaurante_postre,
+            "narr": self._b_narracion,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -1576,15 +1577,18 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
 
     def _b_ajustes(self, j: Jugador, arg: str, res: Resultado) -> None:
         avisos = "Sí" if j.avisos_conexion else "No"
+        narracion = self._extras(j).get("narracion", True)
         res.pantalla = Pantalla(
             "⚙️ <b>Ajustes</b>\n\n"
             f"👤 Personaje: {self._firma(j)}\n"
             f"🔔 Avisarme cuando alguien entra a mi sala: <b>{avisos}</b>\n"
+            f"🎬 Mensajitos de lo que va pasando en cada acción: <b>{'Sí' if narracion else 'No'}</b>\n"
             f"🕒 Tu hora local: {self._hora(j, self.reloj())}\n"
             f"🪪 Tu código de jugador (tu ID): <code>{j.id}</code>\n"
             f"🏷️ Versión del juego: {N.VERSION}",
             [
                 [("🔕 Desactivar avisos" if j.avisos_conexion else "🔔 Activar avisos", "avisos")],
+                [("🎬 Apagar los mensajitos" if narracion else "🎬 Encender los mensajitos", "narr")],
                 [("🪞 Cambiar personaje", "apedit"), ("✏️ Cambiar nombre", "renombrar")],
                 [("🕒 Mi hora local", "zona"), ("🧾 Mi última conexión", "conexion")],
                 [("⬅️ Atrás", "mest")],

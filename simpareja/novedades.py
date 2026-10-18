@@ -3,9 +3,17 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.34"
+VERSION = "0.35"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.35", [
+        "🎬 <b>Todas las acciones cuentan lo que va pasando</b>: cine (🍿 palomitas, ¡qué giro!), parque, "
+        "gimnasio, súper, tele, consola, redes, ducha, comer, pedir a domicilio, siesta, limpiar, lavar la ropa, "
+        "la mascota, estudiar, grabar y editar videos… En pareja, los mensajitos cuentan lo que hacen juntos.",
+        "🍳 <b>Cocinando</b>, a mitad de cada paso te cuenta qué estás haciendo: «el pollo se dora en el aceite "
+        "caliente», «la sopa hierve despacio y llena la cocina de vapor»…",
+        "⚙️ Si prefieres no recibirlos, apágalos en ⚙️ Ajustes → 🎬 Apagar los mensajitos.",
+    ]),
     ("0.34", [
         "🍝 <b>El restaurante, paso a paso</b>: mientras están ahí te llegan mensajitos: llegan, el mesero los "
         "lleva a la mesa, 📜 les presentan la carta (eliges tu plato: pasta, cerdo con congrí, pollo, pescado, "
