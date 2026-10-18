@@ -3,9 +3,16 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.27"
+VERSION = "0.28"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.28", [
+        "🏠 <b>Al tocar Casa sale el plano</b> directamente, hecho para la pantalla de un teléfono pequeño.",
+        "📍 El plano <b>solo marca dónde está cada jugador</b>: su inicial y, al lado, el ícono de lo que hace "
+        "(😴 durmiendo, 🚿 duchándose, 🍳 cocinando…). Debajo dice quién es quién y cuánto le falta.",
+        "📐 Los íconos se cuentan con su ancho real para que las paredes no se descuadren.",
+        "🔧 Ya no sale «📍 📍 fuera de casa» repetido: ahora dice 🚗 fuera de casa.",
+    ]),
     ("0.27", [
         "💌 <b>Dos formas de invitar</b> en 💌 Invitar: 📤 <b>Pasar el bot a alguien</b> (le mandas un enlace y, al "
         "abrirlo, le llega tu invitación directamente) o ⌨️ <b>Invitar con su código</b> (su ID de jugador).",

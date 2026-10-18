@@ -1,16 +1,44 @@
 """Plano de la casa en texto (actualización 2, parte 4). Lógica pura, sin Telegram ni base de datos.
 
-Se dibuja con rayitas y letras en texto monoespaciado (<pre> en Telegram) para que no se deforme:
-dentro del plano no hay emojis, porque cada teléfono los dibuja con un ancho distinto.
-El cuarto va arriba a la izquierda; el clóset y el baño, a la derecha; la sala-cocina-comedor,
-amplia, abajo. Cada Sim aparece con su inicial entre corchetes en la habitación donde está.
+Se dibuja con rayitas y letras en texto monoespaciado (<pre> en Telegram) y cabe en la pantalla de un
+teléfono pequeño (ANCHO columnas). Solo marca dónde está cada jugador: su inicial entre corchetes y, al
+lado, el ícono de lo que hace. Telegram dibuja cada ícono con el ancho de dos letras, así que se cuenta
+así y solo se usan íconos de un solo carácter (los que llevan un selector de variación tienen reemplazo).
+El cuarto va arriba a la izquierda; el clóset y el baño, a la derecha; la sala-cocina-comedor, abajo.
 """
 
 from __future__ import annotations
 
+import unicodedata
 
-def _c(texto: str, ancho: int) -> str:
-    return texto[:ancho].ljust(ancho)
+IZQUIERDA = 11  # el cuarto (y el cuarto 2): caben "[L]😴 [A]😴"
+DERECHA = 8  # el clóset y el baño: caben "[Lu][Lu]"
+ANCHO = 1 + IZQUIERDA + 1 + DERECHA + 1  # 22 columnas: cabe en un teléfono pequeño
+
+# Íconos que no son de un solo carácter: su reemplazo en el plano.
+REEMPLAZOS = {"🍽️": "🍴", "✂️": "💻", "✍️": "📝", "🏋️": "💪"}
+
+
+def ancho(texto: str) -> int:
+    """Las columnas que ocupa en Telegram: cada ícono, dos (también los que llevan selector de variación)."""
+    total = 0
+    for i, c in enumerate(texto):
+        if c != "️":
+            icono_ = unicodedata.east_asian_width(c) == "W" or texto[i + 1:i + 2] == "️"
+            total += 2 if icono_ else 1
+    return total
+
+
+def icono(emoji: str) -> str:
+    """El ícono tal como va en el plano, o '' si no hay uno que se vea igual en todos los teléfonos."""
+    emoji = REEMPLAZOS.get(emoji, emoji)
+    return emoji if len(emoji) == 1 and ancho(emoji) == 2 else ""
+
+
+def _c(texto: str, columnas: int) -> str:
+    while ancho(texto) > columnas:
+        texto = texto[:-1]
+    return texto + " " * (columnas - ancho(texto))
 
 
 def iniciales(nombres: list[str]) -> list[str]:
@@ -22,59 +50,53 @@ def iniciales(nombres: list[str]) -> list[str]:
     ]
 
 
-def marcas(quienes: list[str]) -> str:
-    """'[L][A]'; la mascota ya viene entre paréntesis: '(K)'."""
-    return "".join(q if q.startswith("(") else f"[{q}]" for q in quienes)
+def marcas(quienes: list[tuple[str, str]], columnas: int = ANCHO) -> str:
+    """'[L]😴 [A]🚿' (inicial e ícono); si no cabe, más junto y, si hace falta, sin íconos."""
+    opciones = [
+        " ".join(f"[{letra}]{ico}" for letra, ico in quienes),
+        "".join(f"[{letra}]{ico}" for letra, ico in quienes),
+        "".join(f"[{letra}]" for letra, _ in quienes),
+        "".join(letra for letra, _ in quienes),
+    ]
+    return next((o for o in opciones if ancho(o) <= columnas), _c(opciones[-1], columnas))
 
 
-def _sangria(texto: str, ancho: int) -> str:
+def _sangria(texto: str, columnas: int) -> str:
     """Un espacio delante si cabe."""
-    return " " + texto if texto and len(texto) < ancho else texto
+    return " " + texto if texto and ancho(texto) < columnas else texto
 
 
-def dibujar(zonas: tuple[str, ...], dentro: dict[str, list[str]], objetos: list[str] | tuple = ()) -> list[str]:
-    """Las líneas del plano. `dentro`: habitación → marcas de quienes están ahí; `objetos`: lo comprado."""
-    derecha = 8  # cabe "[Lu][Lu]": los dos en el baño
-    m = {z: marcas(dentro.get(z, [])) for z in zonas}
-    m["closet"], m["bano"] = _sangria(m.get("closet", ""), derecha), _sangria(m.get("bano", ""), derecha)
+def dibujar(zonas: tuple[str, ...], dentro: dict[str, list[tuple[str, str]]]) -> list[str]:
+    """Las líneas del plano. `dentro`: habitación → (inicial, ícono) de quienes están ahí."""
+    m = {}
+    for zona in zonas:
+        columnas = DERECHA if zona in ("closet", "bano") else IZQUIERDA if zona != "salon" else ANCHO - 2
+        m[zona] = _sangria(marcas(dentro.get(zona, []), columnas), columnas)
+    raya_izq, raya_der = "-" * IZQUIERDA, "-" * DERECHA
     if "extra" in zonas:
-        cuarto, extra = 10, 10
-        ancho = cuarto + 1 + extra + 1 + derecha
         arriba = [
-            ("-" * cuarto, "-" * extra, "+", "-" * derecha),
-            (" CUARTO", " CUARTO 2", "|", " CLÓSET"),
-            ("", "", "|", m["closet"]),
-            ("  cama", "", "+", "-" * derecha),
-            ("", "", "|", " BAÑO"),
-            (" " + m["cuarto"], " " + m["extra"], "|", " ducha"),
-            ("", "", "|", m["bano"]),
+            (" CUARTO", "|", " CLÓSET"),
+            (m["cuarto"], "|", m["closet"]),
+            (raya_izq, "+", raya_der),
+            (" CUARTO 2", "|", " BAÑO"),
+            (m["extra"], "|", m["bano"]),
         ]
-        lineas = []
-        for i, (a, b, union, c) in enumerate(arriba):
-            borde, sep = ("+", "+") if i == 0 else ("|", "|")
-            fin = "+" if c.startswith("-") else borde
-            lineas.append(f"{borde}{_c(a, cuarto)}{sep}{_c(b, extra)}{union}{_c(c, derecha)}{fin}")
     else:
-        cuarto = 17
-        ancho = cuarto + 1 + derecha
         arriba = [
-            ("-" * cuarto, "+", "-" * derecha),
             (" CUARTO", "|", " CLÓSET"),
             ("", "|", m["closet"]),
-            ("  cama", "+", "-" * derecha),
+            (m["cuarto"], "+", raya_der),
             ("", "|", " BAÑO"),
-            ("  " + m["cuarto"], "|", " ducha"),
             ("", "|", m["bano"]),
         ]
-        lineas = []
-        for i, (a, union, c) in enumerate(arriba):
-            borde = "+" if i == 0 else "|"
-            fin = "+" if c.startswith("-") else borde
-            lineas.append(f"{borde}{_c(a, cuarto)}{union}{_c(c, derecha)}{fin}")
-    division = "+" + "-" * cuarto + "+" + ("-" * extra + "+" if "extra" in zonas else "") + "-" * derecha + "+"
+    division = f"+{raya_izq}+{raya_der}+"
+    lineas = [division]
+    for izq, union, der in arriba:
+        borde = "+" if izq.startswith("-") else "|"
+        fin = "+" if der.startswith("-") else "|"
+        lineas.append(f"{borde}{_c(izq, IZQUIERDA)}{union}{_c(der, DERECHA)}{fin}")
     lineas.append(division)
-    comprado = "  " + "  ".join(objetos) if objetos else ""
-    for texto in (" SALA · COCINA · COMEDOR", "", "  cocina  nevera   mesa", comprado, "  " + m["salon"]):
-        lineas.append(f"|{_c(texto, ancho)}|")
-    lineas.append("+" + "-" * ancho + "+")
+    for texto in (" SALA·COCINA·COMEDOR", "", m["salon"]):
+        lineas.append(f"|{_c(texto, ANCHO - 2)}|")
+    lineas.append("+" + "-" * (ANCHO - 2) + "+")
     return lineas

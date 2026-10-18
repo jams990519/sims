@@ -40,7 +40,7 @@ COMANDOS = [
     BotCommand("cocina", "Cocinar paso a paso"),
     BotCommand("nevera", "Nevera, despensa y comida hecha"),
     BotCommand("dinero", "Cartera, cuenta compartida y facturas"),
-    BotCommand("casa", "Tu casa, la renta y la mudanza"),
+    BotCommand("casa", "Tu casa: el plano y dónde está cada uno"),
     BotCommand("plano", "El plano de la casa: dónde está cada uno"),
     BotCommand("sala", "Ver tu sala y quién está en línea"),
     BotCommand("invitar", "Invitar a un jugador"),

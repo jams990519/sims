@@ -47,7 +47,7 @@ def test_la_pareja_la_ve_al_entrar(pareja, reloj):
     dejar_nota(pareja, ADMIN, "Te quiero 💞")
     assert "🏠 Casa 📝" in str(pareja.boton(ANA, "", "menu").pantalla.botones)
     assert "Tienes una nota nueva en la nevera" in pareja.boton(ANA, "", "sala").pantalla.texto
-    assert "📝 Notas en la nevera (1)" in str(pareja.boton(ANA, "", "mcasa").pantalla.botones)
+    assert "📝 Notas (1)" in str(pareja.boton(ANA, "", "mcasa").pantalla.botones)
     reloj.avanzar(120)
     res = pareja.inicio(ANA, "Ana")  # vuelve a entrar al juego
     assert "📝 <b>Nota en la nevera</b> de" in res.pantalla.texto and "«Te quiero 💞»" in res.pantalla.texto
