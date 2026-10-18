@@ -1,9 +1,9 @@
 """Estudios (diseño v1, parte 10).
 
 `EstudiosMixin` se mezcla con `Juego`. En 💼 Trabajo → Estudios (o ⚡ Acciones → Estudiar):
-- Cursos cortos online: de $50 a $150, una hora al día durante unos días. Dan habilidad y aceleran
+- Cursos cortos online: de $50 a $150, una sesión de 20 min al día durante unos días. Dan habilidad y aceleran
   los ascensos (+2 días de progreso en el trabajo).
-- Certificados técnicos: de $400 a $800, dos horas al día durante unas semanas. Permiten entrar a un
+- Certificados técnicos: de $400 a $800, una sesión de 40 min al día durante unas semanas. Permiten entrar a un
   trabajo directamente en el nivel 2.
 - Carrera: $300 al mes durante varios meses. Abre los mejores puestos (nivel 3).
 Se estudia una sesión al día. Estudiar juntos es más rápido y sube la relación.
@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 from . import dinero as D
 from . import trabajo as T
+from . import vida as V
 from .db import Jugador
 
 ASCENSO_CURSO = 2
@@ -103,14 +104,14 @@ class EstudiosMixin:
             e = ESTUDIOS[estudio["clave"]]
             hecho = estudio["sesiones"]
             barra = "🟩" * round(10 * hecho / e.sesiones) + "⬜" * (10 - round(10 * hecho / e.sesiones))
-            lineas += [f"✏️ Estudias: {e.emoji} <b>{e.nombre}</b>", f"{barra} {hecho}/{e.sesiones} sesiones · {e.horas} h cada una"]
+            lineas += [f"✏️ Estudias: {e.emoji} <b>{e.nombre}</b>", f"{barra} {hecho}/{e.sesiones} sesiones · {e.horas * V.ESTUDIO_POR_HORA} min cada una"]
             if estudio.get("debe"):
                 lineas.append(f"💸 Deben la mensualidad ({D.dinero(e.precio)}): hasta pagarla no hay clases.")
                 botones.append([(f"💳 Pagar la mensualidad ({D.dinero(e.precio)})", "estpagar")])
             elif estudio.get("ultimo") == self._hoy(j):
                 lineas.append("✅ Hoy ya estudiaste.")
             else:
-                botones.append([(f"📚 Estudiar hoy ({e.horas} h)", f"a:estudiar:{e.horas}")])
+                botones.append([(f"📚 Estudiar hoy ({e.horas * V.ESTUDIO_POR_HORA} min)", f"a:estudiar:{e.horas}")])
             botones.append([("🚪 Dejarlo", "estno")])
             lineas.append("")
         else:
@@ -123,7 +124,7 @@ class EstudiosMixin:
                         lineas.append(f"✅ {e.emoji} {e.nombre}")
                         continue
                     precio = f"{D.dinero(e.precio)}/mes" if e.tipo == "carrera" else D.dinero(e.precio)
-                    lineas.append(f"{e.emoji} {e.nombre} · {precio} · {e.sesiones} × {e.horas} h: <i>{e.efecto}</i>")
+                    lineas.append(f"{e.emoji} {e.nombre} · {precio} · {e.sesiones} × {e.horas * V.ESTUDIO_POR_HORA} min: <i>{e.efecto}</i>")
                     botones.append([(f"{e.emoji} {e.nombre} · {precio}", f"estin:{e.clave}")])
                 lineas.append("")
         if extras.get("titulo"):

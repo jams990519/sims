@@ -59,10 +59,10 @@ def test_un_video_de_principio_a_fin(pareja, reloj):
     assert "Primero elige el tema" in pareja.boton(ADMIN, "", f"as:grabar:{ADMIN}").alerta
     res = pareja.boton(ADMIN, "", "influ:tema:humor")
     assert f"a:grabar:{ADMIN}" in datos(res.pantalla)
-    hacer(pareja, reloj, ADMIN, f"grabar:{ADMIN}", 60)
+    hacer(pareja, reloj, ADMIN, f"grabar:{ADMIN}", 15)
     assert influ(pareja)["video"]["grabado"]
     assert "a:editar" in datos(pareja.boton(ADMIN, "", "influ").pantalla)
-    hacer(pareja, reloj, ADMIN, "editar", 30)
+    hacer(pareja, reloj, ADMIN, "editar", 10)
     d = influ(pareja)
     assert d["videos"] == 1 and d["seguidores"] >= 20 and "video" not in d
     assert 5 <= pareja.db.jugador(ADMIN).cartera <= 20
@@ -73,7 +73,7 @@ def test_la_pareja_escribe_el_guion(pareja, reloj):
     pareja.boton(ADMIN, "", "influ:tema:cocina")
     res = pareja.boton(ANA, "", "influ")
     assert "a:guion" in datos(res.pantalla) and "puedes escribirle el guion" in res.pantalla.texto
-    hacer(pareja, reloj, ANA, "guion", 20)
+    hacer(pareja, reloj, ANA, "guion", 10)
     assert influ(pareja)["video"]["guion"]
     for uid in (ADMIN, ANA):
         assert any("Guion" in c["m"] for c in pareja._extras(pareja.db.jugador(uid))["relacion_hist"])
@@ -85,7 +85,7 @@ def test_grabar_juntos_y_salir_en_el_video(pareja, reloj):
     res = pareja.boton(ADMIN, "", f"aj:grabar:{ADMIN}")
     si = next(d for fila in next(a for a in res.avisos if a.para == ANA).botones for _, d in fila if d.endswith(":1"))
     pareja.boton(ANA, "", si)
-    reloj.avanzar(43)
+    reloj.avanzar(11)  # 15 min × 0,7
     pareja.tick()
     assert influ(pareja)["video"] == {"tema": "pareja", "grabado": True, "juntos": True, "guion": False}
     assert influ(pareja, ANA)["video"]["grabado"] is False  # el de Ana sigue sin grabar
@@ -96,7 +96,7 @@ def test_patrocinio_desde_mil_seguidores(pareja, reloj, monkeypatch):
     pareja._guardar_influ(j, {"seguidores": 1500, "xp": 0, "videos": 3, "ganado": 0, "ultimo": pareja._hoy(j),
                               "video": {"tema": "humor", "grabado": True, "juntos": False, "guion": False}})
     monkeypatch.setattr(pareja.rng, "random", lambda: 0.0)
-    hacer(pareja, reloj, ADMIN, "editar", 30)
+    hacer(pareja, reloj, ADMIN, "editar", 10)
     assert pareja.db.jugador(ADMIN).cartera >= 100 + 5
 
 
@@ -113,7 +113,7 @@ def test_sin_publicar_se_pierden_seguidores(pareja):
 
 def test_aprender_sube_de_nivel_y_el_equipo_mejora(pareja, reloj):
     for _ in range(4):
-        hacer(pareja, reloj, ADMIN, "aprender_redes", 60)
+        hacer(pareja, reloj, ADMIN, "aprender_redes", 15)
     assert I.nivel(influ(pareja)["xp"]) == 2
     dar_objetos(pareja, ADMIN, "camara", "aro", "micro")
     assert "Equipo: 3/3" in pareja.boton(ADMIN, "", "influ").pantalla.texto

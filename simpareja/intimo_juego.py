@@ -30,9 +30,9 @@ RONDAS = (
                       ("pasion", "🔥", "Con pasión"))),
 )
 VENCE = 30 * 60  # la propuesta, y cada ronda sin respuesta
-ESPERA = 4 * 60 * 60  # entre un momento íntimo y el siguiente
+ESPERA = 60 * 60  # entre un momento íntimo y el siguiente
 ENERGIA_MINIMA = 15
-ABRAZADOS = 20  # minutos descansando abrazados al terminar
+ABRAZADOS = 10  # minutos descansando abrazados al terminar
 
 
 def _opcion(ronda: int, clave: str) -> tuple[int, str, str] | None:
@@ -83,7 +83,7 @@ class IntimoMixin:
             return "Es para hacerlo en pareja: primero invita a tu pareja a tu sala."
         ultimo = self._extras_hogar(self._hogar(j.sala_id)).get("intimo_ultimo", 0)
         if ahora - ultimo < ESPERA:
-            return "Hace poco tuvieron un momento juntos: denle unas horas. 💞"
+            return "Hace poco tuvieron un momento juntos: denle una hora. 💞"
         for m in (j, pareja):
             quien = "Tu Sim" if m.id == j.id else self._firma(m)
             if m.lugar.startswith(V.FUERA):

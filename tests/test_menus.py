@@ -66,7 +66,7 @@ def test_siempre_hay_un_boton_atras(solo, submenu, atras):
 def test_ficha_con_efecto_y_tiempo(solo):
     res = solo.boton(ADMIN, "", "a:redes")
     assert "📱 <b>Ver redes o videos</b>" in res.pantalla.texto
-    assert "+10 🎉 diversión, +5 💬 social · ⏱️ 1 h" in res.pantalla.texto
+    assert "+10 🎉 diversión, +5 💬 social · ⏱️ 15 min" in res.pantalla.texto
     assert datos(res.pantalla) == ["as:redes", "acc:diversion"]
     assert solo.db.jugador(ADMIN).accion is None  # todavía no empezó
     res = solo.boton(ADMIN, "", "acc:diversion")
@@ -76,8 +76,8 @@ def test_ficha_con_efecto_y_tiempo(solo):
 def test_en_pareja_la_ficha_ofrece_las_dos_opciones(pareja):
     dar_objetos(pareja, ADMIN, "tv")
     res = pareja.boton(ADMIN, "", "a:tele")
-    assert "👤 Solo: +15 🎉 diversión, +3 💬 social · ⏱️ 1 h" in res.pantalla.texto
-    assert "💞 Con" in res.pantalla.texto and "+15 💬 social · ⏱️ 42 min" in res.pantalla.texto
+    assert "👤 Solo: +15 🎉 diversión, +3 💬 social · ⏱️ 15 min" in res.pantalla.texto
+    assert "💞 Con" in res.pantalla.texto and "+15 💬 social · ⏱️ 10 min" in res.pantalla.texto
     assert datos(res.pantalla) == ["as:tele", "aj:tele", "acc:diversion"]
 
 
@@ -180,9 +180,9 @@ def test_social_ampliada():
 def test_hablar_por_telefono(solo, reloj):
     poner(solo, ADMIN, social=10)
     solo.boton(ADMIN, "", "as:telefono")
-    reloj.avanzar(21)
+    reloj.avanzar(11)
     solo.boton(ADMIN, "", "sim")
-    assert nec(solo, ADMIN)["social"] == pytest.approx(10 + 20 - 3 * 21 / 60, abs=0.2)
+    assert nec(solo, ADMIN)["social"] == pytest.approx(10 + 20 - 3 * 11 / 60, abs=0.2)
     assert json.loads(solo.db.jugador(ADMIN).necesidades)
 
 

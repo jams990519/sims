@@ -102,7 +102,7 @@ def test_cocinar_paso_a_paso(solo, reloj):
     assert json.loads(hogar(solo).despensa) == {}  # se usan los ingredientes
     assert "cocinando huevos revueltos con pan" in solo.boton(ADMIN, "", "sala").pantalla.texto
     res = solo.boton(ADMIN, "", "coc:sig")  # demasiado pronto
-    assert res.alerta == "Todavía no: faltan 2 min."
+    assert res.alerta == "Todavía no: faltan 1 min."
     res = cocinar_todo(solo, reloj, ADMIN, "huevos")
     assert "¡Huevos revueltos con pan listo!" in res.pantalla.texto
     assert "a:comer:huevos" in datos(res.pantalla) and "taper:huevos" in datos(res.pantalla)
@@ -151,10 +151,10 @@ def test_cocinar_juntos_es_mas_rapido(pareja, reloj):
     assert "sándwich de jamón y queso" in propuesta.texto
     si = next(d for d in datos(propuesta) if d.endswith(":1"))
     res = pareja.boton(ANA, "", si)
-    assert "A cocinar juntos" in res.pantalla.texto and "Dorarlo en la sartén · 3 min" in res.pantalla.texto
+    assert "A cocinar juntos" in res.pantalla.texto and "Dorarlo en la sartén · 1 min" in res.pantalla.texto
     reloj.avanzar(1)
     pareja.boton(ANA, "", "coc:sig")  # cualquiera de los dos puede tocar
-    reloj.avanzar(3)
+    reloj.avanzar(1)
     res = pareja.boton(ADMIN, "", "coc:sig")
     assert "2 porción(es) en la nevera" in res.pantalla.texto
     assert any(a.para == ANA and "listo!" in a.texto for a in res.avisos)

@@ -93,12 +93,12 @@ def test_comer_segun_la_hora(solo, reloj):
     res = solo.boton(ADMIN, "", "acc:comer")
     assert "desayunar, +30" in str(res.pantalla.botones)
     res = solo.boton(ADMIN, "", "a:domicilio")
-    assert "+30 🍔 hambre · ⏱️ 30 min · 💵 $6" in res.pantalla.texto and "¿Confirmar?" in res.pantalla.texto
+    assert "+30 🍔 hambre · ⏱️ 10 min · 💵 $6" in res.pantalla.texto and "¿Confirmar?" in res.pantalla.texto
     res = solo.boton(ADMIN, "", "as:domicilio")
-    assert "Empezó" in res.pantalla.texto and "termina a las 08:30" in res.pantalla.texto
-    reloj.avanzar(30)
+    assert "Empezó" in res.pantalla.texto and "termina a las 08:10" in res.pantalla.texto
+    reloj.avanzar(10)
     solo.boton(ADMIN, "", "sim")
-    assert nec(solo, ADMIN)["hambre"] == pytest.approx(20 + 30 - 3, abs=0.2)
+    assert nec(solo, ADMIN)["hambre"] == pytest.approx(20 + 30 - 1, abs=0.2)
 
 
 def test_no_deja_hacer_lo_que_no_hace_falta(solo):
@@ -120,10 +120,10 @@ def test_mientras_hace_algo_no_puede_hacer_otra_cosa(solo):
 def test_parar_deja_el_efecto_parcial(solo, reloj):
     poner(solo, ADMIN, hambre=20)
     solo.boton(ADMIN, "", "as:domicilio")
-    reloj.avanzar(15)
+    reloj.avanzar(5)
     res = solo.boton(ADMIN, "", "parar")
     assert "Paró" in res.pantalla.texto
-    assert nec(solo, ADMIN)["hambre"] == pytest.approx(20 + 15 - 1.5, abs=0.2)
+    assert nec(solo, ADMIN)["hambre"] == pytest.approx(20 + 15 - 0.5, abs=0.2)
     assert solo.db.jugador(ADMIN).accion is None
 
 
@@ -180,7 +180,7 @@ def test_constancia_sube_la_energia_maxima(solo, reloj):
     for dia in (1, 2, 3):
         ir_al_dia(solo, reloj, ADMIN, dia)
         solo.boton(ADMIN, "", "as:parque")
-        reloj.avanzar(61)
+        reloj.avanzar(16)
         res = solo.boton(ADMIN, "", "sim")
     assert "¡Constancia! 3 días seguidos" in res.pantalla.texto
     assert solo.db.jugador(ADMIN).energia_max == 105
@@ -217,11 +217,11 @@ def test_limpiar_una_zona_y_lavar_la_ropa(solo, reloj):
     res = solo.boton(ADMIN, "", "a:limpiar")
     assert "a:limpiar:salon" in datos(res.pantalla)
     solo.boton(ADMIN, "", "as:limpiar:salon")
-    reloj.avanzar(31)
+    reloj.avanzar(11)
     res = solo.boton(ADMIN, "", "sim")
     assert "quedó reluciente" in res.pantalla.texto
     solo.boton(ADMIN, "", "as:lavar")
-    reloj.avanzar(61)
+    reloj.avanzar(16)
     solo.boton(ADMIN, "", "sim")
     h = solo._hogar(h.sala_id)
     assert json.loads(h.zonas)["salon"] == 0 and h.ropa_sucia == 0
@@ -253,18 +253,18 @@ def test_hacer_algo_juntos_es_mas_rapido(pareja, reloj):
     res = pareja.boton(ANA, "", "aj:banarse")
     assert "Le propusiste" in res.pantalla.texto
     propuesta = next(a for a in res.avisos if a.para == ADMIN)
-    assert "te propone" in propuesta.texto and "21 min" in propuesta.texto
+    assert "te propone" in propuesta.texto and "7 min" in propuesta.texto
     si = next(d for fila in propuesta.botones for _, d in fila if d.endswith(":1"))
     res = pareja.boton(ADMIN, "", si)
     assert "Empiezan juntos" in res.pantalla.texto
     assert any(a.para == ANA and "aceptó" in a.texto for a in res.avisos)
     for uid in (ADMIN, ANA):
         accion = json.loads(pareja.db.jugador(uid).accion)
-        assert accion["k"] == "banarse" and accion["fin"] - accion["ini"] == 21 * 60
+        assert accion["k"] == "banarse" and accion["fin"] - accion["ini"] == 7 * 60  # 10 min × 0,7
     assert "bañándose con Ana" in pareja.boton(ADMIN, "", "sala").pantalla.texto
-    reloj.avanzar(22)
+    reloj.avanzar(8)
     pareja.boton(ADMIN, "", "sim")
-    assert nec(pareja, ADMIN)["higiene"] == pytest.approx(20 + 80 - 4 * 22 / 60, abs=0.5)
+    assert nec(pareja, ADMIN)["higiene"] == pytest.approx(20 + 80 - 4 * 8 / 60, abs=0.5)
 
 
 def test_accion_opcional_pregunta_solo_o_juntos(pareja):

@@ -41,7 +41,7 @@ def datos(pantalla):
 def sesion(juego, reloj, uid, horas=1):
     poner(juego, uid, **LLENO)
     res = juego.boton(uid, "", f"as:estudiar:{horas}")
-    reloj.avanzar(horas * 60 + 1)
+    reloj.avanzar(horas * 20 + 1)
     juego.tick()
     return res
 
@@ -120,7 +120,7 @@ def test_estudiar_juntos_es_mas_rapido_y_sube_la_relacion(pareja, reloj):
     res = pareja.boton(ADMIN, "", "aj:estudiar:1")
     si = next(d for fila in next(a for a in res.avisos if a.para == ANA).botones for _, d in fila if d.endswith(":1"))
     pareja.boton(ANA, "", si)
-    reloj.avanzar(43)  # 60 min × 0,7
+    reloj.avanzar(15)  # 20 min × 0,7
     pareja.tick()
     assert estudio(pareja)["sesiones"] == 1 and estudio(pareja, ANA)["sesiones"] == 1
     for uid in (ADMIN, ANA):

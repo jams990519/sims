@@ -3,9 +3,17 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.35"
+VERSION = "0.36"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.36", [
+        "⏱️ <b>Todo dura menos</b>, para aprovechar el ratito que pasan juntos: 🍝 restaurante 25 min, 🎬 cine 30, "
+        "🏋️ gimnasio 20, 🌳 parque, 📺 tele, 🎮 consola y 📱 redes 15, 🍽️ comer, 🛵 domicilio y 🧹 limpiar 10, "
+        "🚿 ducha 5, 🤗 abrazos y 💋 besos 2 min… y juntos, aún más rápido.",
+        "🍳 Las recetas tardan la mitad y 📚 cada sesión de estudio dura 20 min por hora de estudio.",
+        "🔥 El momento íntimo se puede repetir cada hora; ⚡ los apagones duran de 30 a 60 min y 🌧️ la lluvia, 2 horas.",
+        "😴 Dormir y 💼 trabajar siguen con su horario real.",
+    ]),
     ("0.35", [
         "🎬 <b>Todas las acciones cuentan lo que va pasando</b>: cine (🍿 palomitas, ¡qué giro!), parque, "
         "gimnasio, súper, tele, consola, redes, ducha, comer, pedir a domicilio, siesta, limpiar, lavar la ropa, "

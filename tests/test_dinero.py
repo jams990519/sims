@@ -95,7 +95,7 @@ def test_el_uso_sube_la_luz_y_el_agua(solo, reloj):
     dar_objetos(solo, ADMIN, "tv")
     poner(solo, ADMIN, higiene=10)
     solo.boton(ADMIN, "", "as:ducha")
-    reloj.avanzar(16)
+    reloj.avanzar(6)
     solo.boton(ADMIN, "", "sim")
     solo.boton(ADMIN, "", "as:tele")
     consumo = json.loads(hogar(solo).consumo)

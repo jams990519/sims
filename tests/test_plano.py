@@ -105,7 +105,7 @@ def test_lo_que_hacen_y_lo_que_falta(pareja, reloj):
     pareja.boton(ANA, "", "trabajar:8:sin")
     reloj.avanzar(1)
     texto = pareja.boton(ADMIN, "", "plano").pantalla.texto
-    assert f"{quien(pareja, ADMIN, 'Luis')} (tú): 🍳 cocinando sándwich de jamón y queso (5 min)" in texto
+    assert f"{quien(pareja, ADMIN, 'Luis')} (tú): 🍳 cocinando sándwich de jamón y queso (2 min)" in texto
     assert f"{quien(pareja, ANA, 'Ana')}: 💼 trabajando (7 h 59 min)" in texto
     assert "🚗 Fuera de casa: [A]" in texto
 
