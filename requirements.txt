@@ -1,1 +1,2 @@
 python-telegram-bot[job-queue,socks]>=22.0,<23
+tzdata  # zonas horarias reales (Cuba, Miami…) aunque el sistema no las traiga

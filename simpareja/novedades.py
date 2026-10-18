@@ -3,9 +3,16 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.37"
+VERSION = "0.38"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.38", [
+        "🕒 <b>Tu Sim sigue la hora real de donde vives</b>, con el cambio de horario incluido: las comidas, el "
+        "trabajo, los fines de semana y los eventos van con tu reloj de verdad.",
+        "📍 Elige tu lugar en ⚙️ Ajustes → 🕒 Mi hora local: 🇨🇺 Cuba, 🇺🇸 Miami / Florida, México, Colombia, "
+        "Venezuela, República Dominicana, Argentina o España. Quien no elija sigue la hora de Cuba.",
+        "⏰ Cuando cambie la hora (el 1 de noviembre en Cuba y en Miami), se ajusta sola.",
+    ]),
     ("0.37", [
         "⌨️ <b>Los botones ahora están abajo</b>, debajo de donde escribes, y quedan siempre a la vista. "
         "Tócalos como siempre.",

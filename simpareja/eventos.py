@@ -14,7 +14,7 @@ DIAS_ENTRE = (3.0, 5.0)  # entre un evento y el siguiente: uno o dos por semana
 SIN_JUGAR = 3 * DIA  # si nadie juega hace más de esto, no se acumulan eventos
 
 BONO = (100, 200)
-VIRAL = (500, 2000)  # seguidores de golpe
+VIRAL = (150, 600)  # seguidores de golpe
 AVERIA = (150, 300)
 MULTA = (50, 100)
 APAGON_MIN = (30, 60)  # minutos

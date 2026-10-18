@@ -5,8 +5,8 @@ y gasta energía), ✂️ editar y publicar (da seguidores y algo de dinero) y �
 - Al principio gana de $5 a $20 por video; desde 1.000 seguidores llegan patrocinios de $100 a $300.
 - Ayuda de la pareja: escribir el guion (mejor calidad), grabar juntos (más rápido y sale en el video:
   más seguidores). Cada ayuda sube la relación.
-- Constancia: publicando cada 2 días crece. Desde el tercer día sin publicar pierde un 2 % de seguidores
-  al día y, después de una semana, un 5 %. El primer video después de una pausa rinde menos.
+- Constancia: publicando cada 2 días crece. Desde el tercer día sin publicar pierde un 4 % de seguidores
+  al día y, después de una semana, un 8 %. El primer video después de una pausa rinde menos.
 - Fines de semana: más alcance. Cámara, aro de luz y micrófono mejoran la calidad.
 
 En `extras` del jugador: "influencer" {seguidores, xp, videos, ganado, ultimo (fecha local), perdida
@@ -28,11 +28,11 @@ EQUIPO = ("camara", "aro", "micro")
 PAGO = (5, 20)
 PATROCINIO = (100, 300)
 PATROCINIO_DESDE = 1000
-PATROCINIO_PROB = 0.35
-XP_NIVEL = 100
+PATROCINIO_PROB = 0.2
+XP_NIVEL = 180
 NIVEL_MAX = 5
 XP_APRENDER = 25
-XP_VIDEO = 10
+XP_VIDEO = 6
 AYUDA_RELACION = 2
 
 
@@ -48,9 +48,9 @@ def calidad(niv: int, equipo: int, guion: bool) -> float:
 def perdida(dias_sin_publicar: int) -> float:
     """Qué parte de los seguidores se pierde hoy por no publicar."""
     if dias_sin_publicar >= 7:
-        return 0.05
+        return 0.08
     if dias_sin_publicar >= 3:
-        return 0.02
+        return 0.04
     return 0.0
 
 
@@ -188,15 +188,15 @@ class InfluencerMixin:
         hoy = self._hoy(j)
         niv = nivel(datos["xp"])
         cal = calidad(niv, self._equipo(j), video["guion"])
-        alcance = self.rng.randint(20, 60) * cal
+        alcance = self.rng.randint(8, 25) * cal
         if video["juntos"] or video["tema"] == "pareja":
             alcance *= 1.5
         if self._finde(j):
             alcance *= 1.3
         pausa = datos.get("ultimo") is not None and hoy - datos["ultimo"] >= 3
         if pausa:
-            alcance *= 0.6  # el primer video después de una pausa rinde menos
-        nuevos = round(alcance + datos["seguidores"] * 0.02)
+            alcance *= 0.5  # el primer video después de una pausa rinde menos
+        nuevos = round(alcance + datos["seguidores"] * 0.008)
         datos["seguidores"] += nuevos
         pago = round(self.rng.randint(*PAGO) * cal)
         texto = f" 📱 ¡Publicado! +{nuevos} seguidores y {D.dinero(pago)}"
