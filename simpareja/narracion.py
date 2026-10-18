@@ -203,7 +203,7 @@ ETAPAS: dict[str, tuple[Etapa, ...]] = {
 }
 
 # --- 🍳 Cocina: qué vas haciendo a mitad de cada paso (receta → número de paso → texto) ---
-COCINA_DESDE = 3  # minutos: los pasos más cortos no tienen mensajito
+COCINA_DESDE = 2  # minutos: los pasos más cortos no tienen mensajito
 COCINA: dict[str, dict[int, str]] = {
     "huevos": {1: "🍳 Los huevos chisporrotean; los mueves con la espátula para que queden cremosos."},
     "tostadas": {0: "☕ El café empieza a gotear… ¡qué aroma!"},

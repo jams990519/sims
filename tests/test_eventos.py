@@ -124,7 +124,7 @@ def test_apagon_y_vuelve_la_luz(pareja, reloj, monkeypatch):
     dar_objetos(pareja, ADMIN, "tv")
     forzar(pareja, monkeypatch, "apagon")
     assert "Hay un apagón" in pareja.boton(ADMIN, "", "as:tele").alerta
-    reloj.avanzar(2 * 60 + 1)
+    reloj.avanzar(31)  # apagón de 30 min
     pareja.boton(ADMIN, "", "continuar")
     assert any("Volvió la luz" in a.texto for a in pareja.tick().avisos)
     assert pareja.boton(ADMIN, "", "as:tele").alerta is None
@@ -145,7 +145,7 @@ def test_multa_o_gasto_inesperado(pareja, monkeypatch):
 
 def test_dia_de_lluvia(pareja, monkeypatch):
     avisos = forzar(pareja, monkeypatch, "lluvia")
-    assert "Día de lluvia" in avisos[0].texto
+    assert "🌧️ <b>Lluvia</b>: durante 2 horas" in avisos[0].texto
     assert "llueve" in pareja.boton(ADMIN, "", "as:parque").alerta
 
 
@@ -210,4 +210,4 @@ def test_sin_pareja_solo_eventos_propios(reloj, monkeypatch):
         for a in juego.tick().avisos:
             if "Evento sorpresa" in a.texto:
                 vistos.add(a.texto.split("<b>")[2].split("</b>")[0])
-    assert vistos and not vistos & {"Día de lluvia", "Visita familiar", "Antojo", "Pregunta de pareja", "Bono en el trabajo"}
+    assert vistos and not vistos & {"Lluvia", "Visita familiar", "Antojo", "Pregunta de pareja", "Bono en el trabajo"}

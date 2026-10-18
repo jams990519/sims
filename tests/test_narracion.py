@@ -51,35 +51,35 @@ def test_etapas():
 
 def test_una_cena_en_el_restaurante(solo, reloj):
     inicio = reloj()
-    solo.boton(ADMIN, "", "as:restaurante")  # 90 min
-    (aviso,) = hasta(solo, reloj, 3, inicio)
+    solo.boton(ADMIN, "", "as:restaurante")  # 25 min
+    (aviso,) = hasta(solo, reloj, 1, inicio)
     assert "🚗 Llegas a <b>" in aviso.texto and aviso.silencio and not aviso.botones
-    assert "El mesero te recibe" in hasta(solo, reloj, 10, inicio)[0].texto
-    assert hasta(solo, reloj, 12, inicio) == []  # nada nuevo todavía
-    (carta,) = hasta(solo, reloj, 17, inicio)
+    assert "El mesero te recibe" in hasta(solo, reloj, 3, inicio)[0].texto
+    assert hasta(solo, reloj, 3.5, inicio) == []  # nada nuevo todavía
+    (carta,) = hasta(solo, reloj, 5, inicio)
     assert "Te presentan la carta" in carta.texto and "rplato:pasta" in datos(carta) and not carta.silencio
     res = solo.boton(ADMIN, "", "rplato:pasta")
     assert "Pediste 🍝 <b>pasta a la boloñesa</b>" in res.pantalla.texto
     assert solo.boton(ADMIN, "", "rplato:pizza").alerta == "Ya pediste pasta a la boloñesa."
-    assert "preparan tu 🍝 pasta a la boloñesa" in hasta(solo, reloj, 29, inicio)[0].texto
-    assert "¡Llega tu 🍝 pasta" in hasta(solo, reloj, 41, inicio)[0].texto
-    (postre,) = hasta(solo, reloj, 74, inicio)
+    assert "preparan tu 🍝 pasta a la boloñesa" in hasta(solo, reloj, 8.5, inicio)[0].texto
+    assert "¡Llega tu 🍝 pasta" in hasta(solo, reloj, 11.5, inicio)[0].texto
+    (postre,) = hasta(solo, reloj, 20.6, inicio)
     assert "postre" in postre.texto and datos(postre) == ["rpostre:si", "rpostre:no"]
     h = solo._hogar(solo.db.jugador(ADMIN).sala_id)
     antes = h.cuenta
     assert "¡Delicioso!" in solo.boton(ADMIN, "", "rpostre:si").pantalla.texto
     assert solo._hogar(h.sala_id).cuenta == antes - N.POSTRE
     assert solo.boton(ADMIN, "", "rpostre:no").alerta == "Eso ya está decidido."
-    assert "Pides la cuenta" in hasta(solo, reloj, 86, inicio)[0].texto
-    hasta(solo, reloj, 91, inicio)  # termina
+    assert "Pides la cuenta" in hasta(solo, reloj, 24, inicio)[0].texto
+    hasta(solo, reloj, 26, inicio)  # termina
     assert solo.boton(ADMIN, "", "rplato:pasta").alerta == "Ya no estás en el restaurante."
 
 
 def test_si_no_eliges_te_recomiendan_lo_de_la_casa(solo, reloj):
     inicio = reloj()
     solo.boton(ADMIN, "", "as:restaurante")
-    hasta(solo, reloj, 17, inicio)
-    (aviso,) = hasta(solo, reloj, 29, inicio)
+    hasta(solo, reloj, 5, inicio)
+    (aviso,) = hasta(solo, reloj, 8.5, inicio)
     assert "te recomendó lo de la casa" in aviso.texto and "🍖 cerdo asado con congrí" in aviso.texto
 
 
@@ -87,14 +87,14 @@ def test_en_cita_cada_uno_elige_su_plato(pareja, reloj):
     inicio = reloj()
     res = pareja.boton(ADMIN, "", "aj:restaurante")
     si = next(d for fila in next(a for a in res.avisos if a.para == ANA).botones for _, d in fila if d.endswith(":1"))
-    pareja.boton(ANA, "", si)  # cita: 90 min × 0,7 = 63 min
-    avisos = hasta(pareja, reloj, 2, inicio)
+    pareja.boton(ANA, "", si)  # cita: 25 min × 0,7 ≈ 18 min
+    avisos = hasta(pareja, reloj, 1, inicio)
     assert {a.para for a in avisos} == {ADMIN, ANA} and all("Llegan juntos" in a.texto for a in avisos)
     assert avisos[0].texto == avisos[1].texto  # el mismo restaurante para los dos
-    hasta(pareja, reloj, 12, inicio)
+    hasta(pareja, reloj, 3.5, inicio)
     pareja.boton(ADMIN, "", "rplato:pescado")
     pareja.boton(ANA, "", "rplato:pizza")
-    avisos = {a.para: a.texto for a in hasta(pareja, reloj, 21, inicio)}
+    avisos = {a.para: a.texto for a in hasta(pareja, reloj, 6, inicio)}
     assert "pescado" in avisos[ADMIN] and "pizza" in avisos[ANA] and "conversan" in avisos[ADMIN]
 
 
@@ -103,9 +103,9 @@ def test_otras_acciones_tambien_cuentan_lo_que_pasa(solo, reloj):
 
     dar_objetos(solo, ADMIN, "tv")
     inicio = reloj()
-    solo.boton(ADMIN, "", "as:tele")  # 60 min
-    assert "Enciendes la tele" in hasta(solo, reloj, 7, inicio)[0].texto
-    assert "Anuncios" in hasta(solo, reloj, 31, inicio)[0].texto
+    solo.boton(ADMIN, "", "as:tele")  # 15 min
+    assert "Enciendes la tele" in hasta(solo, reloj, 2, inicio)[0].texto
+    assert "Anuncios" in hasta(solo, reloj, 8, inicio)[0].texto
     assert set(N.ETAPAS) <= set(V.ACCIONES)  # cada narración es de una acción que existe
 
 
@@ -118,13 +118,13 @@ def test_cocinando_explica_lo_que_hace(solo, reloj):
     h.despensa = json.dumps({i: 10 for i in C.RECETAS["huevos"].ingredientes})
     solo.db.guardar_hogar(h)
     inicio = reloj()
-    solo.boton(ADMIN, "", "coc:huevos:1")  # batir (2 min, sin mensajito) → cocinar (4 min) → tostar
-    assert hasta(solo, reloj, 1.5, inicio) == []
-    reloj.t = inicio + 2 * 60
+    solo.boton(ADMIN, "", "coc:huevos:1")  # batir (1 min, sin mensajito) → cocinar (2 min) → tostar
+    assert hasta(solo, reloj, 0.8, inicio) == []
+    reloj.t = inicio + 60
     solo.boton(ADMIN, "", "coc:sig")
-    (aviso,) = hasta(solo, reloj, 4.1, inicio)
+    (aviso,) = hasta(solo, reloj, 2.05, inicio)
     assert "chisporrotean" in aviso.texto and aviso.silencio
-    assert hasta(solo, reloj, 4.5, inicio) == []  # una sola vez por paso
+    assert hasta(solo, reloj, 2.5, inicio) == []  # una sola vez por paso
 
 
 def test_se_pueden_apagar(solo, reloj):
@@ -135,4 +135,4 @@ def test_se_pueden_apagar(solo, reloj):
     dar_objetos(solo, ADMIN, "tv")
     inicio = reloj()
     solo.boton(ADMIN, "", "as:tele")
-    assert hasta(solo, reloj, 31, inicio) == []
+    assert hasta(solo, reloj, 8, inicio) == []

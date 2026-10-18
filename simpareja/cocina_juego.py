@@ -427,7 +427,7 @@ class CocinaMixin:
                         ))
 
     def _narrar_paso(self, h, coccion: dict, listo: float, ahora: float) -> bool:
-        """A mitad de cada paso (de 3 min o más) toca contar qué estás haciendo. Lo marca si toca."""
+        """A mitad de cada paso (de 2 min o más) toca contar qué estás haciendo. Lo marca si toca."""
         minutos = C.RECETAS[coccion["receta"]].pasos[coccion["paso"]][1]
         mitad = coccion["paso_ini"] + (listo - coccion["paso_ini"]) / 2
         if minutos < N.COCINA_DESDE or ahora < mitad or coccion.get("narrado") == coccion["paso"]:

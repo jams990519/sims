@@ -226,9 +226,9 @@ class EventosMixin:
             texto = (f"🤒 <b>Resfriado</b>: {self._firma(m)} amaneció con gripe: tiene menos energía "
                      f"(−{E.RESFRIADO_ENERGIA}) y no trabaja {cuando}.")
         elif evento.clave == "apagon":
-            horas = rng.randint(*E.APAGON_HORAS)
-            ex["apagon_hasta"] = ahora + horas * V.HORA
-            texto = f"⚡ <b>Apagón</b>: sin tele, internet ni lavadora durante unas {horas} horas."
+            minutos = rng.randint(*E.APAGON_MIN)
+            ex["apagon_hasta"] = ahora + minutos * 60
+            texto = f"⚡ <b>Apagón</b>: sin tele, internet ni lavadora durante unos {minutos} minutos."
         elif evento.clave == "multa":
             concepto = rng.choice(E.MULTAS)
             costo = rng.randint(*E.MULTA)
@@ -244,9 +244,9 @@ class EventosMixin:
                          "queda pendiente en 💰 Dinero → Facturas.")
             botones = [[("💰 Dinero", "dinero")]]
         elif evento.clave == "lluvia":
-            ex["lluvia_hasta"] = self._fin_del_dia(miembros[0])
-            texto = ("🌧️ <b>Día de lluvia</b>: hoy se cancela el plan de salir (parque, cine, restaurante y "
-                     "gimnasio). ¡Plan en casa! 🍿")
+            ex["lluvia_hasta"] = ahora + E.LLUVIA_HORAS * V.HORA
+            texto = (f"🌧️ <b>Lluvia</b>: durante {E.LLUVIA_HORAS} horas se cancela el plan de salir (parque, cine, "
+                     "restaurante y gimnasio). ¡Plan en casa! 🍿")
         elif evento.clave == "visita":
             ex["visita"] = {"hasta": ahora + E.VISITA_HORAS * V.HORA, "limpio": False, "cocino": False}
             texto = ("👨‍👩‍👧 <b>Visita familiar</b>: mañana viene la familia. Antes de 24 h hay que 🧹 limpiar la sala "

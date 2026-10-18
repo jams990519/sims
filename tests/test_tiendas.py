@@ -105,9 +105,9 @@ def test_consola(solo, reloj):
     assert "No tienen consola" in solo.boton(ADMIN, "", "as:consola").alerta
     dar_objetos(solo, ADMIN, "consola")
     solo.boton(ADMIN, "", "as:consola")
-    reloj.avanzar(61)
+    reloj.avanzar(16)
     solo.boton(ADMIN, "", "sim")
-    assert nec(solo, ADMIN)["diversion"] == pytest.approx(10 + 20 - 5, abs=0.5)
+    assert nec(solo, ADMIN)["diversion"] == pytest.approx(10 + 20 - 5 * 16 / 60, abs=0.5)
 
 
 def test_remodelar_solo_en_casa_propia(solo):
