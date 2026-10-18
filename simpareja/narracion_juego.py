@@ -51,6 +51,7 @@ class NarracionMixin:
         from .juego import Aviso
 
         juntos = accion.get("con") is not None
+        cuando = N.momento(self._hora_local(j))
         extra, botones = "", []
         if accion["k"] == "restaurante":
             # En una cita los dos empezaron a la vez: el mismo restaurante para los dos.
@@ -65,10 +66,28 @@ class NarracionMixin:
                 rest["plato"] = N.DE_LA_CASA
                 extra = "🤵 Como no te decidías, el mesero te recomendó lo de la casa.\n"
             e, nombre = N.PLATOS.get(rest["plato"] or N.DE_LA_CASA)
-            texto = etapa.texto(juntos).format(lugar=rest["lugar"], plato=f"{e} {nombre}")
+            texto = etapa.texto(juntos, cuando).format(lugar=rest["lugar"], plato=f"{e} {nombre}")
         else:
-            texto = etapa.texto(juntos)
-        return Aviso(j.id, extra + texto, botones, silencio=not botones)
+            texto = etapa.texto(juntos, cuando)
+        return Aviso(j.id, extra + texto, botones, silencio=not botones, foto=self._dibujo(j, accion, etapa, cuando))
+
+    def _dibujo(self, j: Jugador, accion: dict, etapa: N.Etapa, cuando: str) -> str | None:
+        """'ilus:escena:momento:figuras' (el bot lo dibuja), si la etapa tiene dibujo y el jugador los quiere."""
+        if not etapa.escena or not self._extras(j).get("fotos", True):
+            return None
+        figuras = N.letra(j.ap.get("genero"))
+        pareja = self.db.jugador(accion["con"]) if accion.get("con") else None
+        if pareja is not None:
+            figuras += N.letra(pareja.ap.get("genero"))
+        return f"ilus:{etapa.escena}:{cuando}:{figuras}"
+
+    def _b_fotos(self, j: Jugador, arg: str, res) -> None:
+        """⚙️ Ajustes: encender o apagar los dibujos de los mensajitos (gastan algo más de datos)."""
+        extras = self._extras(j)
+        extras["fotos"] = not extras.get("fotos", True)
+        j.extras = json.dumps(extras)
+        self.db.guardar_jugador(j)
+        self._b_ajustes(j, "", res)
 
     # ------------------------------------------------------------------
     # Restaurante: la carta y el postre

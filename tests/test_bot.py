@@ -46,7 +46,8 @@ class TelegramFalso(BaseRequest):
             self._msg += 1
             r = {
                 "message_id": self._msg, "date": 0, "chat": {"id": datos["chat_id"], "type": "private"},
-                "photo": [{"file_id": datos["photo"], "file_unique_id": "u", "width": 1, "height": 1}],
+                "photo": [{"file_id": datos["photo"] if isinstance(datos.get("photo"), str) else f"SUBIDA{self._msg}",
+                           "file_unique_id": "u", "width": 1, "height": 1}],
                 "caption": datos.get("caption", ""),
             }
         elif metodo == "copyMessage":

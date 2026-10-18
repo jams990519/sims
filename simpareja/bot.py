@@ -29,6 +29,7 @@ from telegram.ext import (
     filters,
 )
 
+from . import ilustraciones as IL
 from . import teclado as TK
 from .config import Config
 from .juego import Aviso, Botones, Juego, Pantalla, Resultado
@@ -286,8 +287,7 @@ class BotSimPareja:
                 markup = teclado_abajo(TK.mostrar(filas, estado.get("filas", [])))
             try:
                 if aviso.foto:
-                    await bot.send_photo(aviso.para, aviso.foto, caption=texto, reply_markup=markup,
-                                         disable_notification=aviso.silencio)
+                    await self._enviar_foto(bot, aviso.para, aviso.foto, texto, markup, aviso.silencio)
                 else:
                     await bot.send_message(aviso.para, texto, reply_markup=markup, disable_notification=aviso.silencio)
                 return True
@@ -308,8 +308,7 @@ class BotSimPareja:
                     await bot.send_message(aviso.para, aviso.texto)
                     await bot.copy_message(aviso.para, original.chat_id, original.message_id)
             elif aviso.foto:
-                await bot.send_photo(aviso.para, aviso.foto, caption=aviso.texto, reply_markup=teclado(aviso.botones),
-                                     disable_notification=aviso.silencio)
+                await self._enviar_foto(bot, aviso.para, aviso.foto, aviso.texto, teclado(aviso.botones), aviso.silencio)
             else:
                 await bot.send_message(aviso.para, aviso.texto, reply_markup=teclado(aviso.botones),
                                        disable_notification=aviso.silencio)
@@ -319,6 +318,24 @@ class BotSimPareja:
         except TelegramError as e:
             log.warning("No se pudo avisar a %s: %s", aviso.para, e)
         return False
+
+    async def _enviar_foto(self, bot: Bot, para: int, foto: str, texto: str, markup, silencio: bool) -> None:
+        """Una foto de Telegram (file_id) o un dibujo «ilus:…»: se dibuja la primera vez y después se reusa."""
+        clave = foto[len("ilus:"):] if foto.startswith("ilus:") else None
+        if clave is None:
+            await bot.send_photo(para, foto, caption=texto, reply_markup=markup, disable_notification=silencio)
+            return
+        guardada = self.juego.db.meta(f"ilusid:{clave}")
+        if guardada:
+            try:
+                await bot.send_photo(para, guardada, caption=texto, reply_markup=markup, disable_notification=silencio)
+                return
+            except BadRequest:
+                pass  # ya no sirve: se vuelve a subir
+        m = await bot.send_photo(para, IL.dibujar(clave), caption=texto, reply_markup=markup,
+                                 disable_notification=silencio)
+        if m.photo:
+            self.juego.db.guardar_meta(f"ilusid:{clave}", m.photo[-1].file_id)
 
     async def _editar(self, bot: Bot, uid: int, msg_id: int, p: Pantalla) -> None:
         try:
