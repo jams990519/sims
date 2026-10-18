@@ -7,7 +7,7 @@ preguntan algo (la carta y el postre del restaurante).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 
 MOMENTOS = ("manana", "tarde", "atardecer", "noche")
@@ -24,18 +24,13 @@ def momento(hora: float) -> str:
     return "noche"
 
 
-def letra(genero: str | None) -> str:
-    """La figura del dibujo: h (hombre), m (mujer) o n."""
-    return {"hombre": "h", "mujer": "m"}.get(genero or "", "n")
-
-
 @dataclass(frozen=True)
 class Etapa:
     fraccion: float  # en qué parte de la acción llega (0 = al empezar, 1 = al terminar)
     solo: str
     juntos: str = ""
     pregunta: str = ""  # "carta" o "postre": el mensaje trae botones
-    escena: str = ""  # el dibujo que llega con el mensaje (ilustraciones.py)
+    escena: str = ""  # la foto que llega con el mensaje (ilustraciones.py)
     variantes: tuple = ()  # (momento, solo, juntos): otro texto según la hora (de noche, al atardecer…)
 
     def texto(self, juntos: bool, momento: str = "") -> str:
@@ -165,6 +160,8 @@ ETAPAS: dict[str, tuple[Etapa, ...]] = {
         E(0.20, "🚿 Abres el agua caliente… ¡qué rico!"),
         E(0.70, "🎶 Cantas en la ducha como si fuera un concierto."),
     ),
+    "dientes": (E(0.30, "🪥 Cepillado a fondo… ¡sonrisa brillante!",
+                  "🪥 Se lavan los dientes lado a lado y se hacen caras en el espejo."),),
     "banarse": (
         E(0.15, "🛁 Llenan la bañera con agua tibia y mucha espuma."),
         E(0.60, "🫧 Burbujas, risas y relax."),
@@ -175,6 +172,8 @@ ETAPAS: dict[str, tuple[Etapa, ...]] = {
         E(0.50, "😋 Comiendo tranquilamente…", "😋 Comen y se cuentan cómo les fue el día. 💬"),
         E(0.90, "🥄 Último bocado. ¡Qué rico!"),
     ),
+    "picar": (E(0.30, "🍎 Abres la nevera y picas algo rico."),),
+    "taper": (E(0.30, "🥡 Guardas la comida en un táper para llevar."),),
     "domicilio": (
         E(0.10, "📱 Haces el pedido por teléfono.", "📱 Eligen juntos qué pedir."),
         E(0.35, "🛵 El repartidor viene en camino…"),
@@ -186,7 +185,13 @@ ETAPAS: dict[str, tuple[Etapa, ...]] = {
         E(0.15, "💤 Cierras los ojos un ratito…", "💤 Se acurrucan para una siestecita."),
         E(0.90, "😌 Te estiras: ¡qué bien te sentó!", "😌 Se despiertan descansados."),
     ),
+    "dormir": (
+        E(0.02, "😴 Te acurrucas bajo las sábanas y apagas la luz. Dulces sueños.",
+          "😴 Se acurrucan bajo las sábanas y apagan la luz. Dulces sueños. 💞"),
+    ),
     # 💞 Pareja
+    "abrazar": (E(0.30, "🤗 Un abrazo largo y apretado… de esos que recargan el alma."),),
+    "besar": (E(0.30, "💋 Un beso en el sofá… y el mundo se detiene un segundo. 💞"),),
     "hablar": (
         E(0.30, "💬 Se cuentan cómo les fue el día."),
         E(0.75, "😄 Terminan riéndose de una tontería."),
@@ -214,6 +219,8 @@ ETAPAS: dict[str, tuple[Etapa, ...]] = {
         E(0.75, "🐶 Juega un rato con otro perrito del barrio."),
         E(0.93, "🏠 De vuelta a casa: el perro está cansado y contento."),
     ),
+    "dar_comida": (E(0.30, "🍖 Le sirves su comida: ¡se la come feliz!",
+                     "🍖 Le sirven su comida: ¡se la come feliz!"),),
     "jugar_mascota": (
         E(0.20, "🎾 Le tiras la pelota… ¡y la trae de vuelta!", "🎾 Se turnan para tirarle la pelota."),
         E(0.70, "🐾 Se revuelca feliz esperando cariño."),
@@ -233,6 +240,7 @@ ETAPAS: dict[str, tuple[Etapa, ...]] = {
         E(0.60, "🎶 Le pones música y textos."),
         E(0.90, "📤 Exportando el video…"),
     ),
+    "guion": (E(0.30, "✍️ Escribes ideas para el próximo video de tu pareja."),),
     "aprender_redes": (
         E(0.15, "📚 Ves un tutorial sobre cómo crecer en redes."),
         E(0.60, "📝 Tomas apuntes de los mejores trucos."),
@@ -243,6 +251,18 @@ ETAPAS: dict[str, tuple[Etapa, ...]] = {
         E(0.85, "💡 ¡Lo entendiste!", "💡 ¡Lo entendieron! Chocan los cinco."),
     ),
 }
+
+# La foto de cada acción (ilustraciones.py): en qué mensajito llega. El parque trae una en cada uno.
+FOTO_EN = {
+    "restaurante": 4, "super": 1, "cine": 4, "gimnasio": 1, "tele": 1, "consola": 1, "redes": 1, "telefono": 1,
+    "ducha": 1, "banarse": 1, "dientes": 0, "comer": 1, "picar": 0, "taper": 0, "domicilio": 3, "siesta": 0,
+    "dormir": 0, "abrazar": 0, "besar": 0, "hablar": 0, "masaje": 1, "limpiar": 1, "lavar": 2, "pasear": 1,
+    "dar_comida": 0, "jugar_mascota": 1, "banar_mascota": 1, "grabar": 1, "editar": 1, "guion": 0,
+    "aprender_redes": 1, "estudiar": 1,
+}
+for _k, _i in FOTO_EN.items():
+    ETAPAS[_k] = tuple(replace(e, escena=_k) if n == _i else e for n, e in enumerate(ETAPAS[_k]))
+MASCOTA = ("pasear", "dar_comida", "jugar_mascota", "banar_mascota")  # la foto lleva a su mascota
 
 # --- 🍳 Cocina: qué vas haciendo a mitad de cada paso (receta → número de paso → texto) ---
 COCINA_DESDE = 2  # minutos: los pasos más cortos no tienen mensajito

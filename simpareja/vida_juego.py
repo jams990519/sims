@@ -193,6 +193,7 @@ class VidaMixin:
             h.zonas = json.dumps(zonas)
         h.ropa_sucia += a.ropa
         self.db.guardar_hogar(h)
+        self._predibujar(j, datos)
         return datos
 
     def _texto_accion(self, j: Jugador, ahora: float) -> str | None:

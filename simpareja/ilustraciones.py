@@ -1,254 +1,303 @@
-"""Ilustraciones de las acciones (versión 0.40): dibujos que llegan con los mensajitos de la narración.
+"""Fotos de las acciones (versión 0.43): imágenes estilo serie de anime hechas por una IA de imágenes.
 
-Se dibujan con Pillow, en estilo plano y suave, según el momento real del día del jugador (mañana, tarde,
-atardecer o noche: cielo, sol o luna y estrellas, farolas encendidas) y con una o dos figuras (con los
-colores de cada personaje). Son JPEG pequeños (unos 25 KB) para gastar pocos datos.
+Lógica pura, sin Telegram ni red. Arma la descripción en inglés de cada imagen para la IA (la escena, la luz
+según la hora real y los rasgos de cada personaje) y deja la imagen lista para Telegram: pequeña (un JPEG de
+unos 60 KB) y, en los momentos íntimos, pixelada abajo (los besos se ven). Quien se la pide a la IA es `imagenes_ia.py`.
 
-`dibujar(clave)` recibe "escena:momento:figuras", por ejemplo "parque_banca:noche:hm" (h = hombre,
-m = mujer, n = no binario; una letra si va solo).
+Cada imagen tiene su clave "escena:momento:figuras":
+- escena: "parque_banca", "masaje", "cocina.pasta", "pasear.perro.3" (la mascota y su color)…
+- momento: manana, tarde, atardecer o noche (bajo techo basta con dia, atardecer o noche);
+- figuras: el aspecto de cada uno (`figura`), separados por "|" y en orden, para que la misma escena de los
+  dos sea una sola imagen.
 """
 
 from __future__ import annotations
 
 import io
-import random
-from functools import lru_cache
+from dataclasses import dataclass
 
-from PIL import Image, ImageDraw, ImageFilter
+ANCHO, ALTO = 768, 512  # lo que llega a Telegram (la IA la hace más grande y aquí se reduce)
+CALIDAD_JPEG = 78
+PIXEL = 18  # tamaño de los cuadritos del pixelado
 
-from .narracion import MOMENTOS
 
-ANCHO, ALTO = 640, 400
-X = 2  # se dibuja al doble y se reduce: bordes suaves
-W, H = ANCHO * X, ALTO * X
-HORIZONTE = int(H * 0.58)
+@dataclass(frozen=True)
+class Escena:
+    solo: str  # en inglés: qué está haciendo el personaje
+    juntos: str = ""  # en pareja (si no, la de solo con los dos)
+    afuera: bool = False  # al aire libre: la luz cambia con las cuatro partes del día
+    ropa: str = ""  # la ropa que toca en la escena (si no, la de su estilo)
+    intimo: bool = False  # nada explícito y con la parte de abajo pixelada
+    romance: bool = False  # de cerca, como en una serie de anime romántica (besos, abrazos, momento íntimo)
 
-PALETAS = {
-    "manana": dict(cielo=((126, 192, 250), (214, 238, 255)), colina=((150, 205, 130), (120, 185, 105)),
-                   suelo=(126, 196, 104), camino=(232, 214, 170), copa=((86, 160, 80), (106, 182, 92)),
-                   tronco=(124, 86, 58), agua=(98, 170, 220), banca=(150, 100, 64), luz=1.0),
-    "tarde": dict(cielo=((92, 160, 236), (190, 224, 252)), colina=((140, 196, 118), (112, 176, 96)),
-                  suelo=(118, 186, 96), camino=(226, 206, 160), copa=((80, 152, 74), (100, 172, 86)),
-                  tronco=(118, 82, 54), agua=(86, 156, 210), banca=(144, 96, 60), luz=1.0),
-    "atardecer": dict(cielo=((104, 86, 160), (255, 168, 112)), colina=((126, 120, 110), (98, 104, 84)),
-                      suelo=(96, 132, 76), camino=(206, 170, 128), copa=((66, 112, 62), (84, 128, 70)),
-                      tronco=(96, 64, 46), agua=(180, 130, 140), banca=(122, 80, 52), luz=0.82),
-    "noche": dict(cielo=((10, 16, 44), (44, 54, 104)), colina=((34, 50, 64), (26, 44, 52)),
-                  suelo=(30, 62, 48), camino=(86, 84, 92), copa=((22, 52, 42), (30, 64, 50)),
-                  tronco=(52, 40, 36), agua=(34, 52, 96), banca=(76, 54, 42), luz=0.55),
+
+E = Escena
+PARQUE = "a beautiful tropical city park with palm trees, a ceiba tree and winding paths"
+INTIMO = ("Tasteful and non-explicit: fully clothed, only kisses and affection, their faces in the upper "
+          "half of the frame")
+ESCENAS: dict[str, Escena] = {
+    # 🌳 Parque: una foto en cada mensajito
+    "parque_llegada": E(f"walking into {PARQUE}, smiling", f"a couple walking hand in hand into {PARQUE}",
+                        afuera=True),
+    "parque_patos": E(f"standing by a small pond in {PARQUE}, tossing bread crumbs to the ducks",
+                      f"a couple standing together by a small pond in {PARQUE}, watching the ducks", afuera=True),
+    "parque_banca": E(f"sitting on a wooden bench in {PARQUE}, relaxed, looking up at the sky",
+                      f"a couple sitting close together on a wooden bench in {PARQUE}, talking and smiling at "
+                      "each other", afuera=True),
+    "parque_regreso": E(f"walking home along a path of {PARQUE}", f"a couple walking home hand in hand along a "
+                        f"path of {PARQUE}", afuera=True),
+    # 📍 Salidas
+    "restaurante": E("dining at a cozy restaurant table by the window, a candle and a delicious plate of food",
+                     "a couple on a dinner date at a cozy restaurant table for two by the window, candlelight, "
+                     "plates of food, smiling at each other", ropa="nice going-out clothes"),
+    "super": E("pushing a shopping cart down a colorful supermarket aisle, reading a shopping list",
+               "a couple pushing a shopping cart together down a colorful supermarket aisle, one of them "
+               "reading the shopping list"),
+    "cine": E("watching a movie in a dark cinema, face lit by the big screen, holding a bucket of popcorn",
+              "a couple in a dark cinema holding hands, faces lit by the big screen, sharing a bucket of popcorn"),
+    "gimnasio": E("working out with dumbbells in a bright modern gym", "a couple working out together in a "
+                  "bright modern gym, cheering each other on", ropa="sportswear"),
+    # 🎉 Diversión
+    "tele": E("relaxing on a living-room sofa watching TV, a bowl of snacks", "a couple cuddled on a "
+              "living-room sofa under a blanket, watching TV with a bowl of snacks", ropa="comfy home clothes"),
+    "consola": E("playing video games on the living-room sofa, gripping a game controller, focused",
+                 "a couple on the living-room sofa playing video games with controllers, laughing and competing",
+                 ropa="comfy home clothes"),
+    "redes": E("lounging on the sofa scrolling a smartphone and laughing", "a couple on the sofa watching funny "
+               "videos on one phone, laughing out loud", ropa="comfy home clothes"),
+    "telefono": E("talking happily on the phone at home, sitting by the window", ropa="comfy home clothes"),
+    # 🚿 Higiene
+    "ducha": E("in a steamy bathroom, wrapped in a fluffy towel, singing into a shampoo bottle like a microphone",
+               ropa="a fluffy white bath towel"),
+    "banarse": E("in a fluffy bathrobe sitting on the edge of a bathtub overflowing with bubbles",
+                 "a couple in fluffy bathrobes sitting on the edge of a bathtub overflowing with bubbles, "
+                 "playing with the foam and laughing", ropa="fluffy white bathrobes"),
+    "dientes": E("brushing teeth in front of the bathroom mirror with a big foamy smile", "a couple brushing "
+                 "their teeth side by side in front of the bathroom mirror, making funny faces",
+                 ropa="pajamas"),
+    # 🍽️ Comer
+    "comer": E("eating a home-cooked meal at the dining table", "a couple eating a home-cooked meal together "
+               "at the dining table, chatting"),
+    "domicilio": E("eating delivery food from takeout boxes on the sofa", "a couple eating takeout food "
+                   "(pizza and noodle boxes) together on the living-room sofa", ropa="comfy home clothes"),
+    "picar": E("grabbing a snack from the open fridge in the kitchen, the fridge light on the face"),
+    "taper": E("packing food into a lunchbox container in the kitchen"),
+    "cocina": E("cooking {plato} in a cozy home kitchen, steam rising from the pan", "a couple cooking {plato} "
+                "together in a cozy home kitchen, one stirring the pot and the other chopping vegetables",
+                ropa="their clothes and a kitchen apron"),
+    # 😴 Descanso
+    "siesta": E("napping on the sofa under a soft blanket, peaceful", "a couple napping cuddled together on the "
+                "sofa under a soft blanket", ropa="comfy home clothes"),
+    "dormir": E("sleeping peacefully in bed under the covers, a cozy bedroom", "a couple sleeping cuddled "
+                "together in bed under the covers, a cozy bedroom", ropa="pajamas"),
+    # 💞 Pareja
+    "hablar": E("a couple sitting face to face on the sofa, deep in a happy conversation"),
+    "abrazar": E("a couple sharing a long, warm hug in the living room, eyes closed, smiling", romance=True),
+    "besar": E("a couple kissing tenderly on the living-room sofa, eyes closed, one gently holding the other's "
+               "face", romance=True),
+    "masaje": E("a couple at home, one giving the other a relaxing shoulder massage on the sofa, scented "
+                "candles, a calm atmosphere", ropa="comfy home clothes"),
+    # 🧹 Limpieza
+    "limpiar": E("cleaning the house with a broom in a sunny room", "a couple cleaning the house together, "
+                 "one sweeping and the other mopping, having fun", ropa="old comfy clothes"),
+    "lavar": E("hanging laundry on a clothesline in a small backyard, white sheets in the breeze",
+               "a couple hanging laundry together on a clothesline in a small backyard, white sheets in the "
+               "breeze", afuera=True),
+    # 🐾 Mascota
+    "pasear": E("walking {mascota} on a leash along a quiet neighborhood street with palm trees", "a couple "
+                "walking {mascota} on a leash along a quiet neighborhood street with palm trees", afuera=True),
+    "jugar_mascota": E("playing with {mascota} on the living-room floor with a ball", "a couple playing with "
+                       "{mascota} on the living-room floor with a ball"),
+    "banar_mascota": E("giving {mascota} a bath in a tub full of foam, the pet looks grumpy, water splashing",
+                       "a couple giving {mascota} a bath in a tub full of foam, the pet looks grumpy, water "
+                       "splashing everywhere"),
+    "dar_comida": E("pouring food into the bowl of {mascota} in the kitchen, the pet waiting excitedly"),
+    # 📱 Influencer y 📚 estudios
+    "grabar": E("recording a video for social media with a phone on a tripod and a ring light, posing",
+                "a couple recording a fun video for social media with a phone on a tripod and a ring light"),
+    "editar": E("editing a video on a laptop at a desk, wearing headphones", "a couple editing a video together "
+                "on a laptop at a desk"),
+    "aprender_redes": E("watching a tutorial on a laptop and taking notes in a notebook"),
+    "guion": E("writing a video script in a notebook at a desk, thinking with the pen on the lips"),
+    "estudiar": E("studying at a desk full of books and notes", "a couple studying together at a desk full of "
+                  "books, helping each other"),
+    # 🔥 Momento íntimo: según el lugar de la casa
+    "intimo_cuarto": E("a couple kissing in bed, cuddled up under the sheets, candles in the bedroom",
+                       ropa="pajamas", intimo=True, romance=True),
+    "intimo_bano": E("a couple hugging and kissing in a steamy bathroom, candles around the bathtub",
+                     ropa="fluffy white bath towels", intimo=True, romance=True),
+    "intimo_salon": E("a couple on the living-room sofa, one sitting on the other's lap, kissing deeply, hands "
+                      "on each other's face and shoulders", ropa="comfy home clothes", intimo=True, romance=True),
+    "intimo_cocina": E("a couple kissing against the kitchen counter, two glasses of wine nearby",
+                       ropa="comfy home clothes", intimo=True, romance=True),
+    "intimo_closet": E("a couple kissing and laughing among the hanging clothes of a walk-in closet",
+                       intimo=True, romance=True),
+    "intimo_extra": E("a couple slow dancing and kissing in a cozy spare room with fairy lights",
+                      intimo=True, romance=True),
 }
-ROPA = {"h": (66, 112, 206), "m": (226, 92, 138), "n": (52, 170, 150)}
-PIEL = {"h": (214, 164, 126), "m": (176, 118, 84), "n": (198, 148, 108)}
-PELO = {"h": (60, 40, 30), "m": (40, 26, 22), "n": (120, 70, 40)}
-ESCENAS = ("parque_llegada", "parque_patos", "parque_banca", "parque_regreso")
+
+PLATOS = {
+    "huevos": "scrambled eggs", "tostadas": "coffee and toast", "arroz_pollo": "Cuban chicken and rice",
+    "pasta": "pasta with tomato sauce", "sopa": "a vegetable soup", "sandwich": "ham and cheese sandwiches",
+    "panqueques": "pancakes", "bistec": "steak and fries", "batido": "a fruit smoothie",
+    "pescado": "fish with vegetables",
+}
+MASCOTAS = {"perro": "dog", "gato": "cat"}
+# Los colores en el mismo orden que mascota_juego.ASPECTOS.
+COLORES_MASCOTA = ("brown", "black", "white", "orange", "gray", "spotted")
+
+LUZ_AFUERA = {
+    "manana": "early morning, soft golden sunlight, fresh air, pale blue sky",
+    "tarde": "bright sunny afternoon, vivid blue sky with big fluffy white clouds",
+    "atardecer": "sunset golden hour, orange and pink sky, long warm shadows",
+    "noche": "night, deep blue starry sky with a crescent moon, warm glowing street lamps",
+}
+LUZ_ADENTRO = {
+    "dia": "warm daylight streaming through the windows",
+    "atardecer": "orange sunset light coming through the windows",
+    "noche": "night, cozy warm lamp light inside, dark blue night sky outside the window",
+}
+ADENTRO = {"manana": "dia", "tarde": "dia", "atardecer": "atardecer", "noche": "noche"}
+
+# --- rasgos de cada personaje (personaje.CAMPOS) en inglés ------------------------------------------
+CAMPOS_FIGURA = ("genero", "etapa", "piel", "cuerpo", "estatura", "peinado", "pelo", "ojos", "estilo", "detalles")
+PERSONA = {"mujer": ("woman", "her"), "hombre": ("man", "his"), "nobinario": ("androgynous person", "their")}
+EDAD = {"joven": ("young", "twenties"), "adulta": ("", "forties"), "mayor": ("elderly", "sixties")}
+PIEL = {"muy_clara": "very fair skin", "clara": "fair skin", "triguena": "light olive-brown skin",
+        "morena": "brown skin", "oscura": "dark brown skin"}
+CUERPO = {"delgada": "slim build", "promedio": "average build", "atletica": "athletic build",
+          "musculosa": "muscular build", "curvas": "curvy figure", "robusta": "sturdy, heavyset build"}
+ESTATURA = {"baja": "short", "media": "medium height", "alta": "tall"}
+COLOR_PELO = {"negro": "black", "castano_oscuro": "dark brown", "castano_claro": "light brown",
+              "rubio": "blonde", "rojizo": "bright red", "canoso": "gray", "rosa": "pink", "azul": "blue",
+              "morado": "purple", "verde": "green"}
+PEINADO = {"rapado": "buzz-cut {c} hair", "corto": "short {c} hair", "melena": "shoulder-length {c} hair",
+           "largo": "long {c} hair", "rizado": "curly {c} hair", "afro": "voluminous {c} afro hair",
+           "trenzas": "{c} hair in braids", "rastas": "{c} dreadlocks", "mono": "{c} hair tied up in a bun",
+           "sin": "a shaved bald head"}
+OJOS = {"marrones": "brown eyes", "negros": "dark eyes", "miel": "honey-amber eyes", "avellana": "hazel eyes",
+        "verdes": "green eyes", "azules": "bright blue eyes", "grises": "gray eyes"}
+ESTILO = {"casual": "casual clothes (t-shirt and jeans)", "elegante": "elegant clothes",
+          "deportivo": "sporty clothes", "urbano": "streetwear", "rock": "rock style clothes and a leather jacket",
+          "bohemio": "bohemian clothes", "clasico": "classic smart clothes", "playero": "light beach clothes"}
+DETALLES = {"lentes": "glasses", "pecas": "freckles", "barba": "a beard", "bigote": "a mustache",
+            "tatuajes": "tattoos on the arms", "piercings": "small piercings", "lunar": "a beauty mark",
+            "hoyuelos": "dimples"}
+
+ESTILO_SERIE = (
+    "A frame from a Japanese anime TV series, in the hand-drawn style of Studio Ghibli films: soft cel shading, "
+    "clean line art, a lush painted watercolor background, warm gentle colors and expressive anime faces."
+)
+ESTILO_ROMANCE = (
+    "A close-up frame from a romance anime series, in a modern shoujo and webtoon style: clean line art, soft "
+    "cel shading, warm colors, rosy blushing cheeks, sparkles and small floating hearts, a cozy blurred "
+    "background, an intimate and tender mood."
+)
+FINAL = ("Landscape 3:2 image with the characters clearly visible and on-model. No text, no letters, no "
+         "captions, no watermark, no speech bubbles.")
 
 
-def _oscurecer(color, f: float):
-    return tuple(max(0, min(255, round(c * f))) for c in color[:3])
+def figura(ap: dict) -> str:
+    """El aspecto de un personaje en una clave corta: 'mujer,joven,clara,…,pecas+lentes'."""
+    valores = [str(ap.get(c) or "") for c in CAMPOS_FIGURA[:-1]]
+    return ",".join(valores + ["+".join(sorted(ap.get("detalles") or []))])
 
 
-def _mezclar(a, b, t: float):
-    return tuple(round(a[i] + (b[i] - a[i]) * t) for i in range(3))
+def clave(escena: str, momento: str, figuras: list[str]) -> str | None:
+    """La clave de la imagen (o None si esa escena no tiene foto). Bajo techo, mañana y tarde son «dia»."""
+    e = ESCENAS.get(escena.split(".")[0])
+    if e is None or not figuras or momento not in ADENTRO:
+        return None
+    if not e.afuera:
+        momento = ADENTRO[momento]
+    return f"{escena}:{momento}:{'|'.join(sorted(figuras))}"
 
 
-# --- piezas ------------------------------------------------------------------
+def es_intima(clave_imagen: str) -> bool:
+    e = ESCENAS.get(clave_imagen.split(":")[0].split(".")[0])
+    return e is not None and e.intimo
 
-def _cielo(img: Image.Image, pal: dict, mom: str) -> None:
-    d = ImageDraw.Draw(img)
-    arriba, abajo = pal["cielo"]
-    for y in range(HORIZONTE + 4):
-        d.line([(0, y), (W, y)], fill=_mezclar(arriba, abajo, y / HORIZONTE))
-    if mom == "noche":
-        rng = random.Random(11)
-        for _ in range(70):
-            x, y, r = rng.randrange(W), rng.randrange(int(HORIZONTE * 0.85)), rng.choice((2, 2, 3, 4))
-            brillo = rng.randint(170, 255)
-            d.ellipse([x - r, y - r, x + r, y + r], fill=(brillo, brillo, min(255, brillo + 20)))
-        _brillo(img, (W * 0.80, H * 0.18), 120, (240, 236, 200), 70)
-        cx, cy, r = W * 0.80, H * 0.18, 58
-        luna = Image.new("L", img.size, 0)  # luna creciente: un círculo menos otro corrido
-        m = ImageDraw.Draw(luna)
-        m.ellipse([cx - r, cy - r, cx + r, cy + r], fill=255)
-        m.ellipse([cx - r + 30, cy - r - 18, cx + r + 30, cy + r - 18], fill=0)
-        img.paste((246, 240, 204, 255), (0, 0) + img.size, luna)
+
+def _persona(codigo: str, ropa: str) -> str:
+    """'a young woman in her twenties, fair skin, …, long bright red hair, bright blue eyes, wearing …'."""
+    ap = dict(zip(CAMPOS_FIGURA, codigo.split(",")))
+    quien, suyo = PERSONA.get(ap.get("genero", ""), ("person", "their"))
+    edad, decada = EDAD.get(ap.get("etapa", ""), ("young", "twenties"))
+    nombre = f"{edad} {quien}".strip()
+    partes = [f"{'an' if nombre[0] in 'aeiou' else 'a'} {nombre} in {suyo} {decada}"]
+    partes += [d[ap[c]] for c, d in (("piel", PIEL), ("cuerpo", CUERPO), ("estatura", ESTATURA)) if ap.get(c) in d]
+    if ap.get("peinado") in PEINADO:
+        partes.append(PEINADO[ap["peinado"]].format(c=COLOR_PELO.get(ap.get("pelo", ""), "dark")))
+    elif ap.get("pelo") in COLOR_PELO:
+        partes.append(f"{COLOR_PELO[ap['pelo']]} hair")
+    if ap.get("ojos") in OJOS:
+        partes.append(OJOS[ap["ojos"]])
+    partes += [DETALLES[d] for d in ap.get("detalles", "").split("+") if d in DETALLES]
+    partes.append(f"wearing {ropa or ESTILO.get(ap.get('estilo', ''), 'casual clothes')}")
+    return ", ".join(partes)
+
+
+def _mascota(detalle: list[str]) -> str:
+    """'their orange cat' a partir de ["gato", "3"]."""
+    animal = MASCOTAS.get(detalle[0] if detalle else "", "pet")
+    color = int(detalle[1]) if len(detalle) > 1 and detalle[1].isdigit() else -1
+    return f"their {COLORES_MASCOTA[color] + ' ' if 0 <= color < len(COLORES_MASCOTA) else ''}{animal}"
+
+
+def prompt(clave_imagen: str) -> str:
+    """La descripción en inglés que se le da a la IA para hacer la imagen."""
+    partes = clave_imagen.split(":")
+    if len(partes) != 3:
+        raise ValueError(f"Clave de imagen no válida: {clave_imagen!r}")
+    escena, momento, figuras = partes
+    base, *detalle = escena.split(".")
+    e = ESCENAS.get(base)
+    luz = (LUZ_AFUERA if e and e.afuera else LUZ_ADENTRO).get(momento)
+    codigos = [f for f in figuras.split("|") if f]
+    if e is None or luz is None or not 1 <= len(codigos) <= 2:
+        raise ValueError(f"Clave de imagen no válida: {clave_imagen!r}")
+    que = e.juntos if len(codigos) == 2 and e.juntos else e.solo
+    que = que.format(plato=PLATOS.get(detalle[0] if detalle else "", "a home-cooked meal"),
+                     mascota=_mascota(detalle))
+    if len(codigos) == 1:
+        if not que.startswith(("a ", "an ")):
+            que = f"the character {que}"
+        quienes = f"The character: {_persona(codigos[0], e.ropa)}."
     else:
-        sol = {"manana": (W * 0.18, H * 0.20, (255, 236, 150)), "tarde": (W * 0.78, H * 0.14, (255, 244, 170)),
-               "atardecer": (W * 0.70, HORIZONTE - 40, (255, 150, 80))}[mom]
-        _brillo(img, sol[:2], 170, sol[2], 90)
-        d = ImageDraw.Draw(img)
-        r = 62 if mom != "atardecer" else 80
-        d.ellipse([sol[0] - r, sol[1] - r, sol[0] + r, sol[1] + r], fill=sol[2])
-        if mom != "atardecer":
-            for cx, cy, s in ((W * 0.40, H * 0.16, 1.0), (W * 0.62, H * 0.28, 0.7)):
-                for dx, dy, rr in ((0, 0, 46), (50, -14, 56), (104, 0, 44)):
-                    x, y, rr = cx + dx * s, cy + dy * s, rr * s
-                    d.ellipse([x - rr, y - rr, x + rr, y + rr], fill=(255, 255, 255))
+        quienes = (f"The two characters are a couple: (1) {_persona(codigos[0], e.ropa)}; "
+                   f"(2) {_persona(codigos[1], e.ropa)}.")
+    lineas = [ESTILO_ROMANCE if e.romance else ESTILO_SERIE, f"Scene: {que}.", f"Lighting: {luz}.", quienes]
+    if e.intimo:
+        lineas.append(INTIMO + ".")
+    lineas.append(FINAL)
+    return "\n".join(lineas)
 
 
-def _brillo(img: Image.Image, centro, radio: float, color, alfa: int) -> None:
-    capa = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    ImageDraw.Draw(capa).ellipse([centro[0] - radio, centro[1] - radio, centro[0] + radio, centro[1] + radio],
-                                 fill=color + (alfa,))
-    capa = capa.filter(ImageFilter.GaussianBlur(radio * 0.45))
-    img.alpha_composite(capa)
+def procesar(datos: bytes, clave_imagen: str) -> bytes:
+    """La imagen de la IA lista para Telegram: 768×512, JPEG liviano y, si es íntima, pixelada abajo."""
+    from PIL import Image  # solo aquí: armar las claves no necesita Pillow
 
-
-def _paisaje(img: Image.Image, pal: dict) -> None:
-    d = ImageDraw.Draw(img)
-    lejos, cerca = pal["colina"]
-    d.ellipse([-W * 0.3, HORIZONTE - 120, W * 0.6, HORIZONTE + 260], fill=lejos)
-    d.ellipse([W * 0.35, HORIZONTE - 90, W * 1.3, HORIZONTE + 240], fill=cerca)
-    d.rectangle([0, HORIZONTE, W, H], fill=pal["suelo"])
-
-
-def _camino(d: ImageDraw.ImageDraw, pal: dict) -> None:
-    d.polygon([(W * 0.40, H), (W * 0.62, H), (W * 0.53, HORIZONTE), (W * 0.49, HORIZONTE)], fill=pal["camino"])
-
-
-def _arbol(d: ImageDraw.ImageDraw, x: float, base: float, s: float, pal: dict) -> None:
-    oscuro, claro = pal["copa"]
-    d.rounded_rectangle([x - 14 * s, base - 120 * s, x + 14 * s, base], radius=6 * s, fill=pal["tronco"])
-    for dx, dy, r, c in ((-46, -150, 62, oscuro), (44, -150, 62, oscuro), (0, -205, 74, claro), (0, -140, 70, claro)):
-        d.ellipse([x + (dx - r) * s, base + (dy - r) * s, x + (dx + r) * s, base + (dy + r) * s], fill=c)
-
-
-def _farol(img: Image.Image, x: float, base: float, s: float, encendido: bool) -> None:
-    if encendido:
-        _brillo(img, (x, base - 236 * s), 150 * s, (255, 214, 120), 110)
-    d = ImageDraw.Draw(img)
-    d.rectangle([x - 6 * s, base - 230 * s, x + 6 * s, base], fill=(44, 44, 52))
-    color = (255, 226, 140) if encendido else (210, 220, 228)
-    d.polygon([(x - 26 * s, base - 226 * s), (x + 26 * s, base - 226 * s), (x + 16 * s, base - 268 * s),
-               (x - 16 * s, base - 268 * s)], fill=color)
-    d.rectangle([x - 30 * s, base - 276 * s, x + 30 * s, base - 266 * s], fill=(44, 44, 52))
-
-
-def _banca(d: ImageDraw.ImageDraw, x: float, base: float, s: float, pal: dict) -> None:
-    madera, hierro = pal["banca"], (52, 52, 60)
-    for px in (x - 150 * s, x + 130 * s):
-        d.rectangle([px, base - 70 * s, px + 20 * s, base], fill=hierro)
-    d.rounded_rectangle([x - 180 * s, base - 84 * s, x + 180 * s, base - 64 * s], radius=6 * s, fill=madera)
-    for dy in (-150, -118):
-        d.rounded_rectangle([x - 180 * s, base + (dy - 14) * s, x + 180 * s, base + dy * s], radius=6 * s, fill=madera)
-    for px in (x - 160 * s, x + 140 * s):
-        d.rectangle([px, base - 164 * s, px + 16 * s, base - 70 * s], fill=hierro)
-
-
-def _persona(d: ImageDraw.ImageDraw, x: float, base: float, s: float, tipo: str, sentada: bool, luz: float) -> None:
-    ropa, piel, pelo = (_oscurecer(c, luz) for c in (ROPA[tipo], PIEL[tipo], PELO[tipo]))
-    pantalon = _oscurecer((60, 64, 84), luz)
-    if sentada:
-        cadera = base - 84 * s
-        d.rounded_rectangle([x - 18 * s, cadera - 8 * s, x + 46 * s, cadera + 18 * s], radius=10 * s, fill=pantalon)
-        d.rounded_rectangle([x + 26 * s, cadera, x + 46 * s, base - 4 * s], radius=8 * s, fill=pantalon)
-        torso_abajo = cadera + 6 * s
-    else:
-        d.rounded_rectangle([x - 22 * s, base - 92 * s, x - 4 * s, base], radius=8 * s, fill=pantalon)
-        d.rounded_rectangle([x + 4 * s, base - 92 * s, x + 22 * s, base], radius=8 * s, fill=pantalon)
-        torso_abajo = base - 84 * s
-    torso_arriba = torso_abajo - 92 * s
-    d.rounded_rectangle([x - 32 * s, torso_arriba, x + 32 * s, torso_abajo], radius=24 * s, fill=ropa)
-    cy, r = torso_arriba - 30 * s, 30 * s
-    if tipo == "m":  # pelo largo
-        d.rounded_rectangle([x - 36 * s, cy - 32 * s, x + 36 * s, cy + 46 * s], radius=26 * s, fill=pelo)
-    d.ellipse([x - r, cy - r, x + r, cy + r], fill=piel)
-    d.chord([x - r - 2 * s, cy - r - 4 * s, x + r + 2 * s, cy + r * 0.5], 180, 360, fill=pelo)
-    ojos = _oscurecer((40, 30, 30), luz)
-    for dx in (-11, 11):
-        d.ellipse([x + (dx - 3.5) * s, cy + 2 * s, x + (dx + 3.5) * s, cy + 9 * s], fill=ojos)
-    d.arc([x - 9 * s, cy + 6 * s, x + 9 * s, cy + 20 * s], 20, 160, fill=ojos, width=max(2, int(2.5 * s)))
-
-
-def _corazon(d: ImageDraw.ImageDraw, x: float, y: float, s: float, color) -> None:
-    r = 16 * s
-    d.ellipse([x - 2 * r, y - r, x, y + r], fill=color)
-    d.ellipse([x, y - r, x + 2 * r, y + r], fill=color)
-    d.polygon([(x - 2 * r + 2, y + 4 * s), (x + 2 * r - 2, y + 4 * s), (x, y + 2.6 * r)], fill=color)
-
-
-def _estanque(img: Image.Image, pal: dict, mom: str) -> None:
-    d = ImageDraw.Draw(img)
-    caja = [W * 0.18, HORIZONTE + 60, W * 0.82, H - 50]
-    d.ellipse(caja, fill=pal["agua"])
-    d.ellipse([caja[0] + 60, caja[1] + 24, caja[2] - 140, caja[1] + 50], fill=_mezclar(pal["agua"], (255, 255, 255), 0.25))
-    if mom == "noche":  # la luna en el agua
-        d.ellipse([W * 0.62, HORIZONTE + 100, W * 0.70, HORIZONTE + 116], fill=(220, 220, 190))
-
-
-def _pato(d: ImageDraw.ImageDraw, x: float, y: float, s: float, dormido: bool, luz: float) -> None:
-    cuerpo, pico = _oscurecer((250, 250, 240), luz), _oscurecer((255, 160, 40), luz)
-    d.ellipse([x - 40 * s, y - 22 * s, x + 40 * s, y + 22 * s], fill=cuerpo)
-    if dormido:
-        d.ellipse([x + 4 * s, y - 34 * s, x + 40 * s, y - 2 * s], fill=cuerpo)
-    else:
-        d.ellipse([x + 18 * s, y - 56 * s, x + 50 * s, y - 24 * s], fill=cuerpo)
-        d.polygon([(x + 48 * s, y - 42 * s), (x + 68 * s, y - 38 * s), (x + 48 * s, y - 32 * s)], fill=pico)
-        d.ellipse([x + 34 * s, y - 46 * s, x + 40 * s, y - 40 * s], fill=(30, 30, 30))
-
-
-# --- escenas -----------------------------------------------------------------
-
-def _figuras(d, img, tipos: str, centro: float, base: float, s: float, sentadas: bool, luz: float) -> None:
-    separacion = 74 * s if sentadas else 64 * s
-    xs = [centro] if len(tipos) == 1 else [centro - separacion / 2 - 20 * s, centro + separacion / 2 + 20 * s]
-    for x, tipo in zip(xs, tipos):
-        _persona(d, x - (14 * s if sentadas else 0), base, s, tipo, sentadas, luz)
-    if len(tipos) == 2 and not sentadas:  # de la mano
-        d.line([(xs[0] + 30 * s, base - 132 * s), (xs[1] - 30 * s, base - 132 * s)],
-               fill=_oscurecer(PIEL[tipos[0]], luz), width=int(10 * s))
-
-
-def _escena(nombre: str, mom: str, tipos: str) -> Image.Image:
-    pal = PALETAS[mom]
-    luz = pal["luz"]
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 255))
-    _cielo(img, pal, mom)
-    _paisaje(img, pal)
-    d = ImageDraw.Draw(img)
-    noche = mom == "noche"
-    if nombre == "parque_llegada":
-        _camino(d, pal)
-        _arbol(d, W * 0.12, HORIZONTE + 120, 1.3, pal)
-        _arbol(d, W * 0.88, HORIZONTE + 110, 1.2, pal)
-        _farol(img, W * 0.30, HORIZONTE + 150, 1.0, noche)
-        _farol(img, W * 0.72, HORIZONTE + 120, 0.8, noche)
-        _figuras(ImageDraw.Draw(img), img, tipos, W * 0.52, H - 40, 1.25, False, luz)
-    elif nombre == "parque_patos":
-        _arbol(d, W * 0.08, HORIZONTE + 90, 1.0, pal)
-        _arbol(d, W * 0.93, HORIZONTE + 80, 0.9, pal)
-        _estanque(img, pal, mom)
-        d = ImageDraw.Draw(img)
-        for x, y in ((W * 0.36, H * 0.78), (W * 0.50, H * 0.83), (W * 0.62, H * 0.76)):
-            _pato(d, x, y, 1.0, noche, luz)
-        _figuras(d, img, tipos, W * 0.84, H - 24, 0.95, False, luz)
-    elif nombre == "parque_banca":
-        _arbol(d, W * 0.20, HORIZONTE + 70, 1.5, pal)
-        _arbol(d, W * 0.86, HORIZONTE + 60, 1.2, pal)
-        _farol(img, W * 0.80, H - 40, 1.25, noche)
-        d = ImageDraw.Draw(img)
-        _banca(d, W * 0.46, H - 50, 1.25, pal)
-        _figuras(d, img, tipos, W * 0.46, H - 50, 1.25, True, luz)
-        if len(tipos) == 2:
-            _corazon(d, W * 0.46, H * 0.30, 1.1, (236, 80, 110) if not noche else (250, 120, 150))
-    else:  # parque_regreso
-        _camino(d, pal)
-        _arbol(d, W * 0.20, HORIZONTE + 60, 1.0, pal)
-        _arbol(d, W * 0.80, HORIZONTE + 70, 1.1, pal)
-        _farol(img, W * 0.36, HORIZONTE + 90, 0.7, noche)
-        _farol(img, W * 0.66, HORIZONTE + 90, 0.7, noche)
-        _figuras(ImageDraw.Draw(img), img, tipos, W * 0.51, HORIZONTE + 110, 0.55, False, luz)
-    return img
-
-
-@lru_cache(maxsize=64)
-def dibujar(clave: str) -> bytes:
-    """El JPEG de 'escena:momento:figuras'."""
-    nombre, mom, tipos = clave.split(":")
-    if nombre not in ESCENAS or mom not in MOMENTOS or not 1 <= len(tipos) <= 2 or set(tipos) - set(ROPA):
-        raise ValueError(f"Ilustración desconocida: {clave}")
-    img = _escena(nombre, mom, tipos).convert("RGB").resize((ANCHO, ALTO), Image.LANCZOS)
+    img = Image.open(io.BytesIO(datos)).convert("RGB")
+    ancho, alto = img.size
+    if ancho * ALTO > alto * ANCHO:  # más ancha que 3:2: se recortan los lados
+        nuevo = alto * ANCHO // ALTO
+        img = img.crop(((ancho - nuevo) // 2, 0, (ancho + nuevo) // 2, alto))
+    elif ancho * ALTO < alto * ANCHO:  # más alta: se recorta arriba y abajo
+        nuevo = ancho * ALTO // ANCHO
+        img = img.crop((0, (alto - nuevo) // 2, ancho, (alto + nuevo) // 2))
+    img = img.resize((ANCHO, ALTO), Image.LANCZOS)
+    if es_intima(clave_imagen):
+        _pixelar(img, (int(ANCHO * 0.12), int(ALTO * 0.62), int(ANCHO * 0.88), ALTO))
     salida = io.BytesIO()
-    img.save(salida, "JPEG", quality=78, optimize=True, progressive=True)
+    img.save(salida, "JPEG", quality=CALIDAD_JPEG, optimize=True, progressive=True)
     return salida.getvalue()
 
 
+def _pixelar(img, caja: tuple[int, int, int, int]) -> None:
+    """Cuadritos grandes en esa zona de la imagen (como en la tele)."""
+    from PIL import Image
+
+    zona = img.crop(caja)
+    w, h = zona.size
+    zona = zona.resize((max(1, w // PIXEL), max(1, h // PIXEL)), Image.BILINEAR).resize((w, h), Image.NEAREST)
+    img.paste(zona, caja[:2])

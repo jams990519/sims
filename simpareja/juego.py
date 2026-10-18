@@ -69,8 +69,9 @@ class Aviso:
     botones: Botones = field(default_factory=list)
     chat: bool = False  # mensaje del chat interno: si no se entrega, se avisa a quien lo mandó
     copiar: bool = False  # además, copiar el mensaje original (foto, sticker, nota de voz…)
-    foto: str | None = None  # file_id de Telegram (o "ilus:…", un dibujo): se envía como foto con el texto de pie
+    foto: str | None = None  # file_id de Telegram (o "ilus:…", una foto de la IA): va como foto con el texto de pie
     silencio: bool = False  # llega sin sonido (la narración de las acciones)
+    solo_foto: bool = False  # si la foto no se puede hacer, no se manda nada
 
 
 @dataclass
@@ -237,6 +238,12 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         self.rng = rng or random.Random()
         self.bot_usuario = "sims000bot"
         self._fallos: dict[int, list[float]] = {}
+        self.por_dibujar: list[str] = []  # fotos que conviene ir haciendo ya (ver pedir_fotos)
+
+    def pedir_fotos(self) -> list[str]:
+        """Las fotos que van a hacer falta pronto: el bot se las pide a la IA en segundo plano."""
+        claves, self.por_dibujar = list(dict.fromkeys(self.por_dibujar)), []
+        return claves
 
     @property
     def pausa(self) -> float:
@@ -1619,7 +1626,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             f"👤 Personaje: {self._firma(j)}\n"
             f"🔔 Avisarme cuando alguien entra a mi sala: <b>{avisos}</b>\n"
             f"🎬 Mensajitos de lo que va pasando en cada acción: <b>{'Sí' if narracion else 'No'}</b>\n"
-            f"🖼️ Con dibujos (gastan algo más de datos): <b>{'Sí' if fotos else 'No'}</b>\n"
+            f"📸 Con fotos estilo anime (gastan algo más de datos): <b>{'Sí' if fotos else 'No'}</b>\n"
             f"🕒 Tu hora local: {self._hora(j, self.reloj())} · {lugar}\n"
             f"🪪 Tu código de jugador (tu ID): <code>{j.id}</code>\n"
             f"🏷️ Versión del juego: {N.VERSION}"
@@ -1628,7 +1635,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             [
                 [("🔕 Desactivar avisos" if j.avisos_conexion else "🔔 Activar avisos", "avisos")],
                 [("🎬 Apagar los mensajitos" if narracion else "🎬 Encender los mensajitos", "narr"),
-                 ("🖼️ Quitar los dibujos" if fotos else "🖼️ Poner los dibujos", "fotos")],
+                 ("📸 Quitar las fotos" if fotos else "📸 Poner las fotos", "fotos")],
                 [("🪞 Cambiar personaje", "apedit"), ("✏️ Cambiar nombre", "renombrar")],
                 [("🕒 Mi hora local", "zona"), ("🧾 Mi última conexión", "conexion")],
                 *([[("🔓 Abrir a jugadores nuevos" if not self._registro_abierto() else "🔒 Cerrar a jugadores nuevos",

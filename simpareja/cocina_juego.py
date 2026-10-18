@@ -405,14 +405,20 @@ class CocinaMixin:
             if not coccion:
                 continue
             texto, listo, quema = self._tiempos_paso(coccion)
+            primera = "narrado" not in coccion  # el primer mensajito trae la foto
             if ahora > quema:
                 noticia = self._quemar(h, coccion)
                 res.avisos += [Aviso(c, noticia, [[("🧍 Mi Sim", "sim")]]) for c in coccion["cocineros"]]
             elif ahora < listo and self._narrar_paso(h, coccion, listo, ahora):
-                res.avisos += [
-                    Aviso(cid, N.texto_cocina(coccion["receta"], coccion["paso"], texto), silencio=True)
-                    for cid in coccion["cocineros"] if self._quiere_narracion(cid)
-                ]
+                for cid in coccion["cocineros"]:
+                    c = self.db.jugador(cid)
+                    if c is None or not self._quiere_narracion(cid):
+                        continue
+                    otro = next((o for o in coccion["cocineros"] if o != cid), None)
+                    foto = (self._foto(c, f"cocina.{coccion['receta']}", N.momento(self._hora_local(c)), otro)
+                            if primera else None)
+                    res.avisos.append(Aviso(cid, N.texto_cocina(coccion["receta"], coccion["paso"], texto),
+                                            silencio=True, foto=foto and f"ilus:{foto}"))
             elif ahora >= listo and not coccion.get("avisado"):
                 coccion["avisado"] = True
                 h.cocina = json.dumps(coccion)

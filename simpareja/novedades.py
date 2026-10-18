@@ -3,9 +3,21 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.42"
+VERSION = "0.43"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.43", [
+        "📸 <b>Cada acción trae su foto estilo anime</b>: el parque, el restaurante, el cine, la cocina, el masaje, "
+        "los besos en el sofá, pasear al perro, la ducha, dormir… como un fotograma de una serie de anime, con los "
+        "rasgos de cada uno (pelo, ojos, piel, ropa) y la luz de la hora real. Las puedes descargar.",
+        "🔥 Al terminar un <b>momento íntimo</b> llega su foto según el lugar de la casa (la cama, la ducha, el "
+        "sofá…), en estilo anime romántico, pixelada abajo y tapada hasta que la tocas.",
+        "💋 Besar, 🤗 abrazar, 😴 dormir, 🪥 lavarse los dientes y darle de comer a la mascota ahora también "
+        "tienen su mensajito.",
+        "⏳ La primera vez que pasa una escena, su foto tarda un poquito y llega justo después del mensaje; las "
+        "siguientes veces llega al instante. Son livianas (unos 60 KB); si prefieres sin fotos: ⚙️ Ajustes → "
+        "📸 Quitar las fotos.",
+    ]),
     ("0.42", [
         "🔒 <b>El juego queda cerrado a jugadores nuevos</b>: la sala es solo de ustedes. Nadie más puede crear un "
         "personaje, aunque tenga una invitación o un enlace.",
