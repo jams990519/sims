@@ -32,9 +32,20 @@ def hora_decimal(momento) -> float:
     return momento.hour + momento.minute / 60
 
 
+def hora_12(momento) -> str:
+    """La hora en formato de 12 horas: '8:00 am', '1:30 pm', '12:00 pm' (mediodía), '12:00 am' (medianoche)."""
+    return f"{momento.hour % 12 or 12}:{momento.minute:02d} {'am' if momento.hour < 12 else 'pm'}"
+
+
+def hora_12_texto(hhmm: str) -> str:
+    """'13:30' → '1:30 pm'."""
+    h, m = (int(x) for x in hhmm.split(":"))
+    return f"{h % 12 or 12}:{m:02d} {'am' if h < 12 else 'pm'}"
+
+
 def reloj_texto(momento, dia: int | None = None) -> str:
-    """'Lunes 08:00 · día 1' a partir de la fecha y hora local."""
-    texto = f"{dia_semana(momento.weekday())} {momento:%H:%M}"
+    """'Lunes 8:00 am · día 1' a partir de la fecha y hora local."""
+    texto = f"{dia_semana(momento.weekday())} {hora_12(momento)}"
     return f"{texto} · día {dia}" if dia is not None else texto
 
 

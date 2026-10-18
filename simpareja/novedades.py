@@ -3,9 +3,13 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.38"
+VERSION = "0.39"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.39", [
+        "🕐 <b>Las horas ahora van en formato de 12 horas</b>: la 1 de la tarde es «1:00 pm» y no «13:00», "
+        "y la medianoche es «12:00 am». También en tu horario de trabajo.",
+    ]),
     ("0.38", [
         "🕒 <b>Tu Sim sigue la hora real de donde vives</b>, con el cambio de horario incluido: las comidas, el "
         "trabajo, los fines de semana y los eventos van con tu reloj de verdad.",

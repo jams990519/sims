@@ -68,7 +68,7 @@ def test_mi_sim_muestra_las_necesidades(solo):
     texto = solo.boton(ADMIN, "", "sim").pantalla.texto
     for nombre in ("Hambre", "Energía", "Higiene", "Diversión", "Social"):
         assert nombre in texto
-    assert "🟩" in texto and "Lunes 08:00 · día 1" in texto
+    assert "🟩" in texto and "Lunes 8:00 am · día 1" in texto
 
 
 def test_las_necesidades_bajan_con_el_reloj_del_sim(solo, reloj):
@@ -95,7 +95,7 @@ def test_comer_segun_la_hora(solo, reloj):
     res = solo.boton(ADMIN, "", "a:domicilio")
     assert "+30 🍔 hambre · ⏱️ 10 min · 💵 $6" in res.pantalla.texto and "¿Confirmar?" in res.pantalla.texto
     res = solo.boton(ADMIN, "", "as:domicilio")
-    assert "Empezó" in res.pantalla.texto and "termina a las 08:10" in res.pantalla.texto
+    assert "Empezó" in res.pantalla.texto and "termina a las 8:10 am" in res.pantalla.texto
     reloj.avanzar(10)
     solo.boton(ADMIN, "", "sim")
     assert nec(solo, ADMIN)["hambre"] == pytest.approx(20 + 30 - 1, abs=0.2)
@@ -140,7 +140,7 @@ def test_dormir_8_horas_no_congela_al_sim(solo, reloj):
     assert n["energia"] == 100  # 10 + 8 h × 12, con tope en 100
     assert n["hambre"] == pytest.approx(80 - 6 * 8, abs=0.5)  # durmiendo también le da hambre
     texto = solo.boton(ADMIN, "", "sim").pantalla.texto
-    assert "Lunes 16:01 · día 1" in texto and "Sin hacer nada" in texto
+    assert "Lunes 4:01 pm · día 1" in texto and "Sin hacer nada" in texto
 
 
 def test_sin_energia_se_duerme_donde_esta(solo, reloj):
@@ -200,7 +200,7 @@ def test_registrar_ejercicio():
 
 def test_calendario_con_fin_de_semana(solo, reloj):
     ir_al_dia(solo, reloj, ADMIN, 6)
-    assert solo._reloj(solo.db.jugador(ADMIN)) == "Sábado 08:00 · día 6"
+    assert solo._reloj(solo.db.jugador(ADMIN)) == "Sábado 8:00 am · día 6"
     assert V.es_fin_de_semana(5) and V.es_fin_de_semana(6) and not V.es_fin_de_semana(7)
 
 

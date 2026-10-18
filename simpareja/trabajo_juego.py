@@ -30,7 +30,7 @@ ZONAS_HORARIAS = range(-11 * 60, 13 * 60, 60)  # para preguntar qué hora es (UT
 
 
 def _hora_en(offset_min: int, ts: float) -> str:
-    return f"{datetime.fromtimestamp(ts + offset_min * 60, tz=timezone.utc):%H:%M}"
+    return V.hora_12(datetime.fromtimestamp(ts + offset_min * 60, tz=timezone.utc))
 
 
 class TrabajoMixin:
@@ -128,7 +128,7 @@ class TrabajoMixin:
             lineas.append("⏰ Moviste el turno: tu Sim se irá a trabajar cuando te desconectes. ¡Disfruten! 💞")
             botones.append([("💼 Ir ahora", "trabajar:ir")])
         else:
-            lineas.append(f"🕗 Hoy ({V.dia_semana(local.weekday())}) entras a las {horario['inicio']}.")
+            lineas.append(f"🕗 Hoy ({V.dia_semana(local.weekday())}) entras a las {V.hora_12_texto(horario['inicio'])}.")
             botones.append([("💼 Ir a trabajar ahora", "trabajar:ir"), ("⏰ Cuando me desconecte", "trabajar:luego")])
         botones.append([("🗓️ Mi horario", "hor"), ("📈 Mi carrera", "carrera")])
         botones.append([("🚪 Renunciar o cambiar", "renunciar")])
@@ -255,7 +255,7 @@ class TrabajoMixin:
             "Toca los días que trabajas, la hora de entrada y las horas:",
         ]
         dias = [((("✅ " if d in borrador["dias"] else "") + T.DIAS_CORTOS[d]), f"hor:d:{d}") for d in range(7)]
-        inicios = [((("✅ " if i == borrador["inicio"] else "") + i), f"hor:i:{i}") for i in T.INICIOS]
+        inicios = [((("✅ " if i == borrador["inicio"] else "") + V.hora_12_texto(i)), f"hor:i:{i}") for i in T.INICIOS]
         horas = [((("✅ " if h == borrador["horas"] else "") + f"{h} h"), f"hor:h:{h}") for h in T.HORAS_POSIBLES]
         botones = [dias[:4], dias[4:]] + [inicios[k:k + 4] for k in range(0, len(inicios), 4)] + [horas]
         botones.append([("✅ Guardar horario", "hor:ok")])
@@ -526,7 +526,7 @@ class TrabajoMixin:
                     self._guardar_empleo(j, empleo)
                     res.avisos.append(Aviso(
                         j.id,
-                        f"💼 Es tu hora de trabajar ({horario['inicio']}), pero estás con {self._firma(pareja)}. "
+                        f"💼 Es tu hora de trabajar ({V.hora_12_texto(horario['inicio'])}), pero estás con {self._firma(pareja)}. "
                         "No te obligo: ¿qué hacemos?",
                         [[("💼 Ir ahora", "trabajar:ir"), ("⏰ Cuando me desconecte", "trabajar:luego")]],
                     ))

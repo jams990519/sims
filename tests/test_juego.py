@@ -385,9 +385,9 @@ def test_todo_al_azar_siempre_completo():
 # --- reloj del Sim, pausa y Continuar ---------------------------------------------
 
 def test_reloj_propio_y_pausa_a_los_5_minutos(pareja, reloj):
-    assert "🕒 Lunes 08:00 · día 1" in pareja.boton(ANA, "Ana", "sala").pantalla.texto
+    assert "🕒 Lunes 8:00 am · día 1" in pareja.boton(ANA, "Ana", "sala").pantalla.texto
     reloj.avanzar(3)
-    assert "Lunes 08:03 · día 1" in pareja.boton(ANA, "Ana", "sala").pantalla.texto
+    assert "Lunes 8:03 am · día 1" in pareja.boton(ANA, "Ana", "sala").pantalla.texto
     reloj.avanzar(20)  # 20 min sin hacer nada: el Sim se congeló a los 5
     res = pareja.boton(ANA, "Ana", "pjs")
     assert "Tu Sim estaba en pausa" in res.pantalla.texto
@@ -397,7 +397,7 @@ def test_reloj_propio_y_pausa_a_los_5_minutos(pareja, reloj):
     res = pareja.boton(ANA, "Ana", "continuar")
     assert "¡Seguimos!" in res.pantalla.texto
     reloj.avanzar(2)
-    assert "Lunes 08:26 · día 1" in pareja.boton(ANA, "Ana", "sala").pantalla.texto  # la hora es la real
+    assert "Lunes 8:26 am · día 1" in pareja.boton(ANA, "Ana", "sala").pantalla.texto  # la hora es la real
 
 
 def test_la_pausa_es_solo_de_quien_se_fue(pareja, reloj):
@@ -405,7 +405,7 @@ def test_la_pausa_es_solo_de_quien_se_fue(pareja, reloj):
     pareja.boton(ADMIN, "", "continuar")  # Luis sigue jugando
     reloj.avanzar(3)
     texto = pareja.boton(ADMIN, "", "sala").pantalla.texto
-    assert "Lunes 08:13 · día 1" in texto  # la hora es la real de cada jugador
+    assert "Lunes 8:13 am · día 1" in texto  # la hora es la real de cada jugador
     assert "🟡 ausente · hace 13 min · ❄️ Sim en pausa" in texto  # Ana sigue en pausa
 
 
@@ -430,11 +430,11 @@ def test_hora_local_del_jugador(juego, reloj):
     juego.inicio(ADMIN, "Admin")
     crear_personaje(juego, ADMIN, "Luis")
     j = juego.db.jugador(ADMIN)
-    assert juego._reloj(j) == "Lunes 08:00 · día 1"
+    assert juego._reloj(j) == "Lunes 8:00 am · día 1"
     reloj.avanzar(16 * 60 + 1)
-    assert juego._reloj(j) == "Martes 00:01 · día 2"
+    assert juego._reloj(j) == "Martes 12:01 am · día 2"
     j.utc_offset = -300  # una hora menos
-    assert juego._reloj(j) == "Lunes 23:01 · día 1"
+    assert juego._reloj(j) == "Lunes 11:01 pm · día 1"
 
 
 # --- última conexión: volver al mismo sitio ---------------------------------------

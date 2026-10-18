@@ -88,14 +88,14 @@ def test_horario_real_con_hora_local(juego):
     res = juego.boton(ADMIN, "", "tomar:recepcion")
     opciones = [d for fila in res.pantalla.botones for _, d in fila if d.startswith("hor:tz:")]
     assert len(opciones) == 24 and "hor:tz:-240" in opciones  # las 24 horas del mundo
-    assert "🕒 08:00" in str(res.pantalla.botones) and "🕒 13:00" in str(res.pantalla.botones)
+    assert "🕒 8:00 am" in str(res.pantalla.botones) and "🕒 1:00 pm" in str(res.pantalla.botones)
     res, guardado = poner_horario(juego, ADMIN, 60, "d:0", "d:5", "i:14:00", "h:6")
     assert juego.db.jugador(ADMIN).utc_offset == 60
-    assert "🕒 Tu hora ahora: 13:00" in res.pantalla.texto
-    assert "Mar, Mié, Jue, Vie, Sáb, de 14:00 a 20:00 (6 h)" in res.pantalla.texto and "$66 por día" in res.pantalla.texto
+    assert "🕒 Tu hora ahora: 1:00 pm" in res.pantalla.texto
+    assert "Mar, Mié, Jue, Vie, Sáb, de 2:00 pm a 8:00 pm (6 h)" in res.pantalla.texto and "$66 por día" in res.pantalla.texto
     assert "¡Horario guardado!" in guardado.pantalla.texto
     assert empleo(juego)["horario"] == {"dias": [1, 2, 3, 4, 5], "inicio": "14:00", "horas": 6}
-    assert "Tu horario: Mar, Mié, Jue, Vie, Sáb, de 14:00 a 20:00 (6 h)" in juego.boton(ADMIN, "", "trabajo").pantalla.texto
+    assert "Tu horario: Mar, Mié, Jue, Vie, Sáb, de 2:00 pm a 8:00 pm (6 h)" in juego.boton(ADMIN, "", "trabajo").pantalla.texto
 
 
 def test_como_mucho_8_horas(juego):
@@ -117,13 +117,13 @@ def test_un_turno_de_8_horas(juego, reloj):
     juego.boton(ADMIN, "", "tomar:recepcion")
     poner(juego, ADMIN, **LLENO)
     res = juego.boton(ADMIN, "", "trabajo")
-    assert "Hoy (Lunes) entras a las 09:00" in res.pantalla.texto
+    assert "Hoy (Lunes) entras a las 9:00 am" in res.pantalla.texto
     assert "trabajar:ir" in str(res.pantalla.botones) and "trabajar:luego" in str(res.pantalla.botones)
     res = juego.boton(ADMIN, "", "trabajar:ir")
     assert "+$88 al terminar" in res.pantalla.texto and "¿Confirmar?" in res.pantalla.texto
     res = juego.boton(ADMIN, "", "trabajar:8:sin")
-    assert "Sale a las 16:00" in res.pantalla.texto
-    assert "💼 trabajando hasta las 16:00" in juego.boton(ADMIN, "", "sala").pantalla.texto
+    assert "Sale a las 4:00 pm" in res.pantalla.texto
+    assert "💼 trabajando hasta las 4:00 pm" in juego.boton(ADMIN, "", "sala").pantalla.texto
     reloj.avanzar(8 * 60 + 1)
     avisos = juego.tick().avisos
     assert any(a.para == ADMIN and "Cobró $88" in a.texto for a in avisos)
@@ -165,7 +165,7 @@ def test_se_va_solo_a_trabajar_aunque_no_estes(juego, reloj):
     reloj.avanzar(1)
     avisos = juego.tick().avisos
     aviso = next(a for a in avisos if "se fue a trabajar" in a.texto)
-    assert "Sale a las 17:00" in aviso.texto and not aviso.botones  # no estaba conectado
+    assert "Sale a las 5:00 pm" in aviso.texto and not aviso.botones  # no estaba conectado
     assert json.loads(juego.db.jugador(ADMIN).accion)["k"] == "trabajar"
     reloj.avanzar(8 * 60 + 1)
     avisos = juego.tick().avisos
@@ -193,7 +193,7 @@ def test_si_estas_conectado_solo_puedes_quedarte(juego, reloj):
     assert not juego.tick().avisos  # sigue jugando: no se va
     reloj.avanzar(6)  # se desconectó
     aviso = next(a for a in juego.tick().avisos if "se fue a trabajar" in a.texto)
-    assert "Sale a las 17:10" in aviso.texto
+    assert "Sale a las 5:10 pm" in aviso.texto
     assert juego._hogar(juego.db.jugador(ADMIN).sala_id).cuenta == 2100 - 4  # el pasaje se paga una vez
 
 
@@ -206,7 +206,7 @@ def test_tiempo_juntos_protegido(pareja, reloj):
     pareja.boton(ANA, "", "continuar")  # están los dos conectados
     reloj.avanzar(2)
     aviso = next(a for a in pareja.tick().avisos if a.para == ADMIN)
-    assert "Es tu hora de trabajar (09:00), pero estás con" in aviso.texto and "No te obligo" in aviso.texto
+    assert "Es tu hora de trabajar (9:00 am), pero estás con" in aviso.texto and "No te obligo" in aviso.texto
     assert aviso.botones == [[("💼 Ir ahora", "trabajar:ir"), ("⏰ Cuando me desconecte", "trabajar:luego")]]
     assert pareja.db.jugador(ADMIN).accion is None  # nunca se le obliga
     reloj.avanzar(1)
@@ -217,7 +217,7 @@ def test_tiempo_juntos_protegido(pareja, reloj):
     assert "Moviste el turno" in pareja.boton(ADMIN, "", "trabajo").pantalla.texto
     reloj.avanzar(3 * 60)  # se quedaron jugando y luego Luis se fue
     aviso = next(a for a in pareja.tick().avisos if a.para == ADMIN)
-    assert "se fue a trabajar" in aviso.texto and "Sale a las 20:01" in aviso.texto
+    assert "se fue a trabajar" in aviso.texto and "Sale a las 8:01 pm" in aviso.texto
     reloj.avanzar(8 * 60 + 1)
     pareja.tick()
     assert pareja.db.jugador(ADMIN).cartera == 88  # trabajó sin él y cobró
@@ -230,7 +230,7 @@ def test_si_no_repone_el_turno_ese_dia_no_cobra(pareja, reloj):
     pareja.boton(ADMIN, "", "trabajar:luego")
     ir_al_dia(pareja, reloj, ADMIN, 2)  # siguió conectado hasta el otro día
     assert pareja.db.jugador(ADMIN).cartera == 0 and not empleo(pareja).get("historial")
-    assert "Hoy (Martes) entras a las 09:00" in pareja.boton(ADMIN, "", "trabajo").pantalla.texto
+    assert "Hoy (Martes) entras a las 9:00 am" in pareja.boton(ADMIN, "", "trabajo").pantalla.texto
 
 
 def test_ir_ahora_desde_el_aviso(pareja, reloj):
@@ -356,10 +356,10 @@ def test_renunciar_y_empezar_de_cero(juego):
 
 
 def test_hora_local_en_ajustes(juego):
-    assert "🕒 Tu hora local: 08:00 · UTC−4" in juego.boton(ADMIN, "", "ajustes").pantalla.texto
+    assert "🕒 Tu hora local: 8:00 am · UTC−4" in juego.boton(ADMIN, "", "ajustes").pantalla.texto
     assert "zonal:cuba" in str(juego.boton(ADMIN, "", "zona").pantalla.botones)
     assert "zona:60" in str(juego.boton(ADMIN, "", "zona:otra").pantalla.botones)
     res = juego.boton(ADMIN, "", "zona:60")
-    assert res.alerta == "🕒 Listo: tu hora es 13:00" and "🕒 Tu hora local: 13:00" in res.pantalla.texto
+    assert res.alerta == "🕒 Listo: tu hora es 1:00 pm" and "🕒 Tu hora local: 1:00 pm" in res.pantalla.texto
     juego.boton(ADMIN, "", "tomar:recepcion")
-    assert "🕒 Tu hora ahora: 13:00" in juego.boton(ADMIN, "", "hor").pantalla.texto  # ya no vuelve a preguntar
+    assert "🕒 Tu hora ahora: 1:00 pm" in juego.boton(ADMIN, "", "hor").pantalla.texto  # ya no vuelve a preguntar

@@ -31,13 +31,23 @@ def test_elegir_donde_vives():
                   reloj=reloj, rng=random.Random(7))
     juego.inicio(ADMIN, "Admin")
     crear_personaje(juego, ADMIN, "Luis")
-    assert "🕒 Tu hora local: 08:00 · 🇨🇺 Cuba" in juego.boton(ADMIN, "", "ajustes").pantalla.texto
+    assert "🕒 Tu hora local: 8:00 am · 🇨🇺 Cuba" in juego.boton(ADMIN, "", "ajustes").pantalla.texto
     res = juego.boton(ADMIN, "", "zonal:miami")
-    assert res.alerta == "🕒 Listo: tu hora es 08:00 (🇺🇸 Miami / Florida)"
+    assert res.alerta == "🕒 Listo: tu hora es 8:00 am (🇺🇸 Miami / Florida)"
     assert "· 🇺🇸 Miami / Florida" in res.pantalla.texto
     reloj.t = DESPUES
     j = juego.db.jugador(ADMIN)
-    assert juego._hora(j, reloj()) == "07:00"  # pasó el cambio de horario y el Sim sigue la hora real
+    assert juego._hora(j, reloj()) == "7:00 am"  # pasó el cambio de horario y el Sim sigue la hora real
     juego.boton(ADMIN, "", "continuar")
     res = juego.boton(ADMIN, "", "zona:-240")  # una hora fija
-    assert res.alerta == "🕒 Listo: tu hora es 08:00" and "· UTC−4" in res.pantalla.texto
+    assert res.alerta == "🕒 Listo: tu hora es 8:00 am" and "· UTC−4" in res.pantalla.texto
+
+
+def test_horas_en_formato_de_12_horas():
+    from simpareja import vida as V
+
+    casos = {(0, 0): "12:00 am", (0, 5): "12:05 am", (8, 0): "8:00 am", (12, 0): "12:00 pm", (13, 0): "1:00 pm",
+             (23, 59): "11:59 pm"}
+    for (h, m), texto in casos.items():
+        assert V.hora_12(datetime(2026, 1, 1, h, m)) == texto
+        assert V.hora_12_texto(f"{h:02d}:{m:02d}") == texto

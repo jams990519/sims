@@ -38,7 +38,7 @@ def test_animo_con_frase(pareja, reloj):
     assert "ahora se siente: <b>🔵 😢 Triste</b>" in aviso.texto and "«hoy fue un día largo»" in aviso.texto
     assert aviso.foto is None and ("👀 Ver su perfil", "perfil") in aviso.botones[0]
     texto = pareja.boton(ADMIN, "", "perfil").pantalla.texto
-    assert "🎭 🔵 😢 Triste · desde las 08:01" in texto and "💬 «hoy fue un día largo»" in texto
+    assert "🎭 🔵 😢 Triste · desde las 8:01 am" in texto and "💬 «hoy fue un día largo»" in texto
     assert "fotoan" not in str(pareja.boton(ADMIN, "", "perfil").pantalla.botones)
 
 
