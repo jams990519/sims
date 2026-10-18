@@ -31,6 +31,7 @@ from .cocina_juego import CocinaMixin
 from .dinero_juego import DineroMixin
 from .caja_juego import CajaMixin
 from .intimo_juego import IntimoMixin
+from .narracion_juego import NarracionMixin
 from .estudios_juego import EstudiosMixin
 from .eventos_juego import EventosMixin
 from .hitos_juego import HitosMixin
@@ -68,6 +69,7 @@ class Aviso:
     chat: bool = False  # mensaje del chat interno: si no se entrega, se avisa a quien lo mandó
     copiar: bool = False  # además, copiar el mensaje original (foto, sticker, nota de voz…)
     foto: str | None = None  # file_id de Telegram: se envía como foto con el texto de pie
+    silencio: bool = False  # llega sin sonido (la narración de las acciones)
 
 
 @dataclass
@@ -226,7 +228,7 @@ RESPUESTAS_EN_PAUSA = ("pj", "intsi", "intno", "into", "intpara")
 
 class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoMixin, RelacionMixin, PreguntasMixin,
             NotasMixin, EventosMixin, AniversarioMixin, RetosMixin, HitosMixin, ViajeMixin, BodaMixin, TiendasMixin,
-            MascotaMixin, InfluencerMixin, EstudiosMixin, CajaMixin, IntimoMixin):
+            MascotaMixin, InfluencerMixin, EstudiosMixin, CajaMixin, IntimoMixin, NarracionMixin):
     def __init__(self, db: DB, cfg: Config, reloj=time.time, rng: random.Random | None = None):
         self.db = db
         self.cfg = cfg
@@ -481,6 +483,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         ahora = self.reloj()
         res = Resultado()
         self._tick_vida(ahora, res)
+        self._tick_narracion(ahora, res)
         self._tick_cocina(res)
         self._tick_dinero(res)
         self._tick_viaje(res)
@@ -634,6 +637,8 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "intno": self._b_intimo_no,
             "into": self._b_intimo_opcion,
             "intpara": self._b_intimo_parar,
+            "rplato": self._b_restaurante_plato,
+            "rpostre": self._b_restaurante_postre,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:

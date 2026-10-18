@@ -3,9 +3,16 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.33"
+VERSION = "0.34"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.34", [
+        "🍝 <b>El restaurante, paso a paso</b>: mientras están ahí te llegan mensajitos: llegan, el mesero los "
+        "lleva a la mesa, 📜 les presentan la carta (eliges tu plato: pasta, cerdo con congrí, pollo, pescado, "
+        "pizza o ensalada), llegan las bebidas, llega la comida, comen, 🍰 ¿postre? ($5) y la cuenta.",
+        "💞 En una cita los dos van al mismo restaurante y cada uno elige su plato.",
+        "🔕 Los mensajitos llegan sin sonido; solo suenan los que preguntan algo.",
+    ]),
     ("0.33", [
         "🔥 <b>Momento íntimo</b> (💕 Pareja → Momento íntimo): un minijuego para los dos. Uno propone el lugar "
         "(🛏️ cuarto, 🚿 ducha o 🛋️ sofá) y el ambiente (🕯️ romántico, 😏 juguetón o 🔥 apasionado), y la pareja "

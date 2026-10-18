@@ -215,9 +215,11 @@ class BotSimPareja:
                     await bot.send_message(aviso.para, aviso.texto)
                     await bot.copy_message(aviso.para, original.chat_id, original.message_id)
             elif aviso.foto:
-                await bot.send_photo(aviso.para, aviso.foto, caption=aviso.texto, reply_markup=teclado(aviso.botones))
+                await bot.send_photo(aviso.para, aviso.foto, caption=aviso.texto, reply_markup=teclado(aviso.botones),
+                                     disable_notification=aviso.silencio)
             else:
-                await bot.send_message(aviso.para, aviso.texto, reply_markup=teclado(aviso.botones))
+                await bot.send_message(aviso.para, aviso.texto, reply_markup=teclado(aviso.botones),
+                                       disable_notification=aviso.silencio)
             return True
         except Forbidden:
             log.info("El usuario %s bloqueó el bot", aviso.para)
