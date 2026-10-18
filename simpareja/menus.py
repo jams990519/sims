@@ -150,6 +150,14 @@ class MenuMixin:
         a = V.ACCIONES.get(accion["k"]) if accion and accion["rfin"] > ahora else None
         return PL.icono(a.emoji) if a is not None else ""
 
+    def _zona_en_plano(self, m: Jugador, ahora: float) -> str:
+        """Su habitación; en la sala-cocina-comedor, la parte donde hace lo que está haciendo."""
+        if m.lugar != "salon":
+            return m.lugar
+        accion = self._accion(m)
+        activa = accion is not None and accion["rfin"] > ahora
+        return V.RINCON.get(accion["k"], "sala") if activa else "sala"
+
     def _pantalla_plano(self, j: Jugador, aviso: str | None = None):
         """🏠 Casa: el plano de la casa en texto, con cada jugador donde está. Se actualiza sola."""
         from .juego import CONTINUAR, Pantalla
@@ -164,7 +172,7 @@ class MenuMixin:
         for m, letra in zip(miembros, letras):
             marca = (letra, self._icono_en_plano(m, ahora))
             if m.lugar in casa.zonas:
-                dentro.setdefault(m.lugar, []).append(marca)
+                dentro.setdefault(self._zona_en_plano(m, ahora), []).append(marca)
             else:
                 fuera.append(marca)
         lineas = [aviso, ""] if aviso else []

@@ -3,9 +3,14 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.28"
+VERSION = "0.29"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.29", [
+        "🚶 <b>En el plano tu letra se mueve según lo que haces</b>: en la sala-cocina-comedor se pone justo "
+        "debajo de la parte donde estás: 📺 en la sala, 🍳🍎 en la cocina, 🍴📚 en el comedor.",
+        "🛏️ En el cuarto, el clóset y el baño, la letra va justo debajo del nombre de la habitación.",
+    ]),
     ("0.28", [
         "🏠 <b>Al tocar Casa sale el plano</b> directamente, hecho para la pantalla de un teléfono pequeño.",
         "📍 El plano <b>solo marca dónde está cada jugador</b>: su inicial y, al lado, el ícono de lo que hace "

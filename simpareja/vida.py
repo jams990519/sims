@@ -170,6 +170,13 @@ class Accion:
         return self.nombre
 
 
+# En qué parte de la sala-cocina-comedor se hace cada acción (en el plano); las demás, en la sala.
+RINCON = {
+    "cocinar": "cocina", "taper": "cocina", "picar": "cocina", "dar_comida": "cocina",
+    "comer": "comedor", "domicilio": "comedor", "estudiar": "comedor", "aprender_redes": "comedor",
+    "editar": "comedor", "guion": "comedor",
+}
+
 # Submenús de ⚡ Acciones y de 📍 Lugares.
 CATEGORIAS = (
     ("comer", "🍽️", "Comer"),
