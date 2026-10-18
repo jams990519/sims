@@ -3,9 +3,16 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.26"
+VERSION = "0.27"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.27", [
+        "💌 <b>Dos formas de invitar</b> en 💌 Invitar: 📤 <b>Pasar el bot a alguien</b> (le mandas un enlace y, al "
+        "abrirlo, le llega tu invitación directamente) o ⌨️ <b>Invitar con su código</b> (su ID de jugador).",
+        "👥 En las dos eliges quién es esa persona: 💞 pareja, 👨‍👩‍👧 familia, 🤝 amistad o 💼 trabajo o estudios. "
+        "Solo la pareja entra a tu sala; los demás juegan en la suya.",
+        "🔐 Cada enlace sirve para una sola persona y lo puedes anular en 📋 Invitaciones enviadas.",
+    ]),
     ("0.26", [
         "🪪 <b>Tu código ahora es tu ID de jugador</b> y lo ves con tu nombre en 💌 Invitar (y en ⚙️ Ajustes). "
         "Tócalo para copiarlo.",

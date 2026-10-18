@@ -216,6 +216,88 @@ def test_sala_llena_solo_ofrece_sala_propia(pareja):
     assert pareja.db.jugador(LUIS).sala_id != pareja.db.jugador(ADMIN).sala_id
 
 
+
+# --- dos formas de invitar: con su código o pasándole el bot ------------------------
+
+def enlace_de(pantalla):
+    return pantalla.texto.split("?start=inv_")[1].split("<")[0]
+
+
+def test_dos_formas_de_invitar_y_el_vinculo(juego):
+    admin_listo(juego)
+    res = juego.boton(ADMIN, "Admin", "invitar")
+    assert {"invq", "invcod"} <= set(datos(res.pantalla))
+    assert "invitar_CÓDIGO" in juego.boton(ADMIN, "Admin", "invcod").pantalla.texto
+    codigo = codigo_personal(juego, ANA)
+    res = juego.texto(ADMIN, "Admin", f"invitar_{codigo}")
+    assert "¿Quién es esta persona para ti?" in res.pantalla.texto
+    assert {f"invc:{codigo}:{t}" for t in ("pareja", "familia", "amistad", "trabajo")} <= set(datos(res.pantalla))
+    res = juego.boton(ADMIN, "Admin", f"invc:{codigo}:trabajo")
+    assert "💼 Trabajo o estudios" in res.pantalla.texto
+    aviso = next(a for a in res.avisos if a.para == ANA)
+    assert "Te invita como: <b>💼 Trabajo o estudios</b>" in aviso.texto and "tu propia sala" in aviso.texto
+    assert "Ana · 💼 Trabajo o estudios · esperando respuesta" in juego.boton(ADMIN, "", "invs").pantalla.texto
+    assert juego.boton(ADMIN, "Admin", f"invc:{codigo}:jefe").alerta == "Esa persona ya no se puede invitar."
+
+
+def test_pasar_el_bot_invita_directamente(juego):
+    admin_listo(juego)
+    res = juego.boton(ADMIN, "Admin", "invq")
+    assert {"invq:pareja", "invq:familia", "invq:amistad", "invq:trabajo"} <= set(datos(res.pantalla))
+    res = juego.boton(ADMIN, "Admin", "invq:familia")
+    assert "https://t.me/sims000bot?start=inv_" in res.pantalla.texto and "👨‍👩‍👧 Familia" in res.pantalla.texto
+    assert any(d.startswith("https://t.me/share/url?url=") for d in datos(res.pantalla))
+    codigo = enlace_de(res.pantalla)
+    assert enlace_de(juego.boton(ADMIN, "Admin", "invq:familia").pantalla) == codigo  # el mismo enlace
+    assert "📤 enlace sin abrir · 👨‍👩‍👧 Familia" in juego.boton(ADMIN, "", "invs").pantalla.texto
+    assert "Este es <b>tu</b> enlace" in juego.inicio(ADMIN, "Admin", f"inv_{codigo}").pantalla.texto
+
+    res = juego.inicio(ANA, "Ana", f"inv_{codigo.lower()}")
+    assert "¡Tienes una invitación!" in res.pantalla.texto
+    assert "Te invita como: <b>👨‍👩‍👧 Familia</b>" in res.pantalla.texto
+    # el enlace es para una sola persona
+    assert "solo por invitación" in juego.inicio(LUIS, "Luis", f"inv_{codigo}").pantalla.texto
+    assert "Ana · 👨‍👩‍👧 Familia · esperando respuesta" in juego.boton(ADMIN, "", "invs").pantalla.texto
+
+    acepto = next(d for d in datos(res.pantalla) if d.startswith("acepto:"))
+    res = juego.boton(ANA, "Ana", acepto)
+    assert any(a.para == ADMIN and "Familia" in a.texto and "aceptó" in a.texto for a in res.avisos)
+    crear_personaje(juego, ANA, "Ana")
+    ana = juego.db.jugador(ANA)
+    assert ana.sala_id != juego.db.jugador(ADMIN).sala_id and juego._extras(ana)["vinculo"] == "familia"
+
+
+def test_pasar_el_bot_a_la_pareja(juego):
+    admin_listo(juego)
+    codigo = enlace_de(juego.boton(ADMIN, "Admin", "invq:pareja").pantalla)
+    res = juego.inicio(ANA, "Ana", f"inv_{codigo}")
+    assert "Entrarás a su sala como pareja" in res.pantalla.texto
+    juego.boton(ANA, "Ana", f"acepto:{codigo}")
+    crear_personaje(juego, ANA, "Ana")
+    assert juego.db.jugador(ANA).sala_id == juego.db.jugador(ADMIN).sala_id
+    assert "invq:pareja" not in datos(juego.boton(ADMIN, "Admin", "invq").pantalla)  # ya no hay lugar
+
+
+def test_enlace_de_pareja_a_quien_ya_juega_solo(juego):
+    admin_listo(juego)
+    aceptar(juego, LUIS, invitar(juego, ADMIN, LUIS, "amistad", "Luis"), "Luis")
+    crear_personaje(juego, LUIS, "Pepe")
+    codigo = enlace_de(juego.boton(ADMIN, "Admin", "invq:pareja").pantalla)
+    res = juego.inicio(LUIS, "Luis", f"inv_{codigo}")
+    assert "te invita a mudarte a su sala" in res.pantalla.texto
+    res = juego.boton(LUIS, "Luis", f"aceptoj:{codigo}")
+    assert "¡Te mudaste a la sala de" in res.pantalla.texto
+    assert juego.db.jugador(LUIS).sala_id == juego.db.jugador(ADMIN).sala_id
+
+
+def test_anular_un_enlace(juego):
+    admin_listo(juego)
+    codigo = enlace_de(juego.boton(ADMIN, "Admin", "invq:amistad").pantalla)
+    assert juego.boton(ADMIN, "Admin", f"anular:{codigo}").alerta == "🚫 Invitación anulada"
+    assert "solo por invitación" in juego.inicio(ANA, "Ana", f"inv_{codigo}").pantalla.texto
+    assert enlace_de(juego.boton(ADMIN, "Admin", "invq:amistad").pantalla) != codigo  # uno nuevo
+
+
 # --- creación del personaje -------------------------------------------------------
 
 def test_creador_paso_a_paso_con_personalidad(juego):
@@ -361,7 +443,7 @@ def test_volver_a_los_3_minutos_retoma_la_misma_pantalla(pareja, reloj):
     reloj.avanzar(3)
     res = pareja.inicio(ANA, "Ana")
     assert "Retomas donde lo dejaste: <b>💌 Invitar</b> · hace 3 min" in res.pantalla.texto
-    assert "Invitar a un jugador" in res.pantalla.texto
+    assert "Dos formas de invitar" in res.pantalla.texto
 
 
 def test_volver_a_los_5_minutos_pide_continuar_y_retoma(pareja, reloj):
