@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from pathlib import Path
 
 from telegram import (
     Bot,
@@ -30,6 +31,7 @@ from telegram.ext import (
 )
 
 from . import ilustraciones as IL
+from . import imagenes_ia as IA
 from . import teclado as TK
 from .config import Config
 from .juego import Aviso, Botones, Juego, Pantalla, Resultado
@@ -88,9 +90,15 @@ def teclado_abajo(filas: list[TK.Fila]) -> ReplyKeyboardMarkup | None:
 
 
 class BotSimPareja:
-    def __init__(self, juego: Juego, cfg: Config):
+    def __init__(self, juego: Juego, cfg: Config, imagenes: IA.ImagenesIA | None = None):
         self.juego = juego
         self.cfg = cfg
+        if imagenes is None:
+            generar = (IA.generador_openai(cfg.openai_key, cfg.imagen_modelo, cfg.imagen_calidad)
+                       if cfg.openai_key else None)
+            imagenes = IA.ImagenesIA(juego.db, Path(cfg.db_ruta).parent / "imagenes", cfg.imagenes_por_dia, generar)
+        self.imagenes = imagenes
+        self._en_curso: set[asyncio.Task] = set()  # fotos que llegan cuando la IA termina
 
     def construir(self, peticiones=None) -> Application:
         """`peticiones` permite inyectar un cliente HTTP falso en las pruebas."""
@@ -132,6 +140,8 @@ class BotSimPareja:
         self.juego.bot_usuario = app.bot.username
         await app.bot.set_my_commands(COMANDOS)
         log.info("Bot @%s listo", app.bot.username)
+        log.info("Fotos de anime: %s", f"{self.cfg.imagen_modelo}, hasta {self.cfg.imagenes_por_dia} nuevas al día"
+                 if self.imagenes.activa else "apagadas (falta OPENAI_API_KEY): los mensajitos van solo con texto")
         res = self.juego.anunciar_novedades()
         for aviso in res.avisos:
             await self._enviar_aviso(app.bot, aviso, None)
@@ -213,6 +223,9 @@ class BotSimPareja:
             )
         for ed in res.ediciones:
             await self._editar(context.bot, ed.para, ed.msg_id, ed.pantalla)
+        for clave in self.juego.pedir_fotos():  # las fotos que van a hacer falta: que la IA empiece ya
+            if not self.juego.db.meta(f"ilusid:{clave}"):
+                self.imagenes.pedir(clave)
 
     async def _mostrar(self, update: Update, context: ContextTypes.DEFAULT_TYPE, res: Resultado,
                        alerta: bool = False) -> None:
@@ -287,7 +300,7 @@ class BotSimPareja:
                 markup = teclado_abajo(TK.mostrar(filas, estado.get("filas", [])))
             try:
                 if aviso.foto:
-                    await self._enviar_foto(bot, aviso.para, aviso.foto, texto, markup, aviso.silencio)
+                    await self._enviar_foto(bot, aviso.para, aviso.foto, texto, markup, aviso.silencio, aviso.solo_foto)
                 else:
                     await bot.send_message(aviso.para, texto, reply_markup=markup, disable_notification=aviso.silencio)
                 return True
@@ -308,7 +321,8 @@ class BotSimPareja:
                     await bot.send_message(aviso.para, aviso.texto)
                     await bot.copy_message(aviso.para, original.chat_id, original.message_id)
             elif aviso.foto:
-                await self._enviar_foto(bot, aviso.para, aviso.foto, aviso.texto, teclado(aviso.botones), aviso.silencio)
+                await self._enviar_foto(bot, aviso.para, aviso.foto, aviso.texto, teclado(aviso.botones),
+                                        aviso.silencio, aviso.solo_foto)
             else:
                 await bot.send_message(aviso.para, aviso.texto, reply_markup=teclado(aviso.botones),
                                        disable_notification=aviso.silencio)
@@ -319,23 +333,56 @@ class BotSimPareja:
             log.warning("No se pudo avisar a %s: %s", aviso.para, e)
         return False
 
-    async def _enviar_foto(self, bot: Bot, para: int, foto: str, texto: str, markup, silencio: bool) -> None:
-        """Una foto de Telegram (file_id) o un dibujo «ilus:…»: se dibuja la primera vez y después se reusa."""
+    async def _enviar_foto(self, bot: Bot, para: int, foto: str, texto: str, markup, silencio: bool,
+                           solo_foto: bool = False) -> None:
+        """Una foto de Telegram (file_id) o una foto de anime «ilus:…» hecha por la IA.
+
+        Si la foto de la IA todavía no está, el texto sale ya y la foto llega sola cuando la IA termine. Sin IA
+        (o sin fotos por hoy) va solo el texto; un aviso `solo_foto` entonces no se manda.
+        """
         clave = foto[len("ilus:"):] if foto.startswith("ilus:") else None
         if clave is None:
             await bot.send_photo(para, foto, caption=texto, reply_markup=markup, disable_notification=silencio)
             return
+        if await self._foto_hecha(bot, para, clave, texto, markup, silencio):
+            return
+        tarea = self.imagenes.pedir(clave)
+        if not solo_foto:
+            await bot.send_message(para, texto, reply_markup=markup, disable_notification=silencio)
+        if tarea is not None:
+            pie = texto if solo_foto else "📸 La foto de este momento"
+            seguir = asyncio.create_task(self._foto_tarde(bot, para, clave, tarea, pie, silencio))
+            self._en_curso.add(seguir)
+            seguir.add_done_callback(self._en_curso.discard)
+
+    async def _foto_hecha(self, bot: Bot, para: int, clave: str, pie: str, markup, silencio: bool) -> bool:
+        """Manda la foto si ya está hecha: por su file_id de Telegram o, la primera vez, subiéndola."""
+        espiar = IL.es_intima(clave)  # la íntima llega tapada hasta que la tocas
         guardada = self.juego.db.meta(f"ilusid:{clave}")
         if guardada:
             try:
-                await bot.send_photo(para, guardada, caption=texto, reply_markup=markup, disable_notification=silencio)
-                return
+                await bot.send_photo(para, guardada, caption=pie, reply_markup=markup, disable_notification=silencio,
+                                     has_spoiler=espiar)
+                return True
             except BadRequest:
                 pass  # ya no sirve: se vuelve a subir
-        m = await bot.send_photo(para, IL.dibujar(clave), caption=texto, reply_markup=markup,
-                                 disable_notification=silencio)
+        jpeg = self.imagenes.lista(clave)
+        if jpeg is None:
+            return False
+        m = await bot.send_photo(para, jpeg, caption=pie, reply_markup=markup, disable_notification=silencio,
+                                 has_spoiler=espiar)
         if m.photo:
             self.juego.db.guardar_meta(f"ilusid:{clave}", m.photo[-1].file_id)
+        return True
+
+    async def _foto_tarde(self, bot: Bot, para: int, clave: str, tarea: asyncio.Task, pie: str,
+                          silencio: bool) -> None:
+        if await tarea is None:
+            return
+        try:
+            await self._foto_hecha(bot, para, clave, pie, None, silencio)
+        except TelegramError as e:
+            log.warning("No se pudo mandar la foto a %s: %s", para, e)
 
     async def _editar(self, bot: Bot, uid: int, msg_id: int, p: Pantalla) -> None:
         try:

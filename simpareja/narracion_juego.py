@@ -1,8 +1,9 @@
-"""Narración de las acciones (versión 0.34).
+"""Narración de las acciones (versiones 0.34 y 0.43).
 
 `NarracionMixin` se mezcla con `Juego`. Cada minuto, a quien está haciendo una acción con narración le
 llega el mensajito de la etapa que toca (sin sonido, para no molestar). En el restaurante la carta deja
-elegir el plato y al final preguntan por el postre.
+elegir el plato y al final preguntan por el postre. Uno de los mensajitos de cada acción trae su foto estilo
+anime (ilustraciones.py), con los rasgos de los dos; al empezar la acción ya se pide, para que esté lista.
 
 En la acción guardada del jugador: "nar" (cuántas etapas ya llegaron) y, en el restaurante,
 "rest" {lugar, plato, postre}.
@@ -12,6 +13,8 @@ from __future__ import annotations
 
 import json
 
+from . import ilustraciones as IL
+from . import mascota_juego as M
 from . import narracion as N
 from .db import Jugador
 
@@ -69,20 +72,40 @@ class NarracionMixin:
             texto = etapa.texto(juntos, cuando).format(lugar=rest["lugar"], plato=f"{e} {nombre}")
         else:
             texto = etapa.texto(juntos, cuando)
-        return Aviso(j.id, extra + texto, botones, silencio=not botones, foto=self._dibujo(j, accion, etapa, cuando))
+        foto = self._foto(j, etapa.escena, cuando, accion.get("con"))
+        return Aviso(j.id, extra + texto, botones, silencio=not botones, foto=foto and f"ilus:{foto}")
 
-    def _dibujo(self, j: Jugador, accion: dict, etapa: N.Etapa, cuando: str) -> str | None:
-        """'ilus:escena:momento:figuras' (el bot lo dibuja), si la etapa tiene dibujo y el jugador los quiere."""
-        if not etapa.escena or not self._extras(j).get("fotos", True):
+    def _foto(self, j: Jugador, escena: str, cuando: str, con: int | None) -> str | None:
+        """La clave de la foto (ilustraciones.py), si hay escena y el jugador quiere fotos."""
+        if not escena or not self._extras(j).get("fotos", True):
             return None
-        figuras = N.letra(j.ap.get("genero"))
-        pareja = self.db.jugador(accion["con"]) if accion.get("con") else None
+        if escena in N.MASCOTA:
+            m = self._mascota(self._hogar(j.sala_id))
+            if m:
+                color = M.ASPECTOS.index(m["aspecto"]) if m.get("aspecto") in M.ASPECTOS else ""
+                escena = f"{escena}.{m['tipo']}.{color}"
+        figuras = [IL.figura(j.ap)]
+        pareja = self.db.jugador(con) if con else None
         if pareja is not None:
-            figuras += N.letra(pareja.ap.get("genero"))
-        return f"ilus:{etapa.escena}:{cuando}:{figuras}"
+            figuras.append(IL.figura(pareja.ap))
+        return IL.clave(escena, cuando, figuras)
+
+    def _predibujar(self, j: Jugador, accion: dict) -> None:
+        """Al empezar una acción se piden ya sus fotos: la IA tarda un poco en hacerlas."""
+        if not self._quiere_narracion(j.id):
+            return
+        duracion = accion["rfin"] - accion["rini"]
+        if accion["k"] == "cocinar":
+            fotos = [(f"cocina.{accion.get('x')}", accion["rini"])]
+        else:
+            fotos = [(e.escena, accion["rini"] + e.fraccion * duracion) for e in N.ETAPAS.get(accion["k"], ())]
+        for escena, cuando in fotos:
+            foto = self._foto(j, escena, N.momento(self._hora_local(j, cuando)), accion.get("con"))
+            if foto:
+                self.por_dibujar.append(foto)
 
     def _b_fotos(self, j: Jugador, arg: str, res) -> None:
-        """⚙️ Ajustes: encender o apagar los dibujos de los mensajitos (gastan algo más de datos)."""
+        """⚙️ Ajustes: encender o apagar las fotos de los mensajitos (gastan algo más de datos)."""
         extras = self._extras(j)
         extras["fotos"] = not extras.get("fotos", True)
         j.extras = json.dumps(extras)

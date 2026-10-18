@@ -48,6 +48,11 @@ class Config:
     zona_por_defecto: str = ""
     # Botones abajo, en el teclado de Telegram (siempre visibles); BOTONES_ABAJO=0 los deja en los mensajes.
     botones_abajo: bool = True
+    # Fotos estilo anime de las acciones, hechas por una IA de imágenes (OpenAI). Sin clave, solo texto.
+    openai_key: str = field(default="", repr=False)
+    imagen_modelo: str = "gpt-image-2"
+    imagen_calidad: str = "medium"  # low, medium o high
+    imagenes_por_dia: int = 20  # fotos nuevas por día como máximo (las ya hechas se reusan gratis)
     # Opcionales, para servidores en países donde Telegram está bloqueado.
     proxy: str = ""
     api_url: str = ""
@@ -71,6 +76,10 @@ class Config:
             botones_abajo=e("BOTONES_ABAJO", "1") not in ("0", "no", "false"),
             zona_por_defecto=e("ZONA_POR_DEFECTO", "cuba"),
             registro_abierto=e("REGISTRO_ABIERTO", "0") in ("1", "si", "sí", "true"),
+            openai_key=e("OPENAI_API_KEY", "").strip(),
+            imagen_modelo=e("IMAGEN_MODELO", cls.imagen_modelo),
+            imagen_calidad=e("IMAGEN_CALIDAD", cls.imagen_calidad),
+            imagenes_por_dia=int(e("IMAGENES_POR_DIA", cls.imagenes_por_dia)),
             proxy=e("TELEGRAM_PROXY", ""),
             api_url=e("TELEGRAM_API_URL", ""),
         )

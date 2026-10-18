@@ -6,7 +6,8 @@
 - Tres rondas (preparar el momento, acercarse y el momento): cada uno elige una opción sin ver la del
   otro. Si eligen lo mismo hay conexión, y más si va con el ambiente que buscaban.
 - Al final las luces se apagan (nada explícito): suben el social, la diversión y el medidor de los dos,
-  según la conexión, y se quedan un rato descansando abrazados.
+  según la conexión, y se quedan un rato descansando abrazados. Llega una foto estilo anime romántico del
+  lugar, con los rasgos de los dos y pixelada abajo (se pide a la IA en cuanto empiezan).
 
 En `extras` del hogar: "intimo" {estado: propuesto|jugando, de, para, lugar, ambiente, ronda,
 elecciones, puntos, ts} e "intimo_ultimo" (cuándo fue el último).
@@ -14,6 +15,7 @@ elecciones, puntos, ts} e "intimo_ultimo" (cuándo fue el último).
 
 from __future__ import annotations
 
+from . import narracion as N
 from . import vida as V
 from .db import Hogar, Jugador
 
@@ -258,6 +260,7 @@ class IntimoMixin:
             self.db.guardar_jugador(m)
         estado.update(estado="jugando", ts=ahora)
         self._guardar_intimo(h, estado)
+        self.por_dibujar += [f for f in (self._foto_intima(j, de, estado), self._foto_intima(de, j, estado)) if f]
         res.ediciones += self._refrescar_sala(j.sala_id, excepto=j.id)
         pantalla = self._pantalla_ronda(de, estado, f"💞 {self._firma(j)} dijo que sí.")
         res.avisos.append(Aviso(de.id, pantalla.texto, pantalla.botones))
@@ -335,10 +338,20 @@ class IntimoMixin:
         texto = f"{resumen}\n\n{final}"
         botones = [[("🗺️ Ver la casa", "mcasa"), ("🎮 Menú", "menu")]]
         res.avisos.append(Aviso(otro.id, texto, botones))
+        emoji, donde, _ = LUGARES[estado["lugar"]]
+        for m, pareja in ((otro, j), (j, otro)):
+            foto = self._foto_intima(m, pareja, estado)
+            if foto:
+                res.avisos.append(Aviso(m.id, f"📸 Su momento {emoji} {donde}. 💞", foto=f"ilus:{foto}",
+                                        silencio=True, solo_foto=True))
         res.ediciones += self._refrescar_sala(j.sala_id, excepto=j.id)
         from .juego import Pantalla
 
         res.pantalla = Pantalla(texto, botones, clave="intimo")
+
+    def _foto_intima(self, j: Jugador, otro: Jugador, estado: dict) -> str | None:
+        """La foto del momento según el lugar de la casa (ilustraciones.py), si quien la recibe quiere fotos."""
+        return self._foto(j, f"intimo_{estado['lugar']}", N.momento(self._hora_local(j)), otro.id)
 
     def _terminar_intimo(self, j: Jugador, otro: Jugador, estado: dict) -> str:
         """Las luces se apagan: suben las necesidades y el medidor de los dos, y se quedan abrazados."""
