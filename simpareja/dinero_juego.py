@@ -208,6 +208,9 @@ class DineroMixin:
             corte = f" Se cortó el servicio: {f.sin_servicio}." if f.clave in D.SERVICIOS else ""
             lineas.append(f"⚠️ No alcanzó para {f.emoji} {f.nombre}: ahora deben {D.dinero(impago['monto'])} (con recargo del 10 %).{corte}")
         lineas.append(f"🏦 Quedan {D.dinero(h.cuenta)} en la cuenta compartida.")
+        interes = self._interes_caja(h)
+        if interes:
+            lineas.append(interes)
         return "\n".join(lineas)
 
     def _tick_dinero(self, res) -> None:
@@ -253,6 +256,11 @@ class DineroMixin:
             "",
             f"👛 Tu cartera: <b>{D.dinero(j.cartera)}</b>",
             f"🏦 Cuenta compartida: <b>{D.dinero(h.cuenta)}</b>",
+        ]
+        caja = self._caja(h)
+        if caja is not None:
+            lineas.append(f"🐷 Caja de ahorros: <b>{D.dinero(caja['saldo'])}</b>")
+        lineas += [
             f"📄 Facturas del mes: {D.dinero(D.total_mes(consumo, self._casa(h), bool(self._mascota(h))))} · se cobran en "
             f"{max(0, h.proximo_cobro - dia)} días",
             "",
@@ -264,12 +272,13 @@ class DineroMixin:
             lineas += ["", "<b>Últimos movimientos</b>"]
             for m in movimientos:
                 quien = self.db.jugador(m.jugador_id) if m.jugador_id else None
-                cuenta = "👛" if m.cuenta == "cartera" else "🏦"
+                cuenta = {"cartera": "👛", "caja": "🐷"}.get(m.cuenta, "🏦")
                 signo = "+" if m.monto > 0 else ""
                 de_quien = f" ({quien.personaje})" if quien else ""
                 lineas.append(f"{cuenta} {signo}{D.dinero(m.monto)} {m.concepto}{de_quien} · hace {duracion(ahora - m.ts)}")
         botones = [
             [("⬆️ Cartera → compartida", "mover:dep"), ("⬇️ Compartida → cartera", "mover:ret")],
+            [("🐷 Caja de ahorros", "caja")],
             [("📄 Facturas", "facturas"), ("🚚 Renta y mudanza", "mudanza")],
             [("⬅️ Atrás", "mest"), ("🎮 Menú", "menu")],
         ]
