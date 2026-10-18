@@ -3,9 +3,14 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.40"
+VERSION = "0.41"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.41", [
+        "🔥 <b>El momento íntimo, justo donde estás</b>: en 🏠 Casa y en ⚡ Acciones aparece «🔥 Aquí» con el lugar "
+        "de la casa donde estás (🛏️ en la cama, 🚿 en la ducha, 🛋️ en el sofá, 👗 en el clóset…), y «En otro "
+        "lugar» para elegir cualquier otro rincón de la casa.",
+    ]),
     ("0.40", [
         "🖼️ <b>Los mensajitos traen dibujos</b>: en el 🌳 parque cada momento llega con su dibujo (llegan, los "
         "patos, la banca, el regreso), según la hora real: de día con sol, al atardecer naranja y de noche con "

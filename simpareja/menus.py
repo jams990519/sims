@@ -209,10 +209,20 @@ class MenuMixin:
             [("⬅️ Atrás", "menu")],
         ]
         if self._pareja_en_sala(j):
-            botones.insert(-1, [("🔥 Momento íntimo", "intimo")])
+            botones.insert(-1, self._botones_intimo_aqui(j))
         if pausado:
             botones.insert(0, [CONTINUAR])
         return Pantalla("\n".join(lineas), botones, es_sala=True, clave="plano")
+
+    def _botones_intimo_aqui(self, j: Jugador) -> list:
+        """🔥 Momento íntimo justo donde estás (la cama, la ducha, el sofá…) y, aparte, en otro lugar."""
+        from .intimo_juego import LUGARES as INTIMO
+
+        aqui = next((c for c in self._lugares_intimo(j) if INTIMO[c][2] == j.lugar), None)
+        if aqui is None:
+            return [("🔥 Momento íntimo", "intimo")]
+        e, nombre, _ = INTIMO[aqui]
+        return [(f"🔥 Aquí: {e} {nombre}", f"intl:{aqui}"), ("🔥 En otro lugar", "intimo")]
 
     def _b_plano(self, j: Jugador, arg: str, res) -> None:
         res.pantalla = self._pantalla_plano(j)
@@ -227,6 +237,8 @@ class MenuMixin:
             for i in range(0, len(V.CATEGORIAS), 2)
         ]
         botones.append([("📚 Estudiar", "estudios")])
+        if self._pareja_en_sala(j):
+            botones.append(self._botones_intimo_aqui(j))
         botones.append([("⬅️ Atrás", "menu")])
         res.pantalla = Pantalla(
             f"⚡ <b>Acciones</b>\n📍 Estás en: {V.nombre_habitacion(j.lugar)}\n"
