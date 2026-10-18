@@ -7,7 +7,7 @@ Se entra **solo por invitación** y funciona en **cualquier país donde abra Tel
 
 | | |
 |---|---|
-| 🔐 **Entrada solo por invitación** | El **código de cada persona es su ID de jugador** (el de Telegram): quien todavía no juega lo ve al abrir el bot, y quien ya juega lo ve con su nombre en 💌 Invitar. Para invitar se escribe `invitar_CÓDIGO` y se elige si entra como pareja (a tu sala) o con sala propia; si la persona ya juega sin pareja, se le invita a mudarse a tu sala con sus ahorros y sus cosas. A la persona invitada le llega un aviso para **aceptar o rechazar**. |
+| 🔐 **Entrada solo por invitación** | El **código de cada persona es su ID de jugador** (el de Telegram): quien todavía no juega lo ve al abrir el bot, y quien ya juega lo ve con su nombre en 💌 Invitar. Hay **dos formas de invitar**: 📤 **pasar el bot** (un enlace `t.me/…?start=inv_…` que, al abrirlo, le lleva la invitación directamente; sirve para una sola persona) o ⌨️ escribir `invitar_CÓDIGO`. En las dos se elige **quién es esa persona**: 💞 pareja (entra a tu sala), 👨‍👩‍👧 familia, 🤝 amistad o 💼 trabajo o estudios (con sala propia); si la persona ya juega sin pareja, se le invita a mudarse a tu sala con sus ahorros y sus cosas. A la persona invitada le llega un aviso para **aceptar o rechazar**. |
 | 🧑‍🎨 **Creador de personaje** | **Aspecto**: género, edad, piel, forma del cuerpo, estatura, peinado, color de pelo, ojos, detalles y estilo. **Personalidad**: hasta 3 rasgos, una aspiración de vida y un estado de ánimo con su color. Botón 🎲 al azar en cada paso, ficha editable, textos en masculino, femenino o neutro y avatar en emoji (👩🏾‍🦱, 🧔🏽‍♂️, 👱🏼‍♀️…). |
 | 🎮 **Menú** | 🏠 Casa · ⚡ Acciones · 📍 Lugares · 💼 Trabajo · 💕 Pareja · 👤 Estado · 💬 Chat, con ⬅️ Atrás en cada submenú. Cada acción termina en una ficha con efecto, tiempo y precio para confirmar (solo o juntos). El Sim está en una habitación y va solo a donde toca. Lo que aún no existe aparece como 🚧. |
 | 🎮 **Jugar o invitar** | Al terminar el personaje eliges **Jugar** (también sin compañía, sin esperar a nadie) o **Invitar**. |
@@ -45,7 +45,7 @@ Se entra **solo por invitación** y funciona en **cualquier país donde abra Tel
 ### ¿Por qué funciona en cualquier país?
 - Quien juega **solo necesita Telegram**: no hay pagos, ni tarjetas, ni correo, ni apps aparte.
 - Es **solo texto**: los menús se editan en el mismo mensaje y no se cargan imágenes, así gasta muy pocos datos (importante con los datos de ETECSA).
-- Para invitar basta pasarse un código de 6 letras por WhatsApp, SMS o en persona.
+- Para invitar basta pasarse el enlace del bot o el código (el ID de jugador) por WhatsApp, SMS o en persona.
 - Lo único que necesita conexión con Telegram es el **servidor**. Si lo pones en un país donde Telegram está bloqueado, usa `TELEGRAM_PROXY`.
 
 ### Sobre el estado "en línea"
