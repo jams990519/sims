@@ -136,6 +136,12 @@ def test_en_cualquier_lugar_de_la_casa(pareja):
     assert "intimo" in datos(pareja.boton(ADMIN, "", "acc:pareja").pantalla)  # ⚡ Acciones → 💞 Pareja
     assert "intimo" in datos(pareja.boton(ADMIN, "", "mcasa").pantalla)  # 🏠 Casa
     pareja.boton(ADMIN, "", "ir:bano")
+    casa = pareja.boton(ADMIN, "", "mcasa").pantalla
+    assert ("🔥 Aquí: 🚿 en la ducha", "intl:bano") in casa.botones[-2]  # justo donde estás
+    assert "intl:bano" in datos(pareja.boton(ADMIN, "", "macc").pantalla)  # también en ⚡ Acciones
+    pareja.boton(ADMIN, "", "ir:cuarto")
+    assert "intl:cuarto" in datos(pareja.boton(ADMIN, "", "mcasa").pantalla)  # en la cama
+    pareja.boton(ADMIN, "", "ir:bano")
     res = pareja.boton(ADMIN, "", "intimo")
     assert res.pantalla.botones[0] == [("📍 🚿 En la ducha", "intl:bano")]  # primero, donde estás
     lugares = set(datos(res.pantalla))
