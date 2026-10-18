@@ -11,6 +11,7 @@ import json
 import math
 
 from . import cocina as C
+from . import narracion as N
 from . import dinero as D
 from . import vida as V
 from .db import Hogar, Jugador
@@ -407,6 +408,11 @@ class CocinaMixin:
             if ahora > quema:
                 noticia = self._quemar(h, coccion)
                 res.avisos += [Aviso(c, noticia, [[("🧍 Mi Sim", "sim")]]) for c in coccion["cocineros"]]
+            elif ahora < listo and self._narrar_paso(h, coccion, listo, ahora):
+                res.avisos += [
+                    Aviso(cid, N.texto_cocina(coccion["receta"], coccion["paso"], texto), silencio=True)
+                    for cid in coccion["cocineros"] if self._quiere_narracion(cid)
+                ]
             elif ahora >= listo and not coccion.get("avisado"):
                 coccion["avisado"] = True
                 h.cocina = json.dumps(coccion)
@@ -419,6 +425,17 @@ class CocinaMixin:
                             f"🔔 <b>{texto}: ¡listo!</b> Toca ✅ antes de las {self._hora_sim(c, quema)} o se quema.",
                             [[("✅ Listo, siguiente paso", "coc:sig")]],
                         ))
+
+    def _narrar_paso(self, h, coccion: dict, listo: float, ahora: float) -> bool:
+        """A mitad de cada paso (de 3 min o más) toca contar qué estás haciendo. Lo marca si toca."""
+        minutos = C.RECETAS[coccion["receta"]].pasos[coccion["paso"]][1]
+        mitad = coccion["paso_ini"] + (listo - coccion["paso_ini"]) / 2
+        if minutos < N.COCINA_DESDE or ahora < mitad or coccion.get("narrado") == coccion["paso"]:
+            return False
+        coccion["narrado"] = coccion["paso"]
+        h.cocina = json.dumps(coccion)
+        self.db.guardar_hogar(h)
+        return True
 
     # ------------------------------------------------------------------
     # Comer de la nevera y táper

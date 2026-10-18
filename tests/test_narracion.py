@@ -3,6 +3,7 @@
 import pytest
 
 from simpareja import narracion as N
+from simpareja import vida as V
 from test_juego import ADMIN, ANA, aceptar, crear_personaje, invitar
 from test_vida import nuevo_juego, poner, Reloj
 
@@ -95,3 +96,43 @@ def test_en_cita_cada_uno_elige_su_plato(pareja, reloj):
     pareja.boton(ANA, "", "rplato:pizza")
     avisos = {a.para: a.texto for a in hasta(pareja, reloj, 21, inicio)}
     assert "pescado" in avisos[ADMIN] and "pizza" in avisos[ANA] and "conversan" in avisos[ADMIN]
+
+
+def test_otras_acciones_tambien_cuentan_lo_que_pasa(solo, reloj):
+    from test_vida import dar_objetos
+
+    dar_objetos(solo, ADMIN, "tv")
+    inicio = reloj()
+    solo.boton(ADMIN, "", "as:tele")  # 60 min
+    assert "Enciendes la tele" in hasta(solo, reloj, 7, inicio)[0].texto
+    assert "Anuncios" in hasta(solo, reloj, 31, inicio)[0].texto
+    assert set(N.ETAPAS) <= set(V.ACCIONES)  # cada narración es de una acción que existe
+
+
+def test_cocinando_explica_lo_que_hace(solo, reloj):
+    import json
+
+    from simpareja import cocina as C
+
+    h = solo._hogar(solo.db.jugador(ADMIN).sala_id)
+    h.despensa = json.dumps({i: 10 for i in C.RECETAS["huevos"].ingredientes})
+    solo.db.guardar_hogar(h)
+    inicio = reloj()
+    solo.boton(ADMIN, "", "coc:huevos:1")  # batir (2 min, sin mensajito) → cocinar (4 min) → tostar
+    assert hasta(solo, reloj, 1.5, inicio) == []
+    reloj.t = inicio + 2 * 60
+    solo.boton(ADMIN, "", "coc:sig")
+    (aviso,) = hasta(solo, reloj, 4.1, inicio)
+    assert "chisporrotean" in aviso.texto and aviso.silencio
+    assert hasta(solo, reloj, 4.5, inicio) == []  # una sola vez por paso
+
+
+def test_se_pueden_apagar(solo, reloj):
+    from test_vida import dar_objetos
+
+    assert "Mensajitos de lo que va pasando en cada acción: <b>Sí</b>" in solo.boton(ADMIN, "", "ajustes").pantalla.texto
+    assert "<b>No</b>" in solo.boton(ADMIN, "", "narr").pantalla.texto.split("Mensajitos")[1]
+    dar_objetos(solo, ADMIN, "tv")
+    inicio = reloj()
+    solo.boton(ADMIN, "", "as:tele")
+    assert hasta(solo, reloj, 31, inicio) == []
