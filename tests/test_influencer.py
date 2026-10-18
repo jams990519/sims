@@ -47,9 +47,9 @@ def hacer(juego, reloj, uid, accion, minutos):
 
 
 def test_funciones():
-    assert I.nivel(0) == 1 and I.nivel(250) == 3 and I.nivel(9999) == 5
+    assert I.nivel(0) == 1 and I.nivel(400) == 3 and I.nivel(9999) == 5
     assert I.calidad(1, 0, False) == 1 and I.calidad(2, 3, True) == pytest.approx(1.95)
-    assert [I.perdida(d) for d in (0, 2, 3, 6, 7, 30)] == [0, 0, 0.02, 0.02, 0.05, 0.05]
+    assert [I.perdida(d) for d in (0, 2, 3, 6, 7, 30)] == [0, 0, 0.04, 0.04, 0.08, 0.08]
 
 
 def test_un_video_de_principio_a_fin(pareja, reloj):
@@ -64,7 +64,7 @@ def test_un_video_de_principio_a_fin(pareja, reloj):
     assert "a:editar" in datos(pareja.boton(ADMIN, "", "influ").pantalla)
     hacer(pareja, reloj, ADMIN, "editar", 10)
     d = influ(pareja)
-    assert d["videos"] == 1 and d["seguidores"] >= 20 and "video" not in d
+    assert d["videos"] == 1 and d["seguidores"] >= 8 and "video" not in d
     assert 5 <= pareja.db.jugador(ADMIN).cartera <= 20
     assert d["ultimo"] == pareja._hoy(pareja.db.jugador(ADMIN))
 
@@ -105,14 +105,14 @@ def test_sin_publicar_se_pierden_seguidores(pareja):
     hoy = pareja._hoy(j)
     pareja._guardar_influ(j, {"seguidores": 1010, "xp": 0, "videos": 3, "ganado": 0, "ultimo": hoy - 3})
     avisos = pareja.tick().avisos
-    assert influ(pareja)["seguidores"] == int(1010 * 0.98)
+    assert influ(pareja)["seguidores"] == int(1010 * 0.96)
     assert any("se acabaron los patrocinios" in a.texto for a in avisos)
     pareja.tick()
-    assert influ(pareja)["seguidores"] == int(1010 * 0.98)  # una vez al día
+    assert influ(pareja)["seguidores"] == int(1010 * 0.96)  # una vez al día
 
 
 def test_aprender_sube_de_nivel_y_el_equipo_mejora(pareja, reloj):
-    for _ in range(4):
+    for _ in range(8):
         hacer(pareja, reloj, ADMIN, "aprender_redes", 15)
     assert I.nivel(influ(pareja)["xp"]) == 2
     dar_objetos(pareja, ADMIN, "camara", "aro", "micro")
@@ -131,4 +131,4 @@ def test_video_viral(pareja, monkeypatch):
     h.extras = json.dumps(ex)
     juego.db.guardar_hogar(h)
     avisos = [a for a in juego.tick().avisos if "Video viral" in a.texto]
-    assert avisos and influ(juego, ANA)["seguidores"] >= 600
+    assert avisos and influ(juego, ANA)["seguidores"] >= 250

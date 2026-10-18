@@ -70,7 +70,8 @@ def test_ver_y_aceptar_un_trabajo(juego):
     assert "Nivel 2: Fotógrafa · $16/h" in texto and "Nivel 3: Directora del estudio · $24/h" in texto
     assert "de lunes a viernes" in texto and "máximo 8 h al día" in texto
     res = juego.boton(ADMIN, "", "tomar:foto")
-    assert "¡Te contrataron!" in res.pantalla.texto and "¿qué hora es ahora donde estás?" in res.pantalla.texto
+    assert "¡Te contrataron!" in res.pantalla.texto and "¿dónde vives?" in res.pantalla.texto
+    assert "zonal:cuba:hor" in str(res.pantalla.botones) and "hor:tz:-240" in str(res.pantalla.botones)
     assert "📸 Asistente de estudio · $11/h" in juego.boton(ADMIN, "", "sim").pantalla.texto
 
 
@@ -355,8 +356,9 @@ def test_renunciar_y_empezar_de_cero(juego):
 
 
 def test_hora_local_en_ajustes(juego):
-    assert "🕒 Tu hora local: 08:00" in juego.boton(ADMIN, "", "ajustes").pantalla.texto
-    assert "zona:60" in str(juego.boton(ADMIN, "", "zona").pantalla.botones)
+    assert "🕒 Tu hora local: 08:00 · UTC−4" in juego.boton(ADMIN, "", "ajustes").pantalla.texto
+    assert "zonal:cuba" in str(juego.boton(ADMIN, "", "zona").pantalla.botones)
+    assert "zona:60" in str(juego.boton(ADMIN, "", "zona:otra").pantalla.botones)
     res = juego.boton(ADMIN, "", "zona:60")
     assert res.alerta == "🕒 Listo: tu hora es 13:00" and "🕒 Tu hora local: 13:00" in res.pantalla.texto
     juego.boton(ADMIN, "", "tomar:recepcion")

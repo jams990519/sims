@@ -16,12 +16,13 @@ import re
 import secrets
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from urllib.parse import quote
 
 from . import novedades as N
 from . import personaje as P
 from . import vida as V
+from . import zonas as Z
 from .config import Config
 from .db import DB, Invitacion, Jugador, UltimaConexion, Visitante
 from .animo_juego import AnimoMixin
@@ -244,8 +245,12 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
     # --- hora local de cada jugador ---------------------------------------
 
     def _local(self, j: Jugador, ts: float | None = None) -> datetime:
+        """La hora real del jugador: la de su lugar (con horario de verano) o su hora fija."""
         ts = self.reloj() if ts is None else ts
-        return datetime.fromtimestamp(ts + j.utc_offset * MINUTO, tz=timezone.utc).replace(tzinfo=None)
+        return Z.local(ts, j.extras, j.utc_offset, self.cfg.zona_por_defecto)
+
+    def _zona(self, j: Jugador) -> str | None:
+        return Z.zona_de(j.extras, j.utc_offset, self.cfg.zona_por_defecto)
 
     def _dia(self, j: Jugador, ts: float | None = None) -> int:
         """Día del Sim: 1 el día en que se creó (según la hora local del jugador)."""
@@ -640,6 +645,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "rplato": self._b_restaurante_plato,
             "rpostre": self._b_restaurante_postre,
             "narr": self._b_narracion,
+            "zonal": self._b_zona_lugar,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -1578,12 +1584,13 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
     def _b_ajustes(self, j: Jugador, arg: str, res: Resultado) -> None:
         avisos = "Sí" if j.avisos_conexion else "No"
         narracion = self._extras(j).get("narracion", True)
+        lugar = Z.nombre(self._zona(j), j.utc_offset)
         res.pantalla = Pantalla(
             "⚙️ <b>Ajustes</b>\n\n"
             f"👤 Personaje: {self._firma(j)}\n"
             f"🔔 Avisarme cuando alguien entra a mi sala: <b>{avisos}</b>\n"
             f"🎬 Mensajitos de lo que va pasando en cada acción: <b>{'Sí' if narracion else 'No'}</b>\n"
-            f"🕒 Tu hora local: {self._hora(j, self.reloj())}\n"
+            f"🕒 Tu hora local: {self._hora(j, self.reloj())} · {lugar}\n"
             f"🪪 Tu código de jugador (tu ID): <code>{j.id}</code>\n"
             f"🏷️ Versión del juego: {N.VERSION}",
             [
@@ -1597,23 +1604,55 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         )
 
     def _b_zona(self, j: Jugador, arg: str, res: Resultado) -> None:
-        """zona · zona:<minutos respecto a UTC>: el reloj del Sim usa la hora real del jugador."""
+        """zona · zona:otra · zona:<minutos respecto a UTC>: el reloj del Sim usa la hora real del jugador."""
         if arg.lstrip("-").isdigit() and int(arg) in ZONAS_HORARIAS:
             j.utc_offset = int(arg)
             extras = self._extras(j)
-            extras["hora_ok"] = True
+            extras.update(hora_ok=True, zona="")  # hora fija, sin horario de verano
             j.extras = json.dumps(extras)
             self.db.guardar_jugador(j)
             res.alerta = f"🕒 Listo: tu hora es {self._hora(j, self.reloj())}"
             self._b_ajustes(j, "", res)
             return
         ahora = self.reloj()
-        opciones = [(f"🕒 {_hora_en(o, ahora)}", f"zona:{o}") for o in ZONAS_HORARIAS]
+        if arg == "otra":
+            opciones = [(f"🕒 {_hora_en(o, ahora)}", f"zona:{o}") for o in ZONAS_HORARIAS]
+            res.pantalla = Pantalla(
+                "🕒 <b>Tu hora local</b>\n\n<b>¿Qué hora es ahora donde estás?</b>\n"
+                "<i>Con una hora fija no se ajusta sola al horario de verano.</i>",
+                [opciones[k:k + 4] for k in range(0, len(opciones), 4)] + [[("⬅️ Atrás", "zona")]],
+                clave="ajustes",
+            )
+            return
         res.pantalla = Pantalla(
-            "🕒 <b>Tu hora local</b>\n\nTu Sim vive con tu hora real. <b>¿Qué hora es ahora donde estás?</b>",
-            [opciones[k:k + 4] for k in range(0, len(opciones), 4)] + [[("⬅️ Atrás", "ajustes")]],
+            "🕒 <b>Tu hora local</b>\n\nTu Sim vive con la hora real de tu lugar (los horarios, las comidas, el "
+            "trabajo y los eventos), y se ajusta sola cuando cambia el horario de verano.\n\n"
+            f"Ahora: {self._hora(j, ahora)} · {Z.nombre(self._zona(j), j.utc_offset)}\n\n<b>¿Dónde vives?</b>",
+            self._botones_lugares(ahora, "") + [[("🕒 Otro lugar: elegir la hora", "zona:otra")],
+                                                [("⬅️ Atrás", "ajustes")]],
             clave="ajustes",
         )
+
+    def _botones_lugares(self, ahora: float, sufijo: str) -> Botones:
+        return en_filas([(f"{nombre} {_hora_en(Z.offset(clave, ahora), ahora)}", f"zonal:{clave}{sufijo}")
+                         for clave, nombre, _ in Z.LUGARES])
+
+    def _b_zona_lugar(self, j: Jugador, arg: str, res: Resultado) -> None:
+        """zonal:<lugar>[:hor]: seguir la hora real de ese lugar (y volver a Ajustes o al horario)."""
+        clave, _, volver = arg.partition(":")
+        if clave not in Z.POR_CLAVE:
+            self._b_zona(j, "", res)
+            return
+        extras = self._extras(j)
+        extras.update(hora_ok=True, zona=clave)
+        j.extras = json.dumps(extras)
+        j.utc_offset = Z.offset(clave, self.reloj())
+        self.db.guardar_jugador(j)
+        res.alerta = f"🕒 Listo: tu hora es {self._hora(j, self.reloj())} ({Z.POR_CLAVE[clave][0]})"
+        if volver == "hor":
+            self._b_horario(j, "", res)
+        else:
+            self._b_ajustes(j, "", res)
 
     def _b_avisos(self, j: Jugador, arg: str, res: Resultado) -> None:
         j.avisos_conexion = 0 if j.avisos_conexion else 1

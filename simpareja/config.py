@@ -41,6 +41,8 @@ class Config:
     max_invitaciones_activas: int = 5
     # Eventos sorpresa (uno o dos por semana); EVENTOS=0 los apaga.
     eventos: bool = True
+    # Lugar cuya hora real (con horario de verano) sigue quien no eligió otro: "cuba", "miami"…
+    zona_por_defecto: str = ""
     # Botones abajo, en el teclado de Telegram (siempre visibles); BOTONES_ABAJO=0 los deja en los mensajes.
     botones_abajo: bool = True
     # Opcionales, para servidores en países donde Telegram está bloqueado.
@@ -64,6 +66,7 @@ class Config:
             max_invitaciones_activas=int(e("MAX_INVITACIONES", cls.max_invitaciones_activas)),
             eventos=e("EVENTOS", "1") not in ("0", "no", "false"),
             botones_abajo=e("BOTONES_ABAJO", "1") not in ("0", "no", "false"),
+            zona_por_defecto=e("ZONA_POR_DEFECTO", "cuba"),
             proxy=e("TELEGRAM_PROXY", ""),
             api_url=e("TELEGRAM_API_URL", ""),
         )

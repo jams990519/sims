@@ -215,7 +215,7 @@ class TrabajoMixin:
             extras["hora_ok"] = False
         elif paso == "tz" and valor.lstrip("-").isdigit():
             j.utc_offset = int(valor)
-            extras["hora_ok"] = True
+            extras.update(hora_ok=True, zona="")  # hora fija
         elif paso == "d" and valor.isdigit() and 0 <= int(valor) <= 6:
             borrador["dias"] = sorted(set(borrador["dias"]) ^ {int(valor)})
         elif paso == "i" and valor in T.INICIOS:
@@ -240,9 +240,10 @@ class TrabajoMixin:
         lineas.append("🗓️ <b>Tu horario real de trabajo</b>")
         if not extras.get("hora_ok"):
             ahora = self.reloj()
-            lineas += ["", "Primero, para usar tu hora local: <b>¿qué hora es ahora donde estás?</b>"]
+            lineas += ["", "Primero, para usar tu hora real: <b>¿dónde vives?</b> (o qué hora es ahora donde estás)"]
             opciones = [(f"🕒 {_hora_en(o, ahora)}", f"hor:tz:{o}") for o in ZONAS_HORARIAS]
-            botones = [opciones[k:k + 4] for k in range(0, len(opciones), 4)] + [[("⬅️ Atrás", "trabajo")]]
+            botones = (self._botones_lugares(ahora, ":hor") + [opciones[k:k + 4] for k in range(0, len(opciones), 4)]
+                       + [[("⬅️ Atrás", "trabajo")]])
             res.pantalla = Pantalla("\n".join(lineas), botones, clave="trabajo")
             return
         lineas += [
