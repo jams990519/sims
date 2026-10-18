@@ -30,6 +30,7 @@ from .aniversario_juego import AniversarioMixin
 from .cocina_juego import CocinaMixin
 from .dinero_juego import DineroMixin
 from .caja_juego import CajaMixin
+from .intimo_juego import IntimoMixin
 from .estudios_juego import EstudiosMixin
 from .eventos_juego import EventosMixin
 from .hitos_juego import HitosMixin
@@ -165,6 +166,7 @@ LUGARES = {
     "influ": ("📱 Influencer", "preparando un video"),
     "estudios": ("📚 Estudios", "mirando sus estudios"),
     "caja": ("🐷 Caja de ahorros", "mirando la caja de ahorros"),
+    "intimo": ("💕 Pareja", "en el menú de pareja"),
     "ajustes": ("⚙️ Ajustes", "en los ajustes"),
     "renombrar": ("✏️ Cambiar nombre", "cambiando su nombre"),
 }
@@ -219,9 +221,12 @@ def en_filas(botones: list[tuple[str, str]], por_fila: int = 2) -> Botones:
     return [botones[i:i + por_fila] for i in range(0, len(botones), por_fila)]
 
 
+# Respuestas a la pareja que valen aunque el Sim esté en pausa.
+RESPUESTAS_EN_PAUSA = ("pj", "intsi", "intno", "into", "intpara")
+
 class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoMixin, RelacionMixin, PreguntasMixin,
             NotasMixin, EventosMixin, AniversarioMixin, RetosMixin, HitosMixin, ViajeMixin, BodaMixin, TiendasMixin,
-            MascotaMixin, InfluencerMixin, EstudiosMixin, CajaMixin):
+            MascotaMixin, InfluencerMixin, EstudiosMixin, CajaMixin, IntimoMixin):
     def __init__(self, db: DB, cfg: Config, reloj=time.time, rng: random.Random | None = None):
         self.db = db
         self.cfg = cfg
@@ -376,7 +381,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         if accion in ("continuar", "volver"):
             return self._continuar(j)
         # Con el Sim en pausa solo se puede continuar o responder a una propuesta de la pareja.
-        if j.estado == "activo" and self._congelado(j, self.reloj()) and accion != "pj":
+        if j.estado == "activo" and self._congelado(j, self.reloj()) and accion not in RESPUESTAS_EN_PAUSA:
             return self._pausa(j)
         res = self._tocar(j)
         if j.estado == "creando" and not accion.startswith("ap"):
@@ -622,6 +627,13 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "cajas": self._b_caja_sacar,
             "cajaok": self._b_caja_si,
             "cajano": self._b_caja_no,
+            "intimo": self._b_intimo,
+            "intl": self._b_intimo_lugar,
+            "intp": self._b_intimo_proponer,
+            "intsi": self._b_intimo_si,
+            "intno": self._b_intimo_no,
+            "into": self._b_intimo_opcion,
+            "intpara": self._b_intimo_parar,
         }
 
     def _texto_novedades(self, cambios: list[tuple[str, list[str]]], titulo: str) -> str:
@@ -1315,6 +1327,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "retos": self._b_retos, "hitos": self._b_hitos, "viaje": self._b_viaje,
             "comp": self._b_compromiso, "boda": self._b_boda, "objetos": self._b_objetos, "tienda": self._b_tienda,
             "mascota": self._b_mascota, "mascnombre": self._b_mascota, "influ": self._b_influencer,
+            "intimo": self._b_intimo,
             "caja": self._b_caja,
             "estudios": self._b_estudios,
         }.get(accion, self._b_menu)

@@ -348,6 +348,9 @@ class VidaMixin:
         if a is None:
             self._b_menu_acciones(j, "", res)
             return
+        if a.categoria == "intimo":  # solo desde 🔥 Momento íntimo
+            self._b_intimo(j, "", res)
+            return
         # Acciones con su propio menú: el súper, las recetas, el táper y qué comer.
         if clave == "super" and extra != "ir":
             self._b_super(j, "", res)
@@ -479,6 +482,9 @@ class VidaMixin:
         clave, _, extra = arg.partition(":")
         a = V.ACCIONES.get(clave)
         pareja = self._pareja_en_sala(j)
+        if a is not None and a.categoria == "intimo":  # solo desde 🔥 Momento íntimo
+            self._b_intimo(j, "", res)
+            return
         if a is None or a.juntos == V.SOLO or pareja is None:
             res.alerta = "Ahora no se puede hacer juntos."
             res.pantalla = self._pantalla_sim(j)

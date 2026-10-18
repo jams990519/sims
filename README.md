@@ -3,7 +3,7 @@
 Un juego de texto tipo *Los Sims* para jugar **en pareja** por Telegram ([@sims000bot](https://t.me/sims000bot)).
 Se entra **solo por invitación** y funciona en **cualquier país donde abra Telegram**, Cuba incluida.
 
-## Qué hay hasta ahora (versión 0.26)
+## Qué hay hasta ahora
 
 | | |
 |---|---|
@@ -25,6 +25,7 @@ Se entra **solo por invitación** y funciona en **cualquier país donde abra Tel
 | 📝 **Notas en la nevera** | Un jugador deja un mensaje en la nevera y su pareja lo ve al entrar al juego (o al volver de la pausa); mientras no lo lea, el menú y la sala lo marcan. También se dejan desde el trabajo. |
 | ❓ **Preguntas de pareja** | Según el color del ánimo aparecen preguntas (70, 10 por estado, de temas buenos y difíciles): al cambiar de ánimo o pidiendo una nueva. Los dos responden; el otro marca «me gustó» (sube su medidor y la respuesta va al álbum) o «no me gustó» (no baja nada solo: se ofrece hablarlo en el chat o bajar el medidor). Queda el registro de los temas que más gustan. |
 | 🎭 **Ánimo con foto** | Al cambiar de ánimo se elige el color y, si se quiere, una foto y una frase corta. La pareja recibe un aviso con la foto; en el perfil ve el color, la frase, la hora y la foto, y las fotos anteriores quedan en el 📸 álbum. Las fotos usan el almacenamiento de Telegram (se guarda solo su `file_id`). |
+| 🔥 **Momento íntimo** | En 💕 Pareja. Minijuego solo entre la pareja y solo si los dos quieren: uno propone lugar (cuarto, ducha, sofá) y ambiente (romántico, juguetón, apasionado); el otro acepta o dice «hoy no» sin castigo. Tres rondas de opciones elegidas a ciegas: si coinciden hay conexión (y más si va con el ambiente). Al final las luces se apagan (nada explícito): suben social, diversión y el medidor de los dos según la conexión, y se quedan 20 min descansando abrazados. Cualquiera puede parar; una vez cada 4 horas. |
 | 🎨 **Ánimo a la vista** | Cada jugador elige su estado de ánimo (🎭 Ánimo en el menú). Su color y su estado salen en el menú, en la sala, en la leyenda de 🏠 Casa y junto a su nombre en cada mensaje del chat. |
 | 🐷 **Caja de ahorros** | En 💰 Dinero. Se abre cuando la pareja lo decide (uno propone y el otro acepta; sin pareja, al momento). Cualquiera pone dinero de su cartera o de la compartida; lo de la caja no se gasta en facturas ni compras y gana un 1 % al mes. Sacarlo a la compartida lo deciden los dos. |
 | ⬆️⬇️ **Flechas y tu dinero** | En el menú, en 👤 Estado y en 🧍 Mis necesidades cada necesidad lleva ⬆️ o ⬇️ según cómo cambió desde que empezó la última acción (mientras se hace y al volver). El menú muestra 👛 **tu dinero**, que solo ves tú. |
@@ -134,6 +135,7 @@ simpareja/
 ├── menus.py        # menú principal, submenús y plano de la casa
 ├── plano.py        # dibujo del plano en texto (lógica pura)
 ├── caja_juego.py   # caja de ahorros de la pareja
+├── intimo_juego.py # minijuego del momento íntimo
 ├── bot.py          # adaptador de Telegram (python-telegram-bot)
 ├── db.py           # SQLite
 ├── config.py       # variables de entorno

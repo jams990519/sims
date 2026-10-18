@@ -3,9 +3,18 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.32"
+VERSION = "0.33"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.33", [
+        "🔥 <b>Momento íntimo</b> (💕 Pareja → Momento íntimo): un minijuego para los dos. Uno propone el lugar "
+        "(🛏️ cuarto, 🚿 ducha o 🛋️ sofá) y el ambiente (🕯️ romántico, 😏 juguetón o 🔥 apasionado), y la pareja "
+        "acepta o dice «hoy no», sin ningún castigo.",
+        "🎲 Tres rondas (preparar el momento, acercarse y el momento): cada uno elige sin ver lo que elige el otro. "
+        "Si eligen lo mismo hay conexión, y más si va con el ambiente que buscaban.",
+        "🌙 Al final las luces se apagan: suben el social, la diversión y el medidor de los dos, y se quedan un rato "
+        "descansando abrazados. 🛑 Cualquiera puede parar cuando quiera.",
+    ]),
     ("0.32", [
         "🎭 <b>Tu estado de ánimo, a la vista</b>: el menú muestra tu color y cómo te sientes "
         "(por ejemplo, 🟣 ✨ Con inspiración) y tiene el botón 🎭 Ánimo para cambiarlo cuando quieras.",
