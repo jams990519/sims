@@ -9,7 +9,6 @@ from __future__ import annotations
 import html
 
 from . import cocina as C
-from . import objetos as O
 from . import personaje as P
 from . import plano as PL
 from . import vida as V
@@ -38,7 +37,7 @@ class MenuMixin:
         lineas = [aviso, ""] if aviso else []
         lineas += [
             f"🎮 <b>Menú</b> · {self._firma(j)}{' · ' + animo if animo else ''}",
-            f"🕒 {self._reloj(j)} · 📍 {V.nombre_habitacion(j.lugar)}",
+            f"🕒 {self._reloj(j)} · {V.nombre_habitacion(j.lugar)}",
         ]
         haciendo = self._texto_accion(j, ahora)
         pausado = self._congelado(j, ahora)
@@ -71,24 +70,8 @@ class MenuMixin:
     # --- 🏠 Casa ---------------------------------------------------------
 
     def _b_menu_casa(self, j: Jugador, arg: str, res, aviso: str | None = None) -> None:
-        from .juego import Pantalla
-
-        lineas = [aviso, ""] if aviso else []
-        lineas += [
-            "🏠 <b>Casa</b>",
-            f"📍 Estás en: {V.nombre_habitacion(j.lugar)}",
-        ]
-        nuevas = self._notas_sin_leer(j)
-        if nuevas:
-            lineas.append("📝 ¡Hay una nota nueva para ti en la nevera!")
-        botones = [
-            [("🗺️ Ver plano", "plano"), ("🚶 Moverse", "moverse")],
-            [("🧊 Nevera y despensa", "nevera"), ("🪑 Objetos", "objetos")],
-            [("📝 Notas en la nevera" + (f" ({len(nuevas)})" if nuevas else ""), "notas"), ("🐾 Mascota", "mascota")],
-            [("🔑 Renta y mudanza", "casa")],
-            [("⬅️ Atrás", "menu")],
-        ]
-        res.pantalla = Pantalla("\n".join(lineas), botones, clave="mcasa")
+        """🏠 Casa: el plano, con dónde está cada jugador."""
+        res.pantalla = self._pantalla_plano(j, aviso)
 
     def _b_moverse(self, j: Jugador, volver: str, res) -> None:
         """moverse · moverse:plano (desde el plano, y vuelve a él)."""
@@ -156,48 +139,59 @@ class MenuMixin:
         if m.lugar == f"{V.FUERA}:viaje":
             return "✈️ de viaje"
         if m.lugar.startswith(V.FUERA):
-            return "📍 fuera de casa"
+            return "🚗 fuera de casa"
         if self._congelado(m, ahora):
             return "❄️ en pausa"
         return "🧍 sin hacer nada"
 
+    def _icono_en_plano(self, m: Jugador, ahora: float) -> str:
+        """El ícono de lo que hace, para ponerlo junto a su inicial en el plano ('' si no hace nada)."""
+        accion = self._accion(m)
+        a = V.ACCIONES.get(accion["k"]) if accion and accion["rfin"] > ahora else None
+        return PL.icono(a.emoji) if a is not None else ""
+
     def _pantalla_plano(self, j: Jugador, aviso: str | None = None):
-        """🏠 Casa → Ver plano: la casa en texto, con cada Sim donde está. Se actualiza sola."""
+        """🏠 Casa: el plano de la casa en texto, con cada jugador donde está. Se actualiza sola."""
         from .juego import CONTINUAR, Pantalla
 
         ahora = self.reloj()
-        casa = self._casa(self._hogar(j.sala_id))
+        h = self._hogar(j.sala_id)
+        casa = self._casa(h)
         miembros = [m for m in self.db.miembros_sala(j.sala_id) if m.estado in EN_JUEGO]
         miembros.sort(key=lambda m: m.id != j.id)  # primero tú
         letras = PL.iniciales([m.personaje for m in miembros])
         dentro, fuera = {}, []
         for m, letra in zip(miembros, letras):
+            marca = (letra, self._icono_en_plano(m, ahora))
             if m.lugar in casa.zonas:
-                dentro.setdefault(m.lugar, []).append(letra)
+                dentro.setdefault(m.lugar, []).append(marca)
             else:
-                fuera.append(letra)
-        mascota = self._mascota(self._hogar(j.sala_id))
-        if mascota:
-            marca = f"({mascota['nombre'].strip()[:1].upper() or '?'})"
-            paseando = any(m.lugar == f"{V.FUERA}:pasear" for m in miembros)
-            (fuera if paseando else dentro.setdefault("salon", [])).append(marca)
+                fuera.append(marca)
         lineas = [aviso, ""] if aviso else []
         pausado = self._congelado(j, ahora)
         if pausado:
             lineas += ["❄️ <b>Tu Sim está en pausa.</b> Toca ▶️ Continuar para seguir.", ""]
         lineas.append(f"{casa.emoji} <b>{casa.nombre}</b> — {V.reloj_texto(self._local(j))}")
-        en_plano = [O.OBJETOS[c].en_plano for c in O.OBJETOS if c in self._objetos(self._hogar(j.sala_id)) and O.OBJETOS[c].en_plano]
-        lineas.append("<pre>" + html.escape("\n".join(PL.dibujar(casa.zonas, dentro, en_plano))) + "</pre>")
+        lineas.append("<pre>" + html.escape("\n".join(PL.dibujar(casa.zonas, dentro))) + "</pre>")
         if fuera:
             lineas.append(f"🚗 Fuera de casa: {html.escape(PL.marcas(fuera))}")
+        lineas.append("")
         for m, letra in zip(miembros, letras):
             quien = f"{html.escape(m.personaje)}{' (tú)' if m.id == j.id else ''}"
             lineas.append(f"<code>[{html.escape(letra)}]</code> {quien}: {self._estado_en_plano(m, ahora)}")
+        mascota = self._mascota(h)
         if mascota:
-            lineas.append(f"<code>{html.escape(marca)}</code> {self._texto_mascota(mascota)}")
+            paseando = any(m.lugar == f"{V.FUERA}:pasear" for m in miembros)
+            lineas.append(self._texto_mascota(mascota) + (" · 🐕 de paseo" if paseando else ""))
+        nuevas = self._notas_sin_leer(j)
+        if nuevas:
+            lineas += ["", "📝 ¡Hay una nota nueva para ti en la nevera!"]
         botones = [
             [("🚶 Moverse", "moverse:plano"), ("⚡ Acciones", "macc")],
-            [("🔄 Actualizar", "plano"), ("⬅️ Atrás", "mcasa")],
+            [("🧊 Nevera", "nevera"), ("🪑 Objetos", "objetos")],
+            [("📝 Notas" + (f" ({len(nuevas)})" if nuevas else ""), "notas"), ("🐾 Mascota", "mascota")],
+            [("🔑 Renta y mudanza", "casa"), ("🔄 Actualizar", "plano")],
+            [("⬅️ Atrás", "menu")],
         ]
         if pausado:
             botones.insert(0, [CONTINUAR])

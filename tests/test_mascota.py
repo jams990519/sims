@@ -94,7 +94,8 @@ def test_pasear_al_perro_juntos_sube_la_relacion_y_cuenta_como_parque(pareja, re
     res = pareja.boton(ANA, "", "aj:pasear")
     si = next(d for fila in res.avisos[0].botones for _, d in fila if d.endswith(":1"))
     pareja.boton(ADMIN, "", si)
-    assert "Fuera de casa: [L][A](K)" in pareja.boton(ADMIN, "", "plano").pantalla.texto
+    texto = pareja.boton(ADMIN, "", "plano").pantalla.texto
+    assert "Fuera de casa: [L]🐕 [A]🐕" in texto and "🐕 de paseo" in texto
     reloj.avanzar(45)
     pareja.tick()
     assert mascota(pareja)["nec"]["felicidad"] == pytest.approx(80, abs=1)  # +40 una sola vez
@@ -127,7 +128,8 @@ def test_comida_en_las_facturas_y_cuidador_en_el_viaje(pareja):
 def test_en_el_plano(pareja):
     adoptar(pareja)
     texto = pareja.boton(ADMIN, "", "plano").pantalla.texto
-    assert "(K)" in texto.split("<pre>")[1] and "<code>(K)</code> 🐶 Kira: 🍖 100" in texto
+    assert "K" not in texto.split("<pre>")[1].split("</pre>")[0]  # el plano solo marca a los jugadores
+    assert "🐶 Kira: 🍖 100" in texto
 
 
 def test_si_se_la_descuida_hace_ruido_de_noche(pareja, reloj):

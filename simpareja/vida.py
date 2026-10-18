@@ -120,7 +120,7 @@ def nombre_habitacion(clave: str) -> str:
     if clave in ZONAS:
         emoji, nombre = ZONAS[clave]
         return f"{emoji} {nombre.lower() if clave != 'salon' else nombre}"
-    return "📍 fuera de casa"
+    return "🚗 fuera de casa"
 
 
 def estado_zona(suciedad: float) -> str:

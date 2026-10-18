@@ -57,7 +57,7 @@ def test_sin_tele_no_hay_tele_y_se_compra(pareja):
     assert any(a.para == ANA and "compró 📺 televisión" in a.texto for a in res.avisos)
     assert pareja.boton(ADMIN, "", "comprar:tv").alerta == "Eso no se puede comprar ahora."
     assert pareja.boton(ADMIN, "", "as:tele").alerta is None
-    assert "tele" in pareja.boton(ADMIN, "", "plano").pantalla.texto.split("<pre>")[1]
+    assert "tele" not in pareja.boton(ADMIN, "", "plano").pantalla.texto.split("<pre>")[1].split("</pre>")[0]  # el plano solo marca a los jugadores
 
 
 def test_sin_lavadora_se_paga_la_lavanderia(solo):

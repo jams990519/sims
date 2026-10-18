@@ -132,8 +132,8 @@ LUGARES = {
     "dinero": ("💰 Dinero", "revisando el dinero"),
     "mover": ("💰 Dinero", "moviendo dinero"),
     "facturas": ("📄 Facturas", "revisando las facturas"),
-    "casa": ("🏡 Casa", "mirando la casa"),
-    "plano": ("🗺️ Plano de la casa", "mirando el plano de la casa"),
+    "casa": ("🔑 Renta y mudanza", "mirando la renta y los servicios"),
+    "plano": ("🏠 Casa", "mirando la casa"),
     "mudanza": ("🚚 Renta y mudanza", "pensando en mudarse"),
     "trabajo": ("💼 Trabajo", "mirando su trabajo"),
     "super": ("🛒 Súper", "en el súper"),
@@ -401,7 +401,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             if j is None:
                 return self._visitante(uid, nombre_tg)
             return Resultado(pantalla=self._pantalla_conexion(j), nuevo=True)
-        data = {"sala": "sala", "menu": "menu", "sim": "sim", "dinero": "dinero", "casa": "casa", "plano": "plano",
+        data = {"sala": "sala", "menu": "menu", "sim": "sim", "dinero": "dinero", "casa": "mcasa", "plano": "plano",
                 "trabajo": "trabajo", "super": "super", "nevera": "nevera", "cocina": "cocina",
                 "invitar": "invitar", "ajustes": "ajustes",
                 "personajes": "pjs", "animo": "animos", "salir": "salir"}.get(nombre, "sala")
