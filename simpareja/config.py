@@ -41,6 +41,9 @@ class Config:
     max_invitaciones_activas: int = 5
     # Eventos sorpresa (uno o dos por semana); EVENTOS=0 los apaga.
     eventos: bool = True
+    # ¿Se pueden crear personajes nuevos? En el servidor, cerrado (REGISTRO_ABIERTO=1 lo abre); un admin lo
+    # cambia en ⚙️ Ajustes.
+    registro_abierto: bool = True
     # Lugar cuya hora real (con horario de verano) sigue quien no eligió otro: "cuba", "miami"…
     zona_por_defecto: str = ""
     # Botones abajo, en el teclado de Telegram (siempre visibles); BOTONES_ABAJO=0 los deja en los mensajes.
@@ -67,6 +70,7 @@ class Config:
             eventos=e("EVENTOS", "1") not in ("0", "no", "false"),
             botones_abajo=e("BOTONES_ABAJO", "1") not in ("0", "no", "false"),
             zona_por_defecto=e("ZONA_POR_DEFECTO", "cuba"),
+            registro_abierto=e("REGISTRO_ABIERTO", "0") in ("1", "si", "sí", "true"),
             proxy=e("TELEGRAM_PROXY", ""),
             api_url=e("TELEGRAM_API_URL", ""),
         )
