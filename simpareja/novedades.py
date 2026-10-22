@@ -3,9 +3,16 @@
 Para publicar un parche: sube VERSION y añade su entrada AL PRINCIPIO de NOVEDADES.
 """
 
-VERSION = "0.43"
+VERSION = "0.44"
 
 NOVEDADES: list[tuple[str, list[str]]] = [
+    ("0.44", [
+        "⏸️ <b>Pausa para los dos</b>: en el 🎮 Menú está <b>⏸️ Pausar el juego</b>. Mientras está en pausa no "
+        "avanza nada: ni el hambre ni las demás necesidades, ni el ánimo, ni lo que estén haciendo, la cocina, "
+        "el trabajo, las facturas o la mascota. Tampoco llegan avisos.",
+        "▶️ Cualquiera de los dos pausa y reanuda (al otro le llega un aviso corto). Al reanudar todo sigue "
+        "exactamente donde quedó, sin descontar el tiempo de la pausa. Mientras tanto pueden seguir chateando.",
+    ]),
     ("0.43", [
         "📸 <b>Cada acción trae su foto estilo anime</b>: el parque, el restaurante, el cine, la cocina, el masaje, "
         "los besos en el sofá, pasear al perro, la ducha, dormir… como un fotograma de una serie de anime, con los "

@@ -160,7 +160,7 @@ class VidaMixin:
         return texto
 
     def _descongelar(self, j: Jugador, ahora: float) -> None:
-        if j.estado == "activo" and self._congelado(j, ahora):
+        if j.estado == "activo" and self._congelado(j, ahora) and not self._pausa_pareja(j.sala_id):
             self._congelar(j, ahora)
             j.reloj_desde = ahora
             j.ultima_jugada = ahora
