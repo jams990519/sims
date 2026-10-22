@@ -33,6 +33,7 @@ from .dinero_juego import DineroMixin
 from .caja_juego import CajaMixin
 from .intimo_juego import IntimoMixin
 from .narracion_juego import NarracionMixin
+from .pausa_juego import EN_PAUSA, PausaMixin, SinPausadas
 from .estudios_juego import EstudiosMixin
 from .eventos_juego import EventosMixin
 from .hitos_juego import HitosMixin
@@ -171,6 +172,7 @@ LUGARES = {
     "estudios": ("📚 Estudios", "mirando sus estudios"),
     "caja": ("🐷 Caja de ahorros", "mirando la caja de ahorros"),
     "intimo": ("💕 Pareja", "en el menú de pareja"),
+    "pausa": ("⏸️ Juego en pausa", "con el juego en pausa"),
     "ajustes": ("⚙️ Ajustes", "en los ajustes"),
     "renombrar": ("✏️ Cambiar nombre", "cambiando su nombre"),
 }
@@ -230,7 +232,7 @@ RESPUESTAS_EN_PAUSA = ("pj", "intsi", "intno", "into", "intpara")
 
 class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoMixin, RelacionMixin, PreguntasMixin,
             NotasMixin, EventosMixin, AniversarioMixin, RetosMixin, HitosMixin, ViajeMixin, BodaMixin, TiendasMixin,
-            MascotaMixin, InfluencerMixin, EstudiosMixin, CajaMixin, IntimoMixin, NarracionMixin):
+            MascotaMixin, InfluencerMixin, EstudiosMixin, CajaMixin, IntimoMixin, NarracionMixin, PausaMixin):
     def __init__(self, db: DB, cfg: Config, reloj=time.time, rng: random.Random | None = None):
         self.db = db
         self.cfg = cfg
@@ -394,8 +396,13 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             j.estado = "activo"
         if accion in ("continuar", "volver"):
             return self._continuar(j)
+        # Con el juego de la pareja en pausa solo se puede reanudar, chatear y mirar los ajustes.
+        en_pausa = j.estado == "activo" and self._pausa_pareja(j.sala_id) is not None
+        if en_pausa and accion not in EN_PAUSA:
+            return self._pausa(j)
         # Con el Sim en pausa solo se puede continuar o responder a una propuesta de la pareja.
-        if j.estado == "activo" and self._congelado(j, self.reloj()) and accion not in RESPUESTAS_EN_PAUSA:
+        if (not en_pausa and j.estado == "activo" and self._congelado(j, self.reloj())
+                and accion not in RESPUESTAS_EN_PAUSA):
             return self._pausa(j)
         res = self._tocar(j)
         if j.estado == "creando" and not accion.startswith("ap"):
@@ -446,7 +453,9 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "🛒 Compran ingredientes en el súper y 🍳 cocinan paso a paso: ¡si te pasas de tiempo se quema!\n"
             "💬 En la sala, todo lo que escribas (texto, fotos, stickers, notas de voz) le llega a la otra persona.\n"
             f"🕒 El juego usa tu hora local real. Si pasas {self.cfg.pausa_min} min sin hacer nada, tu Sim se "
-            "congela ❄️ (no gasta necesidades); al volver tocas ▶️ Continuar y sigues donde lo dejaste.\n\n"
+            "congela ❄️ (no gasta necesidades); al volver tocas ▶️ Continuar y sigues donde lo dejaste.\n"
+            "⏸️ En el Menú, <b>Pausar el juego</b> congela todo para los dos (necesidades, acciones, cocina, "
+            "trabajo, facturas y avisos) hasta que cualquiera toque ▶️ Reanudar.\n\n"
             "Comandos: /start · /menu · /plano · /sim · /trabajo · /super · /cocina · /nevera · /dinero · /casa · /sala · /invitar · /personajes · /animo · /ajustes · /conexion · /novedades · /salir",
             [[SALA]],
         )
@@ -494,20 +503,25 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         """Se llama cada minuto: avanza a los Sims y detecta quién pasó a ausente o fuera de línea."""
         ahora = self.reloj()
         res = Resultado()
-        self._tick_vida(ahora, res)
-        self._tick_narracion(ahora, res)
-        self._tick_cocina(res)
-        self._tick_dinero(res)
-        self._tick_viaje(res)
-        self._tick_trabajo(res)
-        self._tick_mascota(res)
-        self._tick_influencer(res)
-        self._tick_estudios(res)
-        self._tick_eventos(res)
-        self._tick_aniversario(res)
-        self._tick_retos(res)
-        self._tick_boda(res)
-        self._tick_hitos(res)
+        real = self.db
+        self.db = SinPausadas(real, self._salas_en_pausa())  # lo que corre solo no ve las salas en pausa
+        try:
+            self._tick_vida(ahora, res)
+            self._tick_narracion(ahora, res)
+            self._tick_cocina(res)
+            self._tick_dinero(res)
+            self._tick_viaje(res)
+            self._tick_trabajo(res)
+            self._tick_mascota(res)
+            self._tick_influencer(res)
+            self._tick_estudios(res)
+            self._tick_eventos(res)
+            self._tick_aniversario(res)
+            self._tick_retos(res)
+            self._tick_boda(res)
+            self._tick_hitos(res)
+        finally:
+            self.db = real
         salas: set[int] = set()
         for j in self.db.jugadores_en_sala():
             estado = self._estado_presencia(j, ahora)
@@ -649,6 +663,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "intno": self._b_intimo_no,
             "into": self._b_intimo_opcion,
             "intpara": self._b_intimo_parar,
+            "pausar": self._b_pausar,
             "rplato": self._b_restaurante_plato,
             "rpostre": self._b_restaurante_postre,
             "narr": self._b_narracion,
@@ -1269,7 +1284,14 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             j.reloj_desde = None
 
     def _pausa(self, j: Jugador, nuevo: bool = False) -> Resultado:
-        """Pantalla de 'tu Sim estaba en pausa': hay que tocar Continuar para seguir."""
+        """Pantalla de 'tu Sim estaba en pausa': hay que tocar Continuar para seguir (o, con el juego de la
+        pareja en pausa, la pantalla de la pausa)."""
+        if self._pausa_pareja(j.sala_id):
+            res = self._tocar(j, jugada=False)
+            res.pantalla = self._pantalla_pausa_pareja(j)
+            res.nuevo = nuevo
+            self._anotar(j.id, res)
+            return res
         ahora = self.reloj()
         desde = self._limite_pausa(j) if j.ultima_jugada else j.ultima_actividad
         self._congelar(j, ahora)
@@ -1288,6 +1310,8 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
         return res
 
     def _continuar(self, j: Jugador) -> Resultado:
+        if self._pausa_pareja(j.sala_id):
+            return self._pausa(j)  # con el juego en pausa, se sigue con ▶️ Reanudar
         self._descongelar(j, self.reloj())
         return self._reanudar(j, nuevo=False, saludo="▶️ <b>¡Seguimos!</b>")
 
@@ -1376,6 +1400,7 @@ class Juego(VidaMixin, DineroMixin, TrabajoMixin, CocinaMixin, MenuMixin, AnimoM
             "mascota": self._b_mascota, "mascnombre": self._b_mascota, "influ": self._b_influencer,
             "intimo": self._b_intimo,
             "caja": self._b_caja,
+            "pausa": self._b_ver_pausa,
             "estudios": self._b_estudios,
         }.get(accion, self._b_menu)
         tmp = Resultado()

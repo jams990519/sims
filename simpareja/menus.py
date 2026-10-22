@@ -35,6 +35,7 @@ def _resumen_necesidades(nec: dict, flechas: dict | None = None) -> str:
 class MenuMixin:
     def _b_menu(self, j: Jugador, arg: str, res, aviso: str | None = None) -> None:
         from .juego import CONTINUAR, Pantalla
+        from .pausa_juego import PAUSAR
 
         ahora = self.reloj()
         animo = P.animo(j.ap)
@@ -63,6 +64,7 @@ class MenuMixin:
             [("📍 Lugares", "mlug"), ("💼 Trabajo", "trabajo")],
             [("💕 Pareja", "mpar"), ("👤 Estado", "mest")],
             [("💬 Chat", "sala"), ("🎭 Ánimo", "animos")],
+            [PAUSAR],
         ]
         if haciendo:
             botones.insert(0, [("⏹️ Parar lo que está haciendo", "parar")])
